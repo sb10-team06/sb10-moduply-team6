@@ -1,0 +1,263 @@
+# https://docs.coderabbit.ai/
+
+language: ko-KR # 리뷰 언어를 한국어로 사용
+early_access: false # 실험 기능 사용 안함
+
+chat:
+  auto_reply: true # PR 코멘트에서 @coderabbitai 를 언급했을 때 자동 응답 활용을 위한 설정
+  # PR에서 바로 물어보고 응답받기 가능
+  # '이 파일만 다시 봐줘' 같은 작업 지정 가능
+
+reviews:
+  changed_files_summary: true # 변경된 파일에 대한 요약 추가
+  sequence_diagrams: true # 복잡한 흐름을 시퀀스 다이어그램으로 설명하게 함
+  collapse_walkthrough: true # walkthrough 색션을 접은 상태로 둠
+
+  profile: assertive # 리뷰 스타일 지정 chill(기본값), assertive
+  request_changes_workflow: false # GitHub의 Request changes 워크플로우를 적극적으로 사용할지 여부
+  # false : 팀이 AI를 보조 Reviewer로 사용하고 싶을 때 적합
+  high_level_summary: true # 리뷰 상단에 이번 PR이 무엇을 바꾸는지 큰 그림 요약을 붙임
+  poem: false # 리뷰에 재미 요소 넣지 않음
+  review_status: true # 리뷰 완료 상태나 진행 상태를 PR에 표시
+  review_details: false # 리뷰에서 파일/라인 단위의 상세 walkthrough를 줄이는 설정
+  auto_review:
+    enabled: true # 자동리뷰 켬
+    drafts: false # Draft PR은 자동 리뷰하지 않음
+    base_branches:
+      - "main"
+      - "dev"
+
+  path_instructions:
+    # 1) 모든 파일에 적용되는 전역 컨텍스트
+    - path: "**/*"
+      instructions: |
+        프로젝트: 콘텐츠 큐레이션 및 실시간 같이보기 플랫폼
+
+        핵심 도메인 규칙 (위반 시 반드시 지적):
+
+        [사용자 / 인증]
+        - JWT 기반 인증/인가 사용
+        - CSRF 토큰은 쿠키(XSRF-TOKEN)에 저장, 헤더(X-XSRF-TOKEN)로 전달
+        - 로그인 시 기존 세션 강제 로그아웃 처리
+        - 권한은 ADMIN / USER 두 가지
+        - 어드민 계정은 서버 시작 시 자동 초기화
+        - 권한 변경 또는 계정 잠금 시 해당 사용자 자동 로그아웃
+        - 잠긴 계정은 로그인 불가
+
+        [비밀번호 초기화]
+        - 임시 비밀번호 만료 시간: 3분
+        - 사용자가 비밀번호 재설정 시 임시 비밀번호 파기
+        - 임시 비밀번호 확인은 로그인 API 그대로 활용
+
+        [소셜 로그인 (심화)]
+        - Google, Kakao 계정 연동 지원
+        - Kakao 이메일 미제공 시 {닉네임}_{회원ID}@kakao.com 가상 이메일 사용
+        - 소셜 로그인 실패 시 /#/sign-in?error=oauth_failed&error_message=... 로 리다이렉트
+
+        [콘텐츠]
+        - 콘텐츠 등록/수정/삭제는 ADMIN만 가능
+        - TMDB API: 영화/드라마 콘텐츠 수집
+        - The Sports DB API: 스포츠 경기 콘텐츠 수집
+        - 모든 콘텐츠 수집 배치 작업은 Spring Batch로 관리
+
+        [평가 및 큐레이션]
+        - 모든 콘텐츠에 의견/평점 등록 가능
+        - 사용자별 개인 플레이리스트(큐레이션) 생성 가능
+        - 다른 사용자의 플레이리스트 구독 가능
+        - 구독 중인 플레이리스트에 콘텐츠 추가 시 알림 발송
+
+        [실시간 같이보기 — WebSocket]
+        - 연결 엔드포인트: /ws
+        - WebSocket 연결 시 액세스 토큰을 헤더에 포함 → WebSocket Security로 인증
+        - 콘텐츠 시청 세션: SUBSCRIBE /sub/contents/{contentId}/watch (페이로드: WatchingSessionChange)
+        - 콘텐츠 실시간 채팅 수신: SUBSCRIBE /sub/contents/{contentId}/chat (페이로드: ContentChatDto)
+        - 콘텐츠 실시간 채팅 전송: SEND /pub/contents/{contentId}/chat (페이로드: ContentChatSendRequest)
+        - 채팅 메시지는 DB에 저장하지 않음
+
+        [DM (쪽지)]
+        - DM 수신: SUBSCRIBE /sub/conversations/{conversationId}/direct-messages (페이로드: DirectMessageDto)
+        - DM 전송: SEND /pub/conversations/{conversationId}/direct-messages (페이로드: DirectMessageSendRequest)
+        - 활성화된 대화의 DM: WebSocket으로 주고받음
+        - 다른 대화의 DM: SSE로 수신
+
+        [SSE (Server Sent Event)]
+        - 연결 엔드포인트: /api/sse
+        - 알림 이벤트 name: notifications (데이터: NotificationDto)
+        - DM 이벤트 name: direct-messages (데이터: DirectMessageDto)
+
+        [알림 발송 조건]
+        - 권한 변경
+        - 내 플레이리스트를 다른 사용자가 구독
+        - 구독 중인 플레이리스트에 콘텐츠 추가
+        - 팔로우한 사용자의 주요 활동 (플레이리스트 신규 등록, 실시간 콘텐츠 시청 등)
+        - 다른 사용자가 나를 팔로우
+        - DM 수신
+
+        [프로필]
+        - 프로필 사진, 이름 표시
+        - 현재 시청 중인 콘텐츠, 보유/구독 플레이리스트 표시
+        - 본인 프로필만 이름/사진 수정 가능
+        - 팔로우 기능 지원
+
+    # 2) REST 컨트롤러
+    - path: "**/controller/**/*.java"
+      instructions: |
+        - 모든 입력 DTO는 @Valid + Bean Validation으로 검증
+        - ADMIN 전용 엔드포인트는 권한 검증 누락 여부 확인
+        - 응답은 항상 DTO로 변환 — 엔티티 직접 노출 금지
+        - HTTP 상태 코드가 API 명세와 일치하는지 확인
+          (생성 201, 삭제 204, 입력 검증 실패 400, 인증 실패 401, 권한 없음 403, 리소스 없음 404, 중복 409, 서버 오류 500)
+        - 비즈니스 로직은 컨트롤러에 두지 말고 서비스로 위임
+        - multipart/form-data 처리 시 파일 크기/타입 검증 확인
+
+    # 3) 서비스
+    - path: "**/service/**/*.java"
+      instructions: |
+        - 변경 메서드는 @Transactional, 조회 전용은 readOnly = true
+        - 도메인 규칙 위반 시 의미 있는 커스텀 예외 throw
+        - ADMIN 전용 기능에서 권한 검증 누락 여부 확인
+        - JWT 토큰 발급/검증/만료 처리 적절성 확인
+        - 임시 비밀번호 만료(3분) 처리 로직 확인
+        - WebSocket / SSE 이벤트 발행 시 트랜잭션 범위 밖에서 처리 권장
+        - 외부 API(TMDB, The Sports DB) 호출 시 타임아웃·재시도·예외 매핑 적절성 확인
+        - 소셜 로그인 실패 시 리다이렉트 처리 누락 여부 확인
+        - N+1 쿼리 점검
+
+    # 4) Repository
+    - path: "**/repository/**/*.java"
+      instructions: |
+        - 커서 페이지네이션 사용 시 (정렬 키, createdAt) 복합 비교로 안정 페이징 보장
+        - 논리 삭제 사용 시 일반 조회 쿼리에 삭제 필터 일관 적용
+        - TMDB/SportsDB 데이터 저장 시 중복 방지 쿼리 확인
+        - 플레이리스트 구독, 팔로우 관계 쿼리의 조인 성능 검토
+
+    # 5) 엔티티
+    - path: "**/{entity,domain,model}/**/*.java"
+      instructions: |
+        - createdAt/updatedAt 자동 관리 (@CreatedDate, @LastModifiedDate)
+        - 비밀번호 필드 암호화 저장 여부 확인 (평문 저장 금지)
+        - 임시 비밀번호 만료 시간 필드 존재 여부 확인
+        - 사용자 권한(Role) 및 계정 잠금(locked) 필드 확인
+        - 콘텐츠: 제목, 설명, 타입(영화/드라마/스포츠), 외부 API ID, 썸네일 URL 등
+        - 플레이리스트: 사용자, 콘텐츠 목록, 공개 여부
+        - 알림: 수신자, 유형, 내용, 읽음 여부
+        - 연관관계 기본 LAZY
+
+    # 6) DTO
+    - path: "**/dto/**/*.java"
+      instructions: |
+        - Request DTO는 Bean Validation으로 명세 제약 표현
+          - 필수 필드: @NotNull / @NotBlank
+          - 이메일: @Email
+          - 비밀번호 형식: @Pattern
+        - Response DTO에 비밀번호 등 민감 필드 포함 금지
+        - NotificationDto, DirectMessageDto 구조가 SSE/WebSocket 명세와 일치하는지 확인
+
+    # 7) 예외 처리
+    - path: "**/exception/**/*.java"
+      instructions: |
+        - 도메인 의미를 담은 커스텀 예외 사용 (RuntimeException 직접 throw 지양)
+        - @RestControllerAdvice 글로벌 핸들러에서 명세 상태 코드와 일관 매핑
+          (400/401/403/404/409/500)
+        - 응답 바디에 스택 트레이스/내부 구현 노출 금지
+        - 소셜 로그인 실패 예외는 리다이렉트 응답으로 처리
+
+    # 8) 보안 / 인증
+    - path: "**/{security,auth,jwt,filter}/**/*.java"
+      instructions: |
+        - JWT 서명 키 하드코딩 금지 → 외부 설정(@Value)으로 주입
+        - CSRF 토큰: 쿠키명 XSRF-TOKEN, 헤더명 X-XSRF-TOKEN 일치 여부 확인
+        - WebSocket Security 설정 — 연결 시 JWT 토큰 검증 누락 여부 확인
+        - 권한 변경/계정 잠금 시 기존 세션/토큰 무효화 처리 확인
+        - CORS는 프론트엔드와 연동되는 도메인만 허용 (와일드카드 남발 금지)
+        - 비밀번호/토큰/개인정보는 절대 로그로 남기지 않을 것
+
+    # 9) WebSocket
+    - path: "**/{websocket,ws,stomp}/**/*.java"
+      instructions: |
+        - 연결 엔드포인트 /ws 설정 확인
+        - 인증 토큰 없는 WebSocket 연결 차단 여부 확인
+        - 채팅 메시지 DB 저장 금지 (메모리/브로드캐스트만)
+        - SUBSCRIBE/SEND 엔드포인트가 명세(/sub/..., /pub/...)와 일치하는지 확인
+        - 페이로드 타입(WatchingSessionChange, ContentChatDto, DirectMessageDto 등) 명세 일치 확인
+
+    # 10) SSE
+    - path: "**/{sse,event,notification}/**/*.java"
+      instructions: |
+        - SSE 연결 엔드포인트: /api/sse
+        - 이벤트 name 필드: notifications 또는 direct-messages 명세 일치 확인
+        - 연결 유지(heartbeat) 처리 여부 확인
+        - 다중 인스턴스 환경에서 SSE 이벤트 전달 누락 가능성 검토 (Redis Pub/Sub 등 활용 권장)
+        - 연결 해제 시 리소스 정리 확인
+
+    # 11) 배치 / 스케줄러
+    - path: "**/{batch,scheduler,job}/**/*.java"
+      instructions: |
+        - 모든 배치 작업은 Spring Batch로 관리
+        - TMDB API / The Sports DB API 수집 배치 멱등성 확인 (재실행 시 중복 데이터 방지)
+        - JobParameters에 실행 일자 포함
+        - skip/retry 정책 명시
+        - 커스텀 메트릭을 Spring Actuator로 노출
+        - 청크/페이징 처리로 대용량 OOM 방지
+
+    # 12) 외부 API 클라이언트
+    - path: "**/{client,external,tmdb,sports,oauth}/**/*.java"
+      instructions: |
+        - TMDB API: 영화/드라마 콘텐츠 수집용
+        - The Sports DB API: 스포츠 경기 콘텐츠 수집용
+        - Google/Kakao OAuth: 소셜 로그인용
+        - 자격 증명/API 키 하드코딩 금지 → 외부 설정 주입
+        - 타임아웃/재시도/에러 매핑 정책 명확화
+        - 외부 API 실패가 트랜잭션을 오염시키지 않도록 격리
+
+    # 13) 설정 클래스
+    - path: "**/config/**/*.java"
+      instructions: |
+        - 자격 증명/시크릿 하드코딩 금지 → @Value/@ConfigurationProperties 외부화
+        - Redis(캐시/세션), Kafka(이벤트/메시징) 설정 확인
+        - 분산 환경 고려: JWT 기반 세션, Redis 캐시, Kafka 이벤트 버스 설정 확인
+        - Docker Compose 로컬 분산 환경과 운영 환경 설정 분리 확인
+        - CORS는 프론트엔드 도메인만 허용
+
+    # 14) 테스트 (TDD)
+    - path: "**/src/test/**/*.java"
+      instructions: |
+        - TDD 원칙: Red-Green-Refactor 사이클, 단계별 커밋 권장
+        - 핵심 도메인 규칙 테스트 누락 여부:
+          - JWT 발급/검증/만료 처리
+          - CSRF 토큰 검증
+          - 로그인 시 기존 세션 강제 로그아웃
+          - 권한 변경/계정 잠금 후 자동 로그아웃
+          - 임시 비밀번호 만료(3분) 및 파기 처리
+          - ADMIN 전용 기능의 USER 접근 차단 (403)
+          - 콘텐츠 수집 배치 멱등성
+          - 플레이리스트 구독/알림 생성 시나리오
+          - WebSocket 인증 누락 시 연결 차단
+          - SSE 이벤트 정상 수신
+          - 소셜 로그인 실패 리다이렉트
+        - 테스트 메서드명은 시나리오를 명확히 (given-when-then 권장)
+        - 외부 API(TMDB, The Sports DB, Google/Kakao OAuth)는 모킹 또는 테스트더블 사용
+        - 전체 커버리지 80% 이상 — 신규 코드 테스트 누락 시 지적
+
+    # 15) GitHub Actions
+    - path: ".github/workflows/**/*.{yml,yaml}"
+      instructions: |
+        - 시크릿은 ${{ secrets.* }}로만 참조, 평문 금지
+        - PR 생성 시 테스트가 수행되어야 하고, 커버리지 80% 이상 게이트 적용
+        - AWS ECS 자동 배포 흐름 분리 명확성
+        - 액션 버전은 SHA 또는 메이저 태그 고정 (@latest/임의 브랜치 참조 금지)
+
+    # 16) 빌드 스크립트
+    - path: "**/*.{gradle,gradle.kts}"
+      instructions: |
+        - 테스트 커버리지 도구 설정 + 80% 임계값 게이트
+        - 커버리지 배지를 README에서 사용할 수 있도록 리포트 출력 경로 일관성
+        - 불필요한 플러그인/의존성 추가 점검
+
+    # 17) README
+    - path: "README.md"
+      instructions: |
+        - 프로젝트 개요, 팀원 구성, 기술 스택, 팀원별 구현 기능 명시
+        - 테스트 커버리지 배지가 메인 브랜치 기준으로 표시되어야 함
+        - 백엔드 배포 링크와 API 명세 링크 포함 권장
+        - WebSocket/SSE 명세 링크 포함 권장
