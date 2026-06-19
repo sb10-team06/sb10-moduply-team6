@@ -1,12 +1,26 @@
 spring:
   application:
-    name: monew
+    name: moduply
   profiles:
-    active: dev
-
-server:
-  port: 8080
+    active: local
+  jpa:
+    show-sql: false
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  sql:
+    init:
+      mode: never
+  batch:
+    job:
+      enabled: false
 
 logging:
   level:
-    root: INFO
+    root: info

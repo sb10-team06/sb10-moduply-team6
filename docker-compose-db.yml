@@ -1,0 +1,22 @@
+version: '3.9'
+services:
+  # Postgres DB
+  postgres-db:
+    container_name: moduply-postgres
+    image: postgres:15
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER_NAME:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      POSTGRES_DB: ${POSTGRES_DB:-moduply}
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=ko-KR"
+    env_file:
+      - .env
+
+# 볼륨 설정
+volumes:
+  postgres-data:
