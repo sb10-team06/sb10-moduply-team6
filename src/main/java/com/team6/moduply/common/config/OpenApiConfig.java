@@ -39,7 +39,6 @@ public class OpenApiConfig {
             .description("모두의 플레이리스트 프로젝트의 Swagger API 문서입니다.")
             .version("1.0")
         )
-        .addSecurityItem(securityRequirement)
         .components(new Components()
             .addSecuritySchemes("csrfToken", csrfScheme)
             .addSecuritySchemes("jwtToken", jwtScheme)
