@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/moduply}
+    username: ${POSTGRES_USER_NAME:admin}
+    password: ${POSTGRES_PASSWORD:0000}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        ddl-auto: validate
+        format_sql: true
+  batch:
+    jdbc:
+      initialize-schema: always
+
+logging:
+  level:
+    com.team6.moduply: debug
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace

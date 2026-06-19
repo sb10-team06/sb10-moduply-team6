@@ -35,3 +35,21 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 환경설정
+*.env
+
+### MacOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+### IntelliJ IDEA 추가 세팅 ###
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+
+# 로그 파일
+logs/
+*.log
