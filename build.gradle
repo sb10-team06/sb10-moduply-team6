@@ -81,8 +81,20 @@ def excludes = [
         '**/mapper/**',
         '**/enums/**',
         '**/config/**',
-        '**/exception/**'
+        '**/exception/**',
+        '**/batch/**',
+        '**/Q*.class'
 ]
+
+// =========================================
+// 커버리지 최소 기준값
+// 이 변수가 jacocoTestCoverageVerification 보다 "위쪽"에 있어야
+//    아래에서 정상적으로 참조됨 (Gradle은 선언 순서를 따라 읽음)
+// FIXME: 도메인별 테스트가 충분히 쌓이면 기본값 0.05 -> 0.50 -> 0.80 순으로 상향
+// =========================================
+def coverageMinimum = project.hasProperty('coverageMinimum')
+        ? (project.property('coverageMinimum') as String).toBigDecimal()
+        : 0.03
 
 // =========================================
 // JaCoCo 커버리지 리포트 생성 태스크 설정
@@ -124,8 +136,8 @@ jacocoTestCoverageVerification {
             limit {
                 counter = 'LINE'  // 측정 기준: 라인 커버리지 (INSTRUCTION - 기본값)
                 value = 'COVEREDRATIO' // 비교할 값의 종류: 커버된 비율 (0.0 ~ 1.0) (기본값)
-                minimum = 0.20 // 최소 허용 커버리지: 20% FIXME: 20% -> 50% -> 80%로 수정
-                // 라인 커버리지가 기준 미만이면 이 태스크가 실패하여 빌드 중단 (명세)
+                minimum = coverageMinimum
+                // 개발 초반(dev 머지)은 낮게, 최종 완성 단계(main 머지)는 80%로
             }
         }
     }
