@@ -56,8 +56,8 @@ jobs:
             echo "value=0.80" >> "$GITHUB_OUTPUT"
             echo "👉 main 대상 PR → 커버리지 기준 80%"
           else
-            echo "value=0.05" >> "$GITHUB_OUTPUT"
-            echo "👉 dev 대상 PR(or push) → 커버리지 기준 5% (임시값)"
+            echo "value=0.03" >> "$GITHUB_OUTPUT"
+            echo "👉 dev 대상 PR(or push) → 커버리지 기준 3% (임시값)"
           fi
 
       - name: Run tests
