@@ -40,12 +40,18 @@ tasks.named('test') {
     useJUnitPlatform {
         // 1. 제외할 태그 처리 (-PexcludeTags=integration)
         if (project.hasProperty('excludeTags')) {
-            excludeTags project.property('excludeTags').toString().split(',')
+            excludeTags project.property('excludeTags').toString()
+                    .split(',')
+                    .collect { it.trim() }
+                    .findAll{ !it.isEmpty() }
         }
 
         // 2. 포함할 태그 처리 (-PincludeTags=repository)
         if (project.hasProperty('includeTags')) {
-            includeTags project.property('includeTags').toString().split(',')
+            includeTags project.property('includeTags').toString()
+                    .split(',')
+                    .collect { it.trim() }
+                    .findAll{ !it.isEmpty() }
         }
     }
     systemProperty 'spring.profiles.active', 'test'

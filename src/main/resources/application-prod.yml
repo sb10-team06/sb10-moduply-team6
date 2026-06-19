@@ -11,4 +11,4 @@ spring:
 logging:
   level:
     com.team6.moduply: info
-    org.hibernate.SQL: info
+    org.hibernate.SQL: off
