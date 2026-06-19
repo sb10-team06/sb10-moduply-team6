@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: moduply
+  profiles:
+    active: local
+  jpa:
+    show-sql: false
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  sql:
+    init:
+      mode: never
+  batch:
+    job:
+      enabled: false
+
+logging:
+  level:
+    root: info
