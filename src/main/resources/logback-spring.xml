@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-  <property name="LOG_PATTERN"
-    value="%d{yy-MM-dd HH:mm:ss.SSS} [%X{request_id}] [%X{ip}] [%X{method} %X{uri}] [%thread] %-5level %logger{36} - %msg%n"/>
-  <property name="LOG_PATH" value=".logs"/>
+  <!-- 로그 레벨별 색상 설정 -->
+  <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter" />
+
+  <!-- MDC 값을 포함한 로그 패턴 설정 -->
+  <property name="LOG_PATTERN" value="%d{yy-MM-dd HH:mm:ss.SSS} [%thread] %clr(%-5level) %-36logger{36} [%X{requestId} | %X{requestMethod} | %X{requestUri}] - %msg%n"/>
+  <property name="LOG_FILE_PATH" value=".logs"/>
+  <property name="LOG_FILE_NAME" value="application"/>
 
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
@@ -108,25 +112,6 @@
       <appender-ref ref="BATCH_FILE"/>
       <appender-ref ref="ERROR_FILE"/>
     </logger>
-
-    <!-- 뉴스 기사 수집 배치 도입 시 활성화합니다.
-    <appender name="ARTICLE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-      <file>${LOG_PATH}/moduply-article.log</file>
-      <encoder>
-        <pattern>${LOG_PATTERN}</pattern>
-      </encoder>
-      <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-        <fileNamePattern>${LOG_PATH}/moduply-article.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-        <maxFileSize>200MB</maxFileSize>
-        <maxHistory>30</maxHistory>
-        <totalSizeCap>1GB</totalSizeCap>
-      </rollingPolicy>
-    </appender>
-    <logger name="com.team6.moduply.newsarticle" level="INFO" additivity="false">
-      <appender-ref ref="ARTICLE_FILE"/>
-      <appender-ref ref="ERROR_FILE"/>
-    </logger>
-    -->
 
   </springProfile>
 
