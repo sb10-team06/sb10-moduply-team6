@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 import java.util.UUID;
 
@@ -13,7 +13,7 @@ import java.util.UUID;
 /// Spring MVC 요청 처리 흐름에 끼어들기 위한 인터셉터.
 /// HTTP 요청 -> Filter -> Interceptor preHandle() -> Controller -> Service -> Repository -> Interceptor afterCompletion() -> 응답.
 @Slf4j
-public class MDCLoggingInterceptor implements HandlerInterceptor {
+public class MDCLoggingInterceptor implements AsyncHandlerInterceptor {
 
     //MDC 로깅에 사용되는 상수 정의
     public static final String REQUEST_ID = "requestId";
@@ -49,5 +49,17 @@ public class MDCLoggingInterceptor implements HandlerInterceptor {
         MDC.clear();
     }
 
+    /// 요청 스레드 A가 MDC.put()하고 Controller에서 비동기를 만나면
+    /// 그대로 응답 반환하고 스레드A는 풀로 돌아간다.
+    /// 이 과정에서 put()된 MDC정보가 들어갈 수 있어서 다음 요청시 이전 requestId가 섞일 수 있다.
+    /// afterConcurrentHandleingStarted()는 요청 스레드 반환직전 호출되어 MDC.clear한다.
+    @Override
+    public void afterConcurrentHandlingStarted(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Object handler
+    ) {
+        MDC.clear();
+    }
 
 }
