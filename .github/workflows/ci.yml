@@ -31,9 +31,15 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # 최소 권한만 부여
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -89,10 +95,6 @@ jobs:
       #     → 우리 팀은 보통 fork 없이 같은 레포 안에서 브랜치 PR을 주고
       #       받으므로 평소엔 거의 항상 조건이 true가 됨
       #
-      # skip_validation: true
-      #   → Codecov 업로드 액션이 내부적으로 codecov.yml의 문법을
-      #     검증하는 절차를 건너뜀. 검증 단계에서 발생할 수 있는
-      #     불필요한 실패(네트워크 이슈 등)를 줄이기 위한 옵션
       # ---------------------------------------------------------------------
       - name: Upload coverage to Codecov
         if: >
@@ -101,7 +103,6 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          skip_validation: true
           files: build/reports/jacoco/test/jacocoTestReport.xml
           flags: unittests
           fail_ci_if_error: 'true'
