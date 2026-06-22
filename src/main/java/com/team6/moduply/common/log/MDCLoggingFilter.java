@@ -43,11 +43,11 @@ public class MDCLoggingFilter extends OncePerRequestFilter {
         response.setHeader(REQUEST_ID_HEADER, requestId);
 
         try {
-            log.debug("요청 시작");
+            log.info("요청 시작");
             filterChain.doFilter(request, response);
         } finally {
             /// 응답 반환후 MDC.clear
-            log.debug("요청 처리 완료");
+            log.info("요청 처리 완료");
             MDC.clear();
         }
     }
