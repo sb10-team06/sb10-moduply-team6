@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.15'
     id 'io.spring.dependency-management' version '1.1.7'
+    // Jacoco 플러그인 추가
+    id 'jacoco'
 }
 
 group = 'com.team6.moduply'
@@ -13,6 +15,10 @@ java {
         languageVersion = JavaLanguageVersion.of(17)
     }
 }
+// jacoco 버전
+jacoco {
+    toolVersion = "0.8.11"
+}
 
 repositories {
     mavenCentral()
@@ -21,6 +27,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'org.postgresql:postgresql'
@@ -36,6 +43,11 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
 }
 
+// =========================================
+// 테스트 태스크 설정
+// A.dependsOn(B): A를 실행하려면 B가 먼저 실행되어야 함
+// A.finalizedBy(B): A가 실행되고 난 뒤 B가 반드시 실행됨 (A가 실패해도 B는 실행됨)
+// =========================================
 tasks.named('test') {
     useJUnitPlatform {
         // 1. 제외할 태그 처리 (-PexcludeTags=integration)
@@ -43,7 +55,7 @@ tasks.named('test') {
             excludeTags project.property('excludeTags').toString()
                     .split(',')
                     .collect { it.trim() }
-                    .findAll{ !it.isEmpty() }
+                    .findAll { !it.isEmpty() }
         }
 
         // 2. 포함할 태그 처리 (-PincludeTags=repository)
@@ -51,8 +63,100 @@ tasks.named('test') {
             includeTags project.property('includeTags').toString()
                     .split(',')
                     .collect { it.trim() }
-                    .findAll{ !it.isEmpty() }
+                    .findAll { !it.isEmpty() }
         }
     }
     systemProperty 'spring.profiles.active', 'test'
+
+    finalizedBy jacocoTestReport // test 태스크가 끝난 직후 jacocoTestReport 태스크를 자동으로 실행
+}
+
+// =========================================
+// 커버리지 집계에서 제외할 클래스 목록
+// 리포트와 검증 태스크 양쪽에서 공통으로 사용
+// =========================================
+def excludes = [
+        '**/entity/**',
+        '**/dto/**',
+        '**/mapper/**',
+        '**/enums/**',
+        '**/config/**',
+        '**/exception/**',
+        '**/batch/**',
+        '**/*Application.java',
+        '**/Q*.class'
+]
+
+// =========================================
+// 커버리지 최소 기준값
+// 이 변수가 jacocoTestCoverageVerification 보다 "위쪽"에 있어야
+//    아래에서 정상적으로 참조됨 (Gradle은 선언 순서를 따라 읽음)
+// dev 기준: 0.40 / main 기준: 0.80 (CI에서 -PcoverageMinimum으로 주입)
+// =========================================
+def coverageMinimum = project.hasProperty('coverageMinimum')
+        ? (project.property('coverageMinimum') as String).toBigDecimal()
+        : 0.03
+
+// =========================================
+// JaCoCo 커버리지 리포트 생성 태스크 설정
+// =========================================
+jacocoTestReport {
+    // jacocoTestReport 실행 전 test 태스크가 먼저 실행되도록 보장
+    dependsOn test
+    reports {
+        xml.required = true  // XML 리포트 생성 활성화 (CI / Codecov 업로드용)
+        html.required = true // HTML 리포트 생성 활성화 (개발자용 — build/reports/jacoco/test/html)
+    }
+
+    // 제외 규칙을 실제 커버리지 측정 대상 클래스 디렉터리에 적용
+    // https://www.baeldung.com/jacoco-report-exclude
+    classDirectories.setFrom(
+            // 기존 클래스 디렉터리 목록을 순회하며
+            // files() : Groovy 리스트 -> Gradle FileCollection 으로 타입 변환
+            // classDirectories.files : build/classes/java/main
+            files(classDirectories.files.collect {
+                // it = build/classes/java/main 디렉터리 각각
+                fileTree(dir: it, exclude: excludes)
+                // excludes에 매칭되는 파일을 제외한 파일 트리로 재구성
+            })
+    )
+
+    finalizedBy 'jacocoTestCoverageVerification' // 리포트 생성 후 커버리지 검증 태스크를 자동 실행
+}
+
+// =========================================
+// 테스트 커버리지 검증 태스크
+// 여기서 정한 minimum 미달 시 이 태스크가 실패 → build 실패로 이어짐
+// =========================================
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport // 검증 전에 리포트가 먼저 생성되도록 보장
+
+    violationRules {
+        rule {
+            element = 'BUNDLE' // 검증 단위 - 프로젝트 전체 (기본값)
+            limit {
+                counter = 'LINE'  // 측정 기준: 라인 커버리지 (INSTRUCTION - 기본값)
+                value = 'COVEREDRATIO' // 비교할 값의 종류: 커버된 비율 (0.0 ~ 1.0) (기본값)
+                minimum = coverageMinimum
+                // 개발 초반(dev 머지)은 낮게, 최종 완성 단계(main 머지)는 80%로
+            }
+        }
+    }
+
+    // 리포트와 동일한 제외 규칙 적용
+    classDirectories.setFrom(
+            files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: excludes)
+            })
+    )
+}
+
+// =========================================
+// build 태스크에 커버리지 검증 연결
+// './gradlew build' 실행 시에도 커버리지 검증이 강제되도록 설정
+// CI 파이프라인에서 build 명령어만으로도 커버리지 기준 검증 가능
+// 기준 미달 시 빌드 자체가 실패하므로 PR Merge가 차단됨
+// =========================================
+build {
+    dependsOn 'jacocoTestCoverageVerification'
 }
