@@ -53,3 +53,6 @@ Icon
 # 로그 파일
 logs/
 *.log
+
+AGENTS.md
+notes

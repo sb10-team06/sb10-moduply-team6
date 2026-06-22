@@ -1,0 +1,115 @@
+# =========================================================================
+# PR이 열리면 → 테스트 + 커버리지 검증 → Codecov 업로드 → 기준 미달이면 머지 차단
+# =========================================================================
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - 'docs/**'
+      - '**/.env.example'
+      - '**/*.example'
+      - '.gitignore'
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
+      - 'docs/**'
+      - '**/.env.example'
+      - '**/*.example'
+      - '.gitignore'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # 최소 권한만 부여
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # ---------------------------------------------------------------------
+      # PR의 목표 브랜치(main/dev)에 따라 커버리지 기준값을 분기
+      # main → 0.80, dev(또는 dev push) → 0.03 (현재 임시값, 점진적으로 상향)
+      # ---------------------------------------------------------------------
+      - name: Determine coverage threshold by target branch
+        id: coverage-threshold
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            echo "value=0.80" >> "$GITHUB_OUTPUT"
+            echo "👉 main 대상 PR → 커버리지 기준 80%"
+          else
+            echo "value=0.03" >> "$GITHUB_OUTPUT"
+            echo "👉 dev 대상 PR(or push) → 커버리지 기준 3% (임시값)"
+          fi
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Verify coverage threshold
+        run: ./gradlew jacocoTestCoverageVerification -PcoverageMinimum=${{ steps.coverage-threshold.outputs.value }}
+
+      # ---------------------------------------------------------------------
+      # Codecov 업로드
+      #
+      # if: 조건 설명
+      #   github.event_name == 'push'
+      #     → dev 브랜치에 "직접 push"된 경우는 항상 같은 레포 안의 동작이므로
+      #       무조건 업로드 시도
+      #
+      #   github.event.pull_request.head.repo.full_name == github.repository
+      #     → PR인 경우, "PR을 보낸 브랜치가 속한 레포"와 "이 워크플로우가
+      #       실행 중인 레포"가 같은지 비교.
+      #       같은 레포 안에서 만든 PR(예: feature/login → dev)이면 true.
+      #       외부 사용자가 자기 fork에서 보낸 PR이면 false.
+      #
+      #   왜 필요한가:
+      #     GitHub는 보안상 fork에서 온 PR에는 이 레포의 Secrets
+      #     (CODECOV_TOKEN 포함)를 넘겨주지 않음. 그 상태에서 토큰 없이
+      #     업로드를 시도하면 에러가 나거나 빈 토큰으로 실패하게 됨.
+      #     → 그래서 "토큰을 정상적으로 쓸 수 있는 상황"에서만 업로드를
+      #       시도하도록 조건을 걸어 불필요한 실패를 방지함
+      #     → 우리 팀은 보통 fork 없이 같은 레포 안에서 브랜치 PR을 주고
+      #       받으므로 평소엔 거의 항상 조건이 true가 됨
+      #
+      # ---------------------------------------------------------------------
+      - name: Upload coverage to Codecov
+        if: >
+          github.event_name == 'push' ||
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: build/reports/jacoco/test/jacocoTestReport.xml
+          flags: unittests
+          fail_ci_if_error: 'true'
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/reports/tests/test
