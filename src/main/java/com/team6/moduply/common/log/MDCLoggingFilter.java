@@ -22,7 +22,7 @@ public class MDCLoggingFilter extends OncePerRequestFilter {
     public static final String REQUEST_ID = "requestId";
     public static final String REQUEST_METHOD = "requestMethod";
     public static final String REQUEST_URI = "requestUri";
-    public static final String REQUEST_ID_HEADER = "Discodeit-Request-ID";
+    public static final String REQUEST_ID_HEADER = "Moduply-Request-ID";
 
     @Override
     protected void doFilterInternal(
