@@ -42,7 +42,6 @@ public class MDCLoggingFilter extends OncePerRequestFilter {
         // 응답 헤더에 요청 ID 추가
         response.setHeader(REQUEST_ID_HEADER, requestId);
 
-        /// HTTP 요청후 제일먼저 거치는 Filter
         try {
             log.debug("요청 시작");
             filterChain.doFilter(request, response);
