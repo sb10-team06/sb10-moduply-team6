@@ -1,6 +1,6 @@
 # 콘텐츠 큐레이션 및 실시간 같이보기 플랫폼
 
-[![codecov](https://codecov.io/gh/sb10-team06/sb10-moduply-team6/branch/main/graph/badge.svg)](https://codecov.io/gh/sb10-team06/sb10-moduply-team6)
+[![codecov](https://codecov.io/gh/sb10-team06/sb10-moduply-team6/graph/badge.svg)](https://codecov.io/gh/sb10-team06/sb10-moduply-team6)
 
 ## 프로젝트 소개
 
