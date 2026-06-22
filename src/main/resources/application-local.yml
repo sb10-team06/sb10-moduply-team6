@@ -13,6 +13,10 @@ spring:
   batch:
     jdbc:
       initialize-schema: always
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 logging:
   level:
