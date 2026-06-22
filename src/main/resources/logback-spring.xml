@@ -115,7 +115,7 @@
   </springProfile>
 
   <!-- ===================== TEST ===================== -->
-  <springProfile name="test">
+  <springProfile name="local, test">
 
     <root level="INFO">
       <appender-ref ref="CONSOLE"/>
