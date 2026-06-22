@@ -1,4 +1,4 @@
-package com.team6.moduply.common;
+package com.team6.moduply.common.error;
 
 import lombok.Getter;
 

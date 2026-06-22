@@ -1,4 +1,4 @@
-package com.team6.moduply.common;
+package com.team6.moduply.common.error;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
