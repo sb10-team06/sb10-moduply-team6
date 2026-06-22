@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -16,6 +18,8 @@ import java.util.UUID;
 /// HTTP 요청후 제일먼저 거치는 Filter
 @Slf4j
 @Component
+/// 가장먼저 실행되는 필터
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class MDCLoggingFilter extends OncePerRequestFilter {
 
     // MDC 로깅에 사용되는 상수 정의
