@@ -29,10 +29,6 @@ public class OpenApiConfig {
         .name("Authorization")
         .description("JWT 액세스 토큰 (로그인 후 발급)");
 
-    SecurityRequirement securityRequirement = new SecurityRequirement()
-        .addList("csrfToken")
-        .addList("jwtToken");
-
     return new OpenAPI()
         .info(new Info()
             .title("모두의 플레이리스트 API 문서")
