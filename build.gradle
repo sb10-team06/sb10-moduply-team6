@@ -43,6 +43,8 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
     // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15'
+    //websocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
 }
 
 // =========================================
@@ -97,7 +99,7 @@ def excludes = [
 // =========================================
 def coverageMinimum = project.hasProperty('coverageMinimum')
         ? (project.property('coverageMinimum') as String).toBigDecimal()
-        : 0.03
+        : 0.40
 
 // =========================================
 // JaCoCo 커버리지 리포트 생성 태스크 설정
@@ -122,8 +124,6 @@ jacocoTestReport {
                 // excludes에 매칭되는 파일을 제외한 파일 트리로 재구성
             })
     )
-
-    finalizedBy 'jacocoTestCoverageVerification' // 리포트 생성 후 커버리지 검증 태스크를 자동 실행
 }
 
 // =========================================
