@@ -1,4 +1,4 @@
-package domain.playlist.entity;
+package com.team6.moduply.playlist.entity;
 
 import com.team6.moduply.common.BaseEntity;
 import jakarta.persistence.Column;
