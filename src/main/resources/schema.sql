@@ -7,8 +7,8 @@ CREATE TABLE binary_contents (
                                  content_type VARCHAR(100) NOT NULL,
                                  storage_key TEXT NOT NULL,
                                  status VARCHAR(30) NOT NULL,
-                                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- 같은 S3 파일 경로 중복 저장 방지
                                  CONSTRAINT uk_binary_contents_storage_key UNIQUE (storage_key),
@@ -28,8 +28,8 @@ CREATE TABLE contents (
                           average_rating  NUMERIC(3,2) NOT NULL DEFAULT 0.00,
                           review_count    INT          NOT NULL DEFAULT 0,
                           watcher_count   BIGINT       NOT NULL DEFAULT 0,
-                          created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-                          updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+                          created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                          updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                           CONSTRAINT fk_contents_content_img
                               FOREIGN KEY (content_img_id)
@@ -85,8 +85,8 @@ CREATE TABLE playlists (
                            owner_id UUID NOT NULL,
                            title VARCHAR(100) NOT NULL,
                            description TEXT,
-                           created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                           updated_at TIMESTAMPTZ,
+                           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                            --FK 설정: 유저 삭제 시 플레이리스트 자동 삭제
                            CONSTRAINT fk_playlist_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
@@ -97,7 +97,7 @@ CREATE TABLE playlist_subscriptions (
                                         id UUID PRIMARY KEY,
                                         playlist_id UUID NOT NULL,
                                         subscriber_id UUID NOT NULL,
-                                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     --FK 설정: 플레이리스트나 유저 삭제 시 구독 데이터 자동 삭제
                                         CONSTRAINT fk_playlist_subscriptions_playlist FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
@@ -112,8 +112,8 @@ CREATE TABLE playlist_subscriptions (
                                             author_id UUID NOT NULL,
                                             text TEXT NOT NULL,
                                             rating DOUBLE PRECISION NOT NULL,
-                                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                                            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                            updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                                             -- FK 설정: 콘텐츠나 유저 삭제 시 리뷰 중복 방지
                                             CONSTRAINT fk_reviews_content FOREIGN KEY (content_id) REFERENCES contents(id) ON DELETE CASCADE,
@@ -129,7 +129,7 @@ CREATE TABLE playlist_contents (
                                    id UUID PRIMARY KEY,
                                    playlist_id UUID NOT NULL,
                                    content_id UUID NOT NULL,
-                                   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- FK 설정: 플레이리스트나 콘텐츠 삭제 시 연결 데이터 자동 삭제
                                    CONSTRAINT fk_playlist_contents_playlist FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
@@ -141,10 +141,10 @@ CREATE TABLE playlist_contents (
 
 -- 콘텐츠 태그 테이블 (tags)
 CREATE TABLE tags (
-                      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                      id          UUID PRIMARY KEY,
                       tag_name    VARCHAR(100) NOT NULL,
-                      created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-                      updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+                      created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      updated_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- 동일한 태그 이름 중복 생성 방지
                       CONSTRAINT uk_tags_name UNIQUE (tag_name)
@@ -154,7 +154,7 @@ CREATE TABLE tags (
 CREATE TABLE notifications (
                                id UUID PRIMARY KEY,
                                receiver_id UUID NOT NULL,
-                               created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                               created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                type VARCHAR(30) NOT NULL,
                                title VARCHAR(100) NOT NULL,
                                content VARCHAR(500) NOT NULL,
@@ -174,8 +174,8 @@ CREATE TABLE content_tags (
                               id          UUID PRIMARY KEY,
                               content_id  UUID        NOT NULL,
                               tag_id      UUID        NOT NULL,
-                              created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-                              updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+                              created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                              updated_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- FK 설정: 콘텐츠나 태그 삭제 시 연결 데이터 자동 삭제
                               CONSTRAINT fk_content_tags_content
@@ -202,8 +202,8 @@ CREATE TABLE follows (
                          follower_id UUID NOT NULL,
     -- 팔로우 대상 사용자
                          followee_id UUID NOT NULL,
-                         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                         created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                         updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- 팔로우 요청자 FK
     -- 사용자 삭제 시 팔로우 관계도 삭제
@@ -233,8 +233,8 @@ CREATE TABLE conversations (
                                id UUID PRIMARY KEY,
                                user1_id UUID NOT NULL,
                                user2_id UUID NOT NULL,
-                               created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                               updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                               created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                               updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- 첫 번째 참여 사용자 FK
                                CONSTRAINT fk_conversations_user1
@@ -265,8 +265,8 @@ CREATE TABLE direct_messages (
                                  content TEXT,
     -- 메시지 읽음 여부
                                  is_read BOOLEAN NOT NULL DEFAULT false,
-                                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- 대화방 삭제 시 메시지도 삭제
                                  CONSTRAINT fk_direct_messages_conversation
