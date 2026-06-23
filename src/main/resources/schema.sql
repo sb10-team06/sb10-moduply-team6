@@ -227,6 +227,7 @@ CREATE TABLE conversations (
                                user1_id UUID NOT NULL,
                                user2_id UUID NOT NULL,
                                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                               updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     -- 첫 번째 참여 사용자 FK
                                CONSTRAINT fk_conversations_user1
