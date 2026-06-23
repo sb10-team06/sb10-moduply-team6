@@ -1,15 +1,19 @@
 package com.team6.moduply.content.entity;
 
+import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.common.BaseEntity;
 import com.team6.moduply.content.enums.ContentType;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,8 +30,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Content extends BaseEntity {
 
-  @Column(name = "content_img_id")
-  private UUID contentImgId;
+  @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+  @JoinColumn(name = "content_img_id")
+  private BinaryContent contentImg;
 
   @Column(name = "external_api_id", length = 100)
   private String externalApiId;
@@ -42,9 +47,6 @@ public class Content extends BaseEntity {
   @Column(nullable = false, columnDefinition = "TEXT")
   private String description;
 
-  @Column(name = "thumbnail_url", length = 500)
-  private String thumbnailUrl;
-
   @Column(name = "average_rating", nullable = false, precision = 3, scale = 2)
   private BigDecimal averageRating = BigDecimal.ZERO;
 
@@ -55,18 +57,16 @@ public class Content extends BaseEntity {
   private long watcherCount = 0L;
 
   public Content(
-      UUID contentImgId,
+      BinaryContent contentImg,
       String externalApiId,
       ContentType type,
       String title,
-      String description,
-      String thumbnailUrl
+      String description
   ) {
-    this.contentImgId = contentImgId;
+    this.contentImg = contentImg;
     this.externalApiId = externalApiId;
     this.type = type;
     this.title = title;
     this.description = description;
-    this.thumbnailUrl = thumbnailUrl;
   }
 }
