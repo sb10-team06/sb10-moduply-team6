@@ -74,6 +74,10 @@ public class User extends BaseEntity {
   }
 
   public void updateProfileImg(BinaryContent profileImg) {
+    // 추후 커스텀 예외로 변경
+    if (!StringUtils.hasText(name)) {
+      throw new IllegalArgumentException("name must not be blank");
+    }
     this.profileImg = profileImg;
   }
 }
