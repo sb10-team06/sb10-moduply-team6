@@ -1,9 +1,8 @@
 package com.team6.moduply.binarycontent.entity;
 
+import com.team6.moduply.binarycontent.BinaryContentStatus;
 import com.team6.moduply.common.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
@@ -23,6 +22,7 @@ public class BinaryContent extends BaseEntity {
   @Column(name = "storage_key", nullable = false, columnDefinition = "TEXT", unique = true)
   private String storageKey;
 
-  @Column(nullable = false, length = 30)
-  private String status;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private BinaryContentStatus status;
 }

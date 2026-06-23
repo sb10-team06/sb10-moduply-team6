@@ -14,6 +14,7 @@ CREATE TABLE binary_contents (
                                  CONSTRAINT uk_binary_contents_storage_key UNIQUE (storage_key),
     -- 파일 크기는 0이상만 허용
                                  CONSTRAINT chk_binary_contents_size CHECK (size >= 0)
+                                 CONSTRAINT chk_binary_contents_status CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL'))
     );
 
 -- 콘텐츠 관리 테이블 (contents)
@@ -53,6 +54,12 @@ CREATE TABLE users (
                        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                        CONSTRAINT uk_users_email UNIQUE(email),
+                       -- binary_contents_id를 외래키로받는다.
+                       CONSTRAINT fk_users_profile_image
+                                FOREIGN KEY (profile_image_id)
+                                REFERENCES binary_contents(id)
+                                ON DELETE SET NULL,
+
                        CONSTRAINT chk_users_role CHECK (role IN ('USER', 'ADMIN'))
 );
 
