@@ -20,8 +20,7 @@ import lombok.NoArgsConstructor;
     uniqueConstraints =
         @UniqueConstraint(columnNames = {"provider", "provider_id"})
 )
-@NoArgsConstructor(access =
-    AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class SocialAccount extends BaseEntity {
   @Enumerated(EnumType.STRING)
@@ -32,7 +31,7 @@ public class SocialAccount extends BaseEntity {
   private String providerId;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id")
+  @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
   public SocialAccount(Provider provider, String providerId, User user) {

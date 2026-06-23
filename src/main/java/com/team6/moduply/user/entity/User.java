@@ -26,7 +26,7 @@ public class User extends BaseEntity {
 
   // 소셜 로그인시 비밀번호 필요없기 때문에 nullable = true
   @Column(name = "password")
-  private String password;
+  private String encodedPassword;
 
   @Column(name = "name", nullable = false)
   private String name;
@@ -37,15 +37,15 @@ public class User extends BaseEntity {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "role", nullable = false)
-  private Role role = Role.USER;
+  private Role role;
 
   @Column(name = "is_blocked")
   private boolean isBlocked = false;
 
 
-  public User(String email, String password, String name, Role role) {
+  public User(String email, String encodedPassword, String name, Role role) {
     this.email = email;
-    this.password = password;
+    this.encodedPassword = encodedPassword;
     this.name = name;
     this.role = role;
   }
@@ -59,7 +59,7 @@ public class User extends BaseEntity {
   }
 
   public void updateEncodedPassword(String encodedPassword){
-    this.password = encodedPassword;
+    this.encodedPassword = encodedPassword;
   }
 
   public void updateProfileImg(BinaryContent profileImg) {
