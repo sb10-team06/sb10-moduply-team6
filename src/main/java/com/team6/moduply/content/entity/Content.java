@@ -1,8 +1,11 @@
 package com.team6.moduply.content.entity;
 
 import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.content.enums.ContentType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -26,8 +29,9 @@ public class Content extends BaseEntity {
   @Column(name = "content_img_id")
   private UUID contentImgId;
 
+  @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 30)
-  private String type;
+  private ContentType type;
 
   @Column(nullable = false)
   private String title;
@@ -47,7 +51,13 @@ public class Content extends BaseEntity {
   @Column(name = "watcher_count", nullable = false)
   private long watcherCount = 0L;
 
-  public Content(UUID contentImgId, String type, String title, String description, String thumbnailUrl) {
+  public Content(
+      UUID contentImgId,
+      ContentType type,
+      String title,
+      String description,
+      String thumbnailUrl
+  ) {
     this.contentImgId = contentImgId;
     this.type = type;
     this.title = title;
