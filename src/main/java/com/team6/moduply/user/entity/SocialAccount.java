@@ -11,9 +11,11 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 @Entity
 @Table(name = "social_accounts",
@@ -35,8 +37,13 @@ public class SocialAccount extends BaseEntity {
   private User user;
 
   public SocialAccount(Provider provider, String providerId, User user) {
-    this.provider = provider;
+    this.provider = Objects.requireNonNull(provider, "provider must not be null");
+    this.user = Objects.requireNonNull(user, "user must not be null");
+    // 추후 커스텀 예외로 변경
+    if (!StringUtils.hasText(providerId)) {
+      throw new IllegalArgumentException("providerId must not be blank");
+    }
+
     this.providerId = providerId;
-    this.user = user;
   }
 }

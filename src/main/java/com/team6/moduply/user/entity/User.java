@@ -12,9 +12,11 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 @Entity
 @Table(name = "users")
@@ -44,10 +46,19 @@ public class User extends BaseEntity {
 
 
   public User(String email, String encodedPassword, String name, Role role) {
+    // 추후 커스텀 예외로 변경
+    if (!StringUtils.hasText(email)) {
+      throw new IllegalArgumentException("email must not be blank");
+    }
+    // 추후 커스텀 예외로 변경
+    if (!StringUtils.hasText(name)) {
+      throw new IllegalArgumentException("name must not be blank");
+    }
+
     this.email = email;
     this.encodedPassword = encodedPassword;
     this.name = name;
-    this.role = role;
+    this.role = Objects.requireNonNull(role, "role must not be null");
   }
 
   public void block() {
