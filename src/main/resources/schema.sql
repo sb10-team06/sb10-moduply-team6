@@ -44,21 +44,21 @@ CREATE INDEX idx_contents_type  ON contents (type);
 -- 사용자 관리 테이블 (users)
 CREATE TABLE users (
                        id UUID PRIMARY KEY,
-                       profile_image_id UUID,
+                       profile_img_id UUID,
                        email VARCHAR(100) NOT NULL,
                        password VARCHAR(255),
                        name VARCHAR(50) NOT NULL,
                        role VARCHAR(20) NOT NULL DEFAULT 'USER',
-                       is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+                       is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
                        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                        CONSTRAINT uk_users_email UNIQUE(email),
                        -- binary_contents_id를 외래키로받는다.
                        CONSTRAINT fk_users_profile_image
-                                FOREIGN KEY (profile_image_id)
-                                REFERENCES binary_contents(id)
-                                ON DELETE SET NULL,
+                           FOREIGN KEY (profile_image_id)
+                               REFERENCES binary_contents(id)
+                               ON DELETE SET NULL,
 
                        CONSTRAINT chk_users_role CHECK (role IN ('USER', 'ADMIN'))
 );
