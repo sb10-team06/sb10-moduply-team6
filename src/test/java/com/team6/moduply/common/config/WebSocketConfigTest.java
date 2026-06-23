@@ -100,7 +100,7 @@ class WebSocketConfigTest {
 
   @Test
   @DisplayName("허용하지 않은 오리진으로 웹소켓 연결 요청이 금지된다.")
-  void getErrorToConnectWebsocketWithForbiddenOrigi() throws Exception {
+  void getErrorToConnectWebsocketWithForbiddenOrigin() throws Exception {
     // given
 
     // 허용하지 않은 오리진(STOMP 혜더)
