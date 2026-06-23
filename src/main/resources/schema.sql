@@ -13,7 +13,7 @@ CREATE TABLE binary_contents (
     -- 같은 S3 파일 경로 중복 저장 방지
                                  CONSTRAINT uk_binary_contents_storage_key UNIQUE (storage_key),
     -- 파일 크기는 0이상만 허용
-                                 CONSTRAINT chk_binary_contents_size CHECK (size >= 0),
+                                 CONSTRAINT chk_binary_contents_size CHECK (size > 0),
                                  CONSTRAINT chk_binary_contents_status CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL'))
     );
 
