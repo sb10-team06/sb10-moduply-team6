@@ -56,7 +56,7 @@ CREATE TABLE users (
                        CONSTRAINT uk_users_email UNIQUE(email),
                        -- binary_contents_id를 외래키로받는다.
                        CONSTRAINT fk_users_profile_image
-                           FOREIGN KEY (profile_image_id)
+                           FOREIGN KEY (profile_img_id)
                                REFERENCES binary_contents(id)
                                ON DELETE SET NULL,
 
