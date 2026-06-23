@@ -25,14 +25,14 @@ public class PlaylistContent extends BaseEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "playlist_id", nullable = false)
-  private Playlist playlistId;
+  private Playlist playlist;
 
   @Column(nullable = false)
   private UUID contentId;
 
   @Builder
-  public PlaylistContent(Playlist playlistId, UUID contentId) {
-    this.playlistId = playlistId;
+  public PlaylistContent(Playlist playlist, UUID contentId) {
+    this.playlist = playlist;
     this.contentId = contentId;
   }
 
