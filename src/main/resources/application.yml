@@ -25,6 +25,10 @@ logging:
   level:
     root: info
 
+cors:
+  allowed-origins:
+    - "http://moduply.com"
+
 moduply:
   storage:
     s3:
