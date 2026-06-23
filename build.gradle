@@ -97,7 +97,7 @@ def excludes = [
 // =========================================
 def coverageMinimum = project.hasProperty('coverageMinimum')
         ? (project.property('coverageMinimum') as String).toBigDecimal()
-        : 0.03
+        : 0.40
 
 // =========================================
 // JaCoCo 커버리지 리포트 생성 태스크 설정
