@@ -29,6 +29,9 @@ public class Content extends BaseEntity {
   @Column(name = "content_img_id")
   private UUID contentImgId;
 
+  @Column(name = "external_api_id", length = 100)
+  private String externalApiId;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 30)
   private ContentType type;
@@ -53,12 +56,14 @@ public class Content extends BaseEntity {
 
   public Content(
       UUID contentImgId,
+      String externalApiId,
       ContentType type,
       String title,
       String description,
       String thumbnailUrl
   ) {
     this.contentImgId = contentImgId;
+    this.externalApiId = externalApiId;
     this.type = type;
     this.title = title;
     this.description = description;
