@@ -1,5 +1,6 @@
 package com.team6.moduply.playlist.dto;
 
+import com.team6.moduply.content.enums.ContentType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -51,7 +52,7 @@ public record PlaylistDto(
       UUID id,
 
       @Schema(description = "콘텐츠 타입")
-      String type,
+      ContentType type,
 
       @Schema(description = "콘텐츠 제목")
       String title,
