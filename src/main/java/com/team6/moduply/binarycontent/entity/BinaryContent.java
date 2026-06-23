@@ -1,4 +1,4 @@
-package com.team6.moduply.binaryContent.entity;
+package com.team6.moduply.binarycontent.entity;
 
 import com.team6.moduply.common.BaseEntity;
 import jakarta.persistence.Entity;

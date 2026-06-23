@@ -1,6 +1,6 @@
 package com.team6.moduply.user.entity;
 
-import com.team6.moduply.binaryContent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.common.BaseEntity;
 import com.team6.moduply.user.enums.Role;
 import jakarta.persistence.CascadeType;
