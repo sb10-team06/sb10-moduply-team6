@@ -56,5 +56,6 @@ ignore:
   - "**/enums/**"
   - "**/exception/**"
   - "**/batch/**"
+  - "**/common/pagination/**"
   - "**/*Application.java"
   - "**/Q*.class"
