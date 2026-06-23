@@ -1,4 +1,4 @@
-package domain.playlist.entity;
+package com.team6.moduply.playlist.entity;
 
 import com.team6.moduply.common.BaseEntity;
 import jakarta.persistence.Column;
@@ -16,24 +16,24 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
-    name = "playlist_contents",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"playlist_id", "content_id"})
+    name = "playlist_subscriptions",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"playlist_id", "subscriber_id"})
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PlaylistContent extends BaseEntity {
+public class PlaylistSubscription extends BaseEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "playlist_id", nullable = false)
   private Playlist playlist;
 
   @Column(nullable = false)
-  private UUID contentId;
+  private UUID subscriberId;
 
   @Builder
-  public PlaylistContent(Playlist playlist, UUID contentId) {
+  public PlaylistSubscription(Playlist playlist, UUID subscriberId) {
     this.playlist = playlist;
-    this.contentId = contentId;
+    this.subscriberId = subscriberId;
   }
 
 }

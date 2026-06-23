@@ -5,6 +5,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+
+import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;
 import org.hibernate.annotations.Check;
@@ -41,6 +43,11 @@ public class Conversation extends BaseEntity {
 
     /// 자기자신과 대화방 생성x
     public static Conversation create(UUID userAId, UUID userBId) {
+        // 사용자 ID null 검증
+        Objects.requireNonNull(userAId, "userAId는 null일 수 없습니다.");
+
+        Objects.requireNonNull(userBId, "userBId는 null일 수 없습니다.");
+
         /// 자기자신과 대화방 생성x
         if (userAId.equals(userBId)) {
             throw new IllegalArgumentException("자기 자신과 대화방을 생성할 수 없습니다.");

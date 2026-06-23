@@ -12,8 +12,8 @@ CREATE TABLE binary_contents (
 
     -- 같은 S3 파일 경로 중복 저장 방지
                                  CONSTRAINT uk_binary_contents_storage_key UNIQUE (storage_key),
-    -- 파일 크기는 0이상만 허용
-                                 CONSTRAINT chk_binary_contents_size CHECK (size >= 0)
+    -- 파일 크기는 0초과만 허용
+                                 CONSTRAINT chk_binary_contents_size CHECK (size > 0),
                                  CONSTRAINT chk_binary_contents_status CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL'))
     );
 
@@ -55,8 +55,8 @@ CREATE TABLE users (
 
                        CONSTRAINT uk_users_email UNIQUE(email),
                        -- binary_contents_id를 외래키로받는다.
-                       CONSTRAINT fk_users_profile_image
-                           FOREIGN KEY (profile_image_id)
+                       CONSTRAINT fk_users_profile_img
+                           FOREIGN KEY (profile_img_id)
                                REFERENCES binary_contents(id)
                                ON DELETE SET NULL,
 

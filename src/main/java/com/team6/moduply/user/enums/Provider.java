@@ -1,5 +1,5 @@
 package com.team6.moduply.user.enums;
 
-public enum Role {
-  ADMIN, USER
+public enum Provider {
+  GOOGLE, KAKAO
 }
