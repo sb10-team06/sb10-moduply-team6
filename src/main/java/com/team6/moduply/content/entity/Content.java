@@ -1,7 +1,7 @@
 package com.team6.moduply.content.entity;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseEntity;
 import com.team6.moduply.content.enums.ContentType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
