@@ -6,6 +6,7 @@ import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,7 +46,13 @@ class PlaylistServiceTest {
         .description(request.description())
         .build();
 
+    PlaylistDto expectedDto = new PlaylistDto(
+        UUID.randomUUID(), null, "내 최애 영화",
+        "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
+    );
+
     given(playlistRepository.save(any(Playlist.class))).willReturn(savedPlaylist);
+    given(playlistMapper.toDto(any(Playlist.class))).willReturn(expectedDto);
 
     // when
     PlaylistDto result = playlistService.create(request, ownerId);
