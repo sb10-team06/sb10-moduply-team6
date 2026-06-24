@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class PlaylistServiceTest {
@@ -52,12 +53,13 @@ class PlaylistServiceTest {
     );
 
     given(playlistRepository.save(any(Playlist.class))).willReturn(savedPlaylist);
-    given(playlistMapper.toDto(any(Playlist.class))).willReturn(expectedDto);
+    given(playlistMapper.toDto(savedPlaylist)).willReturn(expectedDto);
 
     // when
     PlaylistDto result = playlistService.create(request, ownerId);
 
     // then
+    verify(playlistMapper).toDto(savedPlaylist);
     assertThat(result.title()).isEqualTo("내 최애 영화");
     assertThat(result.description()).isEqualTo("비 오는 날 보기 좋은 영화들");
   }
