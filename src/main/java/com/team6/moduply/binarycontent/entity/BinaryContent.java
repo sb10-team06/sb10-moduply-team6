@@ -1,14 +1,14 @@
 package com.team6.moduply.binarycontent.entity;
 
 import com.team6.moduply.binarycontent.BinaryContentStatus;
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
 @Getter
 @Table(name = "binary_contents")
-public class BinaryContent extends BaseEntity {
+public class BinaryContent extends BaseUpdatableEntity {
 
   @Column(name = "file_name", nullable = false, length = 100)
   private String fileName;

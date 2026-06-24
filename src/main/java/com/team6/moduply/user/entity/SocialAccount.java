@@ -1,6 +1,7 @@
 package com.team6.moduply.user.entity;
 
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import com.team6.moduply.user.enums.Provider;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,7 +25,7 @@ import org.springframework.util.StringUtils;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class SocialAccount extends BaseEntity {
+public class SocialAccount extends BaseUpdatableEntity {
   @Enumerated(EnumType.STRING)
   @Column(name = "provider", nullable = false)
   private Provider provider;
