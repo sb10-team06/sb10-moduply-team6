@@ -24,7 +24,9 @@ public class UserController implements UserApi {
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
   @Override
   public ResponseEntity<UserDto> postUser(@Valid @RequestBody UserCreateRequest request) {
+    log.info("회원가입 요청 수신");
     UserDto response = userService.createUser(request);
+    log.info("회원가입 요청 처리 완료. userId={}", response.getId());
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 }
