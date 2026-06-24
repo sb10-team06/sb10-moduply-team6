@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
@@ -57,9 +58,11 @@ class PlaylistServiceTest {
     UUID ownerId = UUID.randomUUID();
     PlaylistCreateRequest request = new PlaylistCreateRequest("", "설명");
 
+    given(playlistRepository.save(any(Playlist.class)))
+        .willThrow(new IllegalArgumentException("제목은 필수입니다."));
+
     // when & then
-    // @NotBlank는 컨트롤러 레벨에서 검증되므로
-    // 서비스에서 빈 제목으로 저장 시도하면 엔티티 제약조건 위반 확인
-    assertThat(request.title()).isBlank();
+    assertThatThrownBy(() -> playlistService.create(request, ownerId))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
