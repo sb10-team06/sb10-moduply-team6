@@ -304,5 +304,3 @@ CREATE TABLE direct_messages (
                                          REFERENCES users(id)
                                          ON DELETE CASCADE
 );
-message.txt
-13KB

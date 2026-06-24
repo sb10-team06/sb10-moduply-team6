@@ -1,6 +1,6 @@
 package com.team6.moduply.content.entity;
 
-import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
     }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Tag extends BaseEntity {
+public class Tag extends BaseUpdatableEntity {
 
   @Column(name = "tag_name", nullable = false, length = 100)
   private String tagName;

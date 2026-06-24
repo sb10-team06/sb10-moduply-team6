@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "notifications")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Notification extends BaseUpdatableEntity {
+public class Notification extends BaseEntity {
 
   @Column(nullable = false)
   private UUID receiverId;
