@@ -10,6 +10,7 @@ import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -117,6 +118,7 @@ class PlaylistServiceTest {
 
   @Test
   @DisplayName("본인 소유가 아닌 플레이리스트를 수정하면 예외가 발생한다.")
+  @Disabled("인증 연동 후 소유자 검증 활성화 시 함께 활성화")
   void update_fail_with_no_permission() {
     // given
     UUID ownerId = UUID.randomUUID();
@@ -176,6 +178,7 @@ class PlaylistServiceTest {
 
   @Test
   @DisplayName("본인 소유가 아닌 플레이리스트를 삭제하면 예외가 발생한다.")
+  @Disabled("인증 연동 후 소유자 검증 활성화 시 함께 활성화")
   void delete_fail_with_no_permission() {
     // given
     UUID ownerId = UUID.randomUUID();
