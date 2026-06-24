@@ -10,7 +10,6 @@ import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -116,28 +115,28 @@ class PlaylistServiceTest {
     verify(playlistMapper).toDto(playlist);
   }
 
-  @Test
-  @DisplayName("본인 소유가 아닌 플레이리스트를 수정하면 예외가 발생한다.")
-  @Disabled("인증 연동 후 소유자 검증 활성화 시 함께 활성화")
-  void update_fail_with_no_permission() {
-    // given
-    UUID ownerId = UUID.randomUUID();
-    UUID otherId = UUID.randomUUID();
-    UUID playlistId = UUID.randomUUID();
-    PlaylistUpdateRequest request = new PlaylistUpdateRequest("수정된 제목", "수정된 설명");
-
-    Playlist playlist = Playlist.builder()
-        .ownerId(otherId)
-        .title("원래 제목")
-        .description("원래 설명")
-        .build();
-
-    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-
-    // when & then
-    assertThatThrownBy(() -> playlistService.update(playlistId, request, ownerId))
-        .isInstanceOf(PlaylistException.class);
-  }
+  // TODO: 인증 연동 후 소유자 검증 활성화 시 주석 해체
+//  @Test
+//  @DisplayName("본인 소유가 아닌 플레이리스트를 수정하면 예외가 발생한다.")
+//  void update_fail_with_no_permission() {
+//    // given
+//    UUID ownerId = UUID.randomUUID();
+//    UUID otherId = UUID.randomUUID();
+//    UUID playlistId = UUID.randomUUID();
+//    PlaylistUpdateRequest request = new PlaylistUpdateRequest("수정된 제목", "수정된 설명");
+//
+//    Playlist playlist = Playlist.builder()
+//        .ownerId(otherId)
+//        .title("원래 제목")
+//        .description("원래 설명")
+//        .build();
+//
+//    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+//
+//    // when & then
+//    assertThatThrownBy(() -> playlistService.update(playlistId, request, ownerId))
+//        .isInstanceOf(PlaylistException.class);
+//  }
 
   @Test
   @DisplayName("존재하지 않는 플레이리스트를 수정하면 예외가 발생한다.")
@@ -176,27 +175,27 @@ class PlaylistServiceTest {
     verify(playlistRepository).delete(playlist);
   }
 
-  @Test
-  @DisplayName("본인 소유가 아닌 플레이리스트를 삭제하면 예외가 발생한다.")
-  @Disabled("인증 연동 후 소유자 검증 활성화 시 함께 활성화")
-  void delete_fail_with_no_permission() {
-    // given
-    UUID ownerId = UUID.randomUUID();
-    UUID otherId = UUID.randomUUID();
-    UUID playlistId = UUID.randomUUID();
-
-    Playlist playlist = Playlist.builder()
-        .ownerId(otherId)
-        .title("제목")
-        .description("설명")
-        .build();
-
-    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-
-    // when & then
-    assertThatThrownBy(() -> playlistService.delete(playlistId, ownerId))
-        .isInstanceOf(PlaylistException.class);
-  }
+  // TODO: 인증 연동 후 소유자 검증 활성화 시 주석 해체
+//  @Test
+//  @DisplayName("본인 소유가 아닌 플레이리스트를 삭제하면 예외가 발생한다.")
+//  void delete_fail_with_no_permission() {
+//    // given
+//    UUID ownerId = UUID.randomUUID();
+//    UUID otherId = UUID.randomUUID();
+//    UUID playlistId = UUID.randomUUID();
+//
+//    Playlist playlist = Playlist.builder()
+//        .ownerId(otherId)
+//        .title("제목")
+//        .description("설명")
+//        .build();
+//
+//    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+//
+//    // when & then
+//    assertThatThrownBy(() -> playlistService.delete(playlistId, ownerId))
+//        .isInstanceOf(PlaylistException.class);
+//  }
 
   @Test
   @DisplayName("존재하지 않는 플레이리스트를 삭제하면 예외가 발생한다.")
