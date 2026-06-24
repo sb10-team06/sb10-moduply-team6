@@ -40,7 +40,7 @@ class PlaylistControllerTest {
   private PlaylistService playlistService;
 
   @Test
-  @DisplayName("플레이리스트 생성 성공 - 201 반환")
+  @DisplayName("플레이리스트를 생성하면 201을 반환한다.")
   void createPlaylist_success() throws Exception {
     // given
     PlaylistCreateRequest request = new PlaylistCreateRequest("내 최애 영화", "비 오는 날 보기 좋은 영화들");
@@ -70,8 +70,8 @@ class PlaylistControllerTest {
   }
 
   @Test
-  @DisplayName("제목 없이 플레이리스트 생성 시 400 반환")
-  void createPlaylist_fail_no_title() throws Exception {
+  @DisplayName("제목 없이 플레이리스트를 생성하면 400을 반환한다.")
+  void createPlaylist_fail_with_no_title() throws Exception {
     // given
     PlaylistCreateRequest request = new PlaylistCreateRequest("", "설명");
 
@@ -85,7 +85,7 @@ class PlaylistControllerTest {
   }
 
   @Test
-  @DisplayName("플레이리스트 수정 성공 - 200 반환")
+  @DisplayName("플레이리스트를 수정하면 200을 반환한다.")
   void updatePlaylist_success() throws Exception {
     // given
     UUID playlistId = UUID.randomUUID();
@@ -110,7 +110,7 @@ class PlaylistControllerTest {
   }
 
   @Test
-  @DisplayName("플레이리스트 삭제 성공 - 204 반환")
+  @DisplayName("플레이리스트를 삭제하면 204를 반환한다.")
   void deletePlaylist_success() throws Exception {
     // given
     UUID playlistId = UUID.randomUUID();

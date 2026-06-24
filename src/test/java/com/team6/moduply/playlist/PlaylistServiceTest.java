@@ -38,7 +38,7 @@ class PlaylistServiceTest {
   private PlaylistMapper playlistMapper;
 
   @Test
-  @DisplayName("플레이리스트 생성 성공")
+  @DisplayName("플레이리스트를 생성하면 저장된 플레이리스트를 반환한다.")
   void create_success() {
     // given
     UUID ownerId = UUID.randomUUID();
@@ -68,8 +68,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("제목이 없으면 플레이리스트 생성 실패")
-  void create_fail_no_title() {
+  @DisplayName("제목이 없으면 플레이리스트 생성에 실패한다.")
+  void create_fail_with_no_title() {
     // given
     UUID ownerId = UUID.randomUUID();
     PlaylistCreateRequest request = new PlaylistCreateRequest("", "설명");
@@ -83,7 +83,7 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("플레이리스트 수정 성공")
+  @DisplayName("플레이리스트를 수정하면 수정된 플레이리스트를 반환한다.")
   void update_success() {
     // given
     UUID ownerId = UUID.randomUUID();
@@ -116,8 +116,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("본인 소유가 아닌 플레이리스트 수정 시 예외 발생")
-  void update_fail_forbidden() {
+  @DisplayName("본인 소유가 아닌 플레이리스트를 수정하면 예외가 발생한다.")
+  void update_fail_with_no_permission() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID otherId = UUID.randomUUID();
@@ -138,8 +138,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("존재하지 않는 플레이리스트 수정 시 예외 발생")
-  void update_fail_not_found() {
+  @DisplayName("존재하지 않는 플레이리스트를 수정하면 예외가 발생한다.")
+  void update_fail_with_not_found_playlist() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();
@@ -153,7 +153,7 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("플레이리스트 삭제 성공")
+  @DisplayName("플레이리스트를 삭제하면 레포지토리의 delete가 호출된다.")
   void delete_success() {
     // given
     UUID ownerId = UUID.randomUUID();
@@ -175,8 +175,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("본인 소유가 아닌 플레이리스트 삭제 시 예외 발생")
-  void delete_fail_forbidden() {
+  @DisplayName("본인 소유가 아닌 플레이리스트를 삭제하면 예외가 발생한다.")
+  void delete_fail_with_no_permission() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID otherId = UUID.randomUUID();
@@ -196,8 +196,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("존재하지 않는 플레이리스트 삭제 시 예외 발생")
-  void delete_fail_not_found() {
+  @DisplayName("존재하지 않는 플레이리스트를 삭제하면 예외가 발생한다.")
+  void delete_fail_with_not_found_playlist() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();
