@@ -20,12 +20,16 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @ExtendWith(MockitoExtension.class)
 class S3BinaryContentStorageTest {
 
   @Mock
   private S3Client s3Client;
+
+  @Mock
+  private S3Presigner s3Presigner;
 
   private S3Properties properties;
   private S3BinaryContentStorage s3BinaryContentStorage;
@@ -35,7 +39,7 @@ class S3BinaryContentStorageTest {
     properties = new S3Properties();
     properties.setBucket("test-bucket");
 
-    s3BinaryContentStorage = new S3BinaryContentStorage(s3Client, properties);
+    s3BinaryContentStorage = new S3BinaryContentStorage(s3Client, properties, s3Presigner);
   }
 
   @Test

@@ -30,6 +30,7 @@ import java.util.Map;
 public class S3BinaryContentStorage {
     private final S3Client s3Client;
     private final S3Properties properties;
+    private final S3Presigner s3Presigner;
 
 
 
@@ -61,7 +62,7 @@ public class S3BinaryContentStorage {
     /// Presigner를 이용해서 특정 S3 객체에 접근 가능한 임시 URL 생성
     public String generatePresignedUrl(String key, String contentType) {
         // S3Presigner 생성
-        try (S3Presigner presigner = getS3Presigner()) {
+
             // S3객체를 다운로드/조회하는 요청만들기
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(properties.getBucket())
@@ -76,21 +77,10 @@ public class S3BinaryContentStorage {
                     .build();
 
             // URL 생성
-            PresignedGetObjectRequest presignedRequest = presigner.presignGetObject(presignRequest);
+            PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
             return presignedRequest.url().toString();
-        }
+
     }
 
-    // AWS 인증 정보를 가진 Presigner 객체를 생성
-    private S3Presigner getS3Presigner() {
-        return S3Presigner.builder()
-                // 리전설정
-                .region(Region.of(properties.getRegion()))
-                .credentialsProvider(
-                        StaticCredentialsProvider.create(
-                                AwsBasicCredentials.create(properties.getAccessKey(), properties.getSecretKey())
-                        )
-                )
-                .build();
-    }
+
 }

@@ -10,6 +10,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /// Spring 생성시 S3Client Bean을 생성하는 설정 클래스
 /// s3Client 객체 생성해서 region과 credentials(accessKey + secretKey)를 담고 S3업로드 부분에서 사용한다.
@@ -58,5 +59,19 @@ public class S3Config {
                 .credentialsProvider(credentialsProvider)
                 .build();
 
+    }
+
+    @Bean
+    // AWS 인증 정보를 가진 Presigner 객체를 생성
+    public S3Presigner getS3Presigner() {
+        return S3Presigner.builder()
+                // 리전설정
+                .region(Region.of(properties.getRegion()))
+                .credentialsProvider(
+                        StaticCredentialsProvider.create(
+                                AwsBasicCredentials.create(properties.getAccessKey(), properties.getSecretKey())
+                        )
+                )
+                .build();
     }
 }
