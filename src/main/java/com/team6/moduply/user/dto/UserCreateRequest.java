@@ -23,6 +23,7 @@ public class UserCreateRequest {
   @Pattern(
       regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+=\\[\\]{}|;:'\",.<>?/~-])[A-Za-z\\d!@#$%^&*()_+=\\[\\]{}|;:'\",.<>?/~-]{8,20}$",
       message = "비밀번호는 8~20자입니다"
-  )
+    )
+  @NotBlank(message = "비밀번호는 필수입니다.")
   private String password;
 }
