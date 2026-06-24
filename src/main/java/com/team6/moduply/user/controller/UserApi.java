@@ -30,14 +30,6 @@ public interface UserApi {
           )
       ),
       @ApiResponse(
-          responseCode = "200",
-          description = "성공",
-          content = @Content(
-              mediaType = MediaType.ALL_VALUE,
-              schema = @Schema(implementation = UserDto.class)
-          )
-      ),
-      @ApiResponse(
           responseCode = "400",
           description = "잘못된 요청",
           content = @Content(
