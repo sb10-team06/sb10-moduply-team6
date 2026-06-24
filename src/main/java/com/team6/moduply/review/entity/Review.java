@@ -1,6 +1,7 @@
 package com.team6.moduply.review.entity;
 
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -18,7 +19,7 @@ import lombok.NoArgsConstructor;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Review extends BaseEntity {
+public class Review extends BaseUpdatableEntity {
 
   @Column(nullable = false)
   private UUID contentId;

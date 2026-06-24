@@ -1,7 +1,8 @@
 package com.team6.moduply.user.entity;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import com.team6.moduply.user.enums.Role;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -22,7 +23,7 @@ import org.springframework.util.StringUtils;
 @Table(name = "users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class User extends BaseEntity {
+public class User extends BaseUpdatableEntity {
   @Column(name = "email", nullable = false, unique = true)
   private String email;
 
