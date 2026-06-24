@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
@@ -25,6 +27,7 @@ import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.user.enums.Role;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -79,8 +82,8 @@ class ContentServiceTest {
     given(contentRepository.save(any(Content.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
     given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
-        .willReturn(List.of(existingTag));
-    given(tagRepository.save(any(Tag.class))).willReturn(newTag);
+        .willReturn(List.of(existingTag), List.of(existingTag, newTag));
+    given(tagRepository.insertIgnore(any(UUID.class), eq("액션"))).willReturn(1);
     given(contentTagRepository.saveAll(anyList()))
         .willAnswer(invocation -> invocation.getArgument(0));
     given(contentMapper.toDto(
@@ -114,8 +117,51 @@ class ContentServiceTest {
       return true;
     }));
     verify(contentMapper).toDto(savedContent, "https://example.com/thumbnail.jpg", List.of("SF", "액션"));
+    verify(tagRepository, times(2)).findAllByTagNameIn(List.of("SF", "액션"));
+    verify(tagRepository).insertIgnore(any(UUID.class), eq("액션"));
+  }
+
+  @Test
+  @DisplayName("모든 태그가 이미 존재하면 신규 태그 저장 없이 콘텐츠 생성 성공")
+  void create_content_success_when_all_tags_already_exist() {
+    // Given
+    ContentCreateRequest request = new ContentCreateRequest(
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        List.of("SF", "액션")
+    );
+    Tag sf = new Tag("SF");
+    Tag action = new Tag("액션");
+    ContentDto expected = new ContentDto(
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        null,
+        List.of("SF", "액션"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.save(any(Content.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
+        .willReturn(List.of(sf, action));
+    given(contentTagRepository.saveAll(anyList()))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(contentMapper.toDto(any(Content.class), any(), anyList()))
+        .willReturn(expected);
+
+    // When
+    ContentDto response = contentService.createContent(request, null, null, Role.ADMIN);
+
+    // Then
+    assertThat(response).isEqualTo(expected);
     verify(tagRepository).findAllByTagNameIn(List.of("SF", "액션"));
-    verify(tagRepository).save(any(Tag.class));
+    verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
+    verify(contentTagRepository).saveAll(anyList());
   }
 
   @Test
@@ -156,7 +202,7 @@ class ContentServiceTest {
     // Then
     assertThat(response).isEqualTo(expected);
     verify(tagRepository, never()).findAllByTagNameIn(anyList());
-    verify(tagRepository, never()).save(any(Tag.class));
+    verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
     verify(contentTagRepository, never()).saveAll(anyList());
     verify(contentMapper).toDto(any(Content.class), any(), argThat(List::isEmpty));
   }
@@ -181,6 +227,7 @@ class ContentServiceTest {
 
     verify(contentRepository, never()).save(any(Content.class));
     verify(tagRepository, never()).findAllByTagNameIn(anyList());
+    verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
     verify(contentTagRepository, never()).saveAll(anyList());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }

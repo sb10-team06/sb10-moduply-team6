@@ -6,6 +6,7 @@ import com.team6.moduply.common.config.JpaAuditingConfig;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.content.entity.Tag;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,5 +34,34 @@ class TagRepositoryTest extends RepositoryTestSupport {
     assertThat(result)
         .extracting(Tag::getTagName)
         .containsExactlyInAnyOrder("SF", "액션");
+  }
+
+  @Test
+  @DisplayName("이미 존재하는 태그 이름이면 중복 저장 없이 무시 성공")
+  void insert_ignore_success_when_tag_name_already_exists() {
+    // Given
+    tagRepository.save(new Tag("SF"));
+
+    // When
+    int result = tagRepository.insertIgnore(UUID.randomUUID(), "SF");
+    List<Tag> tags = tagRepository.findAllByTagNameIn(List.of("SF"));
+
+    // Then
+    assertThat(result).isZero();
+    assertThat(tags).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 태그 이름이면 신규 저장 성공")
+  void insert_ignore_success_when_tag_name_does_not_exist() {
+    // When
+    int result = tagRepository.insertIgnore(UUID.randomUUID(), "SF");
+    List<Tag> tags = tagRepository.findAllByTagNameIn(List.of("SF"));
+
+    // Then
+    assertThat(result).isOne();
+    assertThat(tags)
+        .extracting(Tag::getTagName)
+        .containsExactly("SF");
   }
 }

@@ -16,6 +16,8 @@ import com.team6.moduply.user.enums.Role;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -101,10 +103,19 @@ public class ContentService {
     Map<String, Tag> existingTags = tagRepository.findAllByTagNameIn(tagNames).stream()
         .collect(Collectors.toMap(Tag::getTagName, Function.identity()));
 
+    Set<String> existingTagNames = existingTags.keySet();
+    List<String> newTagNames = tagNames.stream()
+        .filter(tagName -> !existingTagNames.contains(tagName))
+        .toList();
+
+    if (!newTagNames.isEmpty()) {
+      newTagNames.forEach(tagName -> tagRepository.insertIgnore(UUID.randomUUID(), tagName));
+      existingTags = tagRepository.findAllByTagNameIn(tagNames).stream()
+          .collect(Collectors.toMap(Tag::getTagName, Function.identity()));
+    }
+
     return tagNames.stream()
-        .map(tagName -> existingTags.containsKey(tagName)
-            ? existingTags.get(tagName)
-            : tagRepository.save(new Tag(tagName)))
+        .map(existingTags::get)
         .toList();
   }
 }

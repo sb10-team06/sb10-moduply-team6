@@ -97,6 +97,26 @@ class ContentCreateRequestTest {
   }
 
   @Test
+  @DisplayName("제목이 255자를 초과하면 콘텐츠 생성 요청 검증 실패")
+  void content_create_request_validation_fail_when_title_exceeds_max_length() {
+    // Given
+    ContentCreateRequest request = new ContentCreateRequest(
+        ContentType.movie,
+        "a".repeat(256),
+        "꿈과 현실을 넘나드는 SF 영화",
+        List.of()
+    );
+
+    // When
+    Set<ConstraintViolation<ContentCreateRequest>> violations = validator.validate(request);
+
+    // Then
+    assertThat(violations)
+        .extracting(violation -> violation.getPropertyPath().toString())
+        .contains("title");
+  }
+
+  @Test
   @DisplayName("태그 이름이 비어 있거나 100자를 초과하면 콘텐츠 생성 요청 검증 실패")
   void content_create_request_validation_fail_when_tag_is_invalid() {
     // Given
