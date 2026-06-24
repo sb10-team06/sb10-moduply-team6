@@ -110,6 +110,8 @@ class PlaylistServiceTest {
     // then
     assertThat(result.title()).isEqualTo("수정된 제목");
     assertThat(result.description()).isEqualTo("수정된 설명");
+    assertThat(playlist.getTitle()).isEqualTo("수정된 제목");
+    assertThat(playlist.getDescription()).isEqualTo("수정된 설명");
     verify(playlistMapper).toDto(playlist);
   }
 
@@ -129,6 +131,21 @@ class PlaylistServiceTest {
         .build();
 
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.update(playlistId, request, ownerId))
+        .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트 수정 시 예외 발생")
+  void update_fail_not_found() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    PlaylistUpdateRequest request = new PlaylistUpdateRequest("수정된 제목", "수정된 설명");
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> playlistService.update(playlistId, request, ownerId))
@@ -172,6 +189,20 @@ class PlaylistServiceTest {
         .build();
 
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.delete(playlistId, ownerId))
+        .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트 삭제 시 예외 발생")
+  void delete_fail_not_found() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> playlistService.delete(playlistId, ownerId))
