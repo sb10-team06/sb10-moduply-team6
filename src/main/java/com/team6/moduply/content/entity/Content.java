@@ -1,7 +1,7 @@
 package com.team6.moduply.content.entity;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import com.team6.moduply.content.enums.ContentType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
     }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Content extends BaseEntity {
+public class Content extends BaseUpdatableEntity {
 
   @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
   @JoinColumn(name = "content_img_id")

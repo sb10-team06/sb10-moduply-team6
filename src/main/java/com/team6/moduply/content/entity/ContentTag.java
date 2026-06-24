@@ -1,6 +1,6 @@
 package com.team6.moduply.content.entity;
 
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
     }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ContentTag extends BaseEntity {
+public class ContentTag extends BaseUpdatableEntity {
 
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "content_id", nullable = false)
