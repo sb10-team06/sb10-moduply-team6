@@ -1,6 +1,6 @@
 package com.team6.moduply.conversation.entity;
 
-import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -25,7 +25,7 @@ import org.hibernate.annotations.Check;
         )
     }
 )
-public class Conversation extends BaseEntity {
+public class Conversation extends BaseUpdatableEntity {
 
   @Column(name = "user1_id", nullable = false)
   private UUID user1Id;
