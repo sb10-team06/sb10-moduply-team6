@@ -13,6 +13,8 @@ import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.exception.UserErrorCode;
+import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
@@ -23,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,11 +85,37 @@ public class UserServiceTest {
 
     // When & Then
     assertThatThrownBy(() -> userService.createUser(request))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("이미 존재하는 이메일입니다.");
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.DUPLICATED_EMAIL_EXCEPTION);
+          assertThat(exception.getDetails().get("email")).isEqualTo(request.getEmail());
+        });
 
     verify(passwordEncoder, never()).encode(anyString());
     verify(userRepository, never()).save(any(User.class));
+    verify(userMapper, never()).toDto(any(User.class));
+  }
+
+  @Test
+  @DisplayName("동시 회원가입으로 DB 유니크 제약 위반 시 회원가입 실패")
+  public void sign_up_fail_when_email_unique_constraint_violated() {
+    // Given
+    UserCreateRequest request = new UserCreateRequest("tester", "test@example.com", "password1!");
+
+    given(userRepository.existsByEmail(request.getEmail())).willReturn(false);
+    given(passwordEncoder.encode(request.getPassword())).willReturn("encoded-password");
+    given(userRepository.save(any(User.class)))
+        .willThrow(new DataIntegrityViolationException("duplicate email"));
+
+    // When & Then
+    assertThatThrownBy(() -> userService.createUser(request))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.DUPLICATED_EMAIL_EXCEPTION);
+          assertThat(exception.getDetails().get("email")).isEqualTo(request.getEmail());
+        });
+
+    verify(passwordEncoder).encode(request.getPassword());
+    verify(userRepository).save(any(User.class));
+    verify(userMapper, never()).toDto(any(User.class));
   }
 
 }

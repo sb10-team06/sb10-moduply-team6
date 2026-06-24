@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum UserErrorCode implements ErrorCode {
-  DUPLICATED_EMAIL_EXCEPTION(HttpStatus.CONFLICT, "DUPLICATED_EMAIL_EXCEPTION", "S3 파일 업로드에 실패했습니다.");
+  DUPLICATED_EMAIL_EXCEPTION(HttpStatus.CONFLICT, "DUPLICATED_EMAIL_EXCEPTION", "중복된 이메일입니다.");
 
   private final HttpStatus httpStatus;
   private final String code;
