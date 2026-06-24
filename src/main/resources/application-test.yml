@@ -32,8 +32,8 @@ cors:
 moduply:
   storage:
     s3:
-      access-key:
-      secret-key:
+      access-key: test-access-key
+      secret-key: test-secret-key
       region: ap-northeast-2
       bucket: test-bucket
       presigned-url-expiration: 600
