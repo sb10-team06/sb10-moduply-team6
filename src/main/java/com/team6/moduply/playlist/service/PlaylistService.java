@@ -40,10 +40,10 @@ public class PlaylistService {
     // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
     Playlist playlist = playlistRepository.findById(playlistId)
         .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
-
-    if (!playlist.getOwnerId().equals(ownerId)) {
-      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, playlistId);
-    }
+// TODO: 인증 연동 후 소유자 검증 활성화 필요
+//    if (!playlist.getOwnerId().equals(ownerId)) {
+//      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, playlistId);
+//    }
 
     playlist.update(request.title(), request.description());
 
@@ -56,9 +56,10 @@ public class PlaylistService {
     Playlist playlist = playlistRepository.findById(playlistId)
         .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
 
-    if (!playlist.getOwnerId().equals(ownerId)) {
-      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, playlistId);
-    }
+// TODO: 인증 연동 후 소유자 검증 활성화 필요
+//    if (!playlist.getOwnerId().equals(ownerId)) {
+//      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, playlistId);
+//    }
 
     playlistRepository.delete(playlist);
   }
