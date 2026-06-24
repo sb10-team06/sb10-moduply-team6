@@ -3,6 +3,7 @@ package com.team6.moduply.playlist;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
 import com.team6.moduply.playlist.entity.Playlist;
+import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,9 @@ class PlaylistServiceTest {
 
   @Mock
   private PlaylistRepository playlistRepository;
+
+  @Mock
+  private PlaylistMapper playlistMapper;
 
   @Test
   @DisplayName("플레이리스트 생성 성공")
