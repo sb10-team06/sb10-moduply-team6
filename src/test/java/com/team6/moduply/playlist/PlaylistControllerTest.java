@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.playlist.controller.PlaylistController;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
+import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.service.PlaylistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -81,5 +84,43 @@ class PlaylistControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("플레이리스트 수정 성공 - 200 반환")
+  void updatePlaylist_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    PlaylistUpdateRequest request = new PlaylistUpdateRequest("수정된 제목", "수정된 설명");
+
+    PlaylistDto response = new PlaylistDto(
+        playlistId, null, "수정된 제목",
+        "수정된 설명", null, 0L, false, List.of()
+    );
+
+    given(playlistService.update(any(), any(), any())).willReturn(response);
+
+    // when & then
+    mockMvc.perform(patch("/api/playlists/" + playlistId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("수정된 제목"))
+        .andExpect(jsonPath("$.description").value("수정된 설명"));
+  }
+
+  @Test
+  @DisplayName("플레이리스트 삭제 성공 - 204 반환")
+  void deletePlaylist_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/playlists/" + playlistId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNoContent());
   }
 }
