@@ -18,6 +18,8 @@ import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -115,6 +117,50 @@ public class UserServiceTest {
 
     verify(passwordEncoder).encode(request.getPassword());
     verify(userRepository).save(any(User.class));
+    verify(userMapper, never()).toDto(any(User.class));
+  }
+
+  @Test
+  @DisplayName("사용자 단건 조회 성공")
+  public void get_user_success() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    UserDto expected = new UserDto(userId, null, user.getEmail(), user.getName(), null, Role.USER,
+        false);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(userMapper.toDto(user)).willReturn(expected);
+
+    // When
+    UserDto response = userService.getUser(userId);
+
+    // Then
+    assertThat(response.getId()).isEqualTo(expected.getId());
+    assertThat(response.getEmail()).isEqualTo(expected.getEmail());
+    assertThat(response.getName()).isEqualTo(expected.getName());
+    assertThat(response.getRole()).isEqualTo(expected.getRole());
+
+    verify(userRepository).findById(userId);
+    verify(userMapper).toDto(user);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 사용자이면 단건 조회 실패")
+  public void get_user_fail_when_user_not_found() {
+    // Given
+    UUID userId = UUID.randomUUID();
+
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> userService.getUser(userId))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
+        });
+
+    verify(userRepository).findById(userId);
     verify(userMapper, never()).toDto(any(User.class));
   }
 

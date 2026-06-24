@@ -4,11 +4,14 @@ import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.service.UserService;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,5 +31,14 @@ public class UserController implements UserApi {
     UserDto response = userService.createUser(request);
     log.info("회원가입 요청 처리 완료. userId={}", response.getId());
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  @GetMapping("/{userId}")
+  @Override
+  public ResponseEntity<UserDto> getUser(@PathVariable UUID userId) {
+    log.info("사용자 단건 조회 요청 수신. userId={}", userId);
+    UserDto user = userService.getUser(userId);
+    log.info("사용자 단건 조회 요청 처리 완료. userId={}", user.getId());
+    return ResponseEntity.ok(user);
   }
 }
