@@ -40,7 +40,8 @@ public class S3BinaryContentStorage {
 
             return key;
         } catch (S3Exception e) {
-            throw new S3UploadException(S3ErrorCode.S3_UPLOAD_FAILED, Map.of("key", key));
+            /// S3Exception 원본 원인 추적이 가능하도록 cause 전달 처리
+            throw new S3UploadException(S3ErrorCode.S3_UPLOAD_FAILED, Map.of("key", key), e);
         }
     }
 

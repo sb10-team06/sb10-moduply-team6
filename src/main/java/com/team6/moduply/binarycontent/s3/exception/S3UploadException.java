@@ -10,4 +10,9 @@ public class S3UploadException extends ModuPlyException {
     public S3UploadException(ErrorCode errorCode, Map<String, Object> details) {
         super(errorCode, details);
     }
+
+    public S3UploadException(ErrorCode errorCode, Map<String, Object> details, Throwable cause) {
+        super(errorCode, details, cause);
+    }
+
 }
