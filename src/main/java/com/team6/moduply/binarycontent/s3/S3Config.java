@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -34,32 +35,27 @@ public class S3Config {
         boolean hasAccessKey = properties.getAccessKey() != null && !properties.getAccessKey().isBlank();
         // secretKey 존재여부 확인
         boolean hasSecretKey = properties.getSecretKey() != null && !properties.getSecretKey().isBlank();
-        if (hasAccessKey || hasSecretKey) {
-            // 둘중 하나만 있는경우
-            if(!(hasAccessKey && hasSecretKey)) {
-                throw new IllegalArgumentException("S3 access key와 secret key는 함께 설정되어야 합니다.");
-            }
-            // 둘다 정상 존재할 경우
-            return S3Client.builder()
-                    // region 설정
-                    .region(Region.of(properties.getRegion()))
-                    // 인증정보 설정
-                    .credentialsProvider(
-                            StaticCredentialsProvider.create(
-                                    AwsBasicCredentials.create(
-                                            properties.getAccessKey(),
-                                            properties.getSecretKey()
-                                    )
-                            )
-                    )
-                    .build();
+
+        // 둘중 하나만 있는경우: xor로 판단
+        if (hasAccessKey ^ hasSecretKey) {
+            throw new IllegalArgumentException("S3 access key와 secret key는 함께 설정되어야 합니다.");
         }
 
-        // 그렇지 않으면: 기본 체인(환경변수, 프로파일, IAM Role)을 자동 탐색
-        // 키가 없는경우
+        /// hasAccessKey ^ hasSecretKey로 둘다있어나, 둘다 없거나 조건만 탄다.
+        // 둘다 있으면: accesskey와 secretkey를 이용해서 AWS 요청에 사용할 인증 정보 객체 만든다.
+        // 둘다 없으면: AWS SDK가 정해진 순서대로 인증정보를 찾는다.
+        AwsCredentialsProvider credentialsProvider = hasAccessKey
+                ? StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(
+                            properties.getAccessKey(),
+                            properties.getSecretKey()
+                    )
+                )
+                : DefaultCredentialsProvider.create();
+
         return S3Client.builder()
-                .region(Region.of(properties.getRegion()))
-                .credentialsProvider(DefaultCredentialsProvider.create())
+                .region(Region.of(region))
+                .credentialsProvider(credentialsProvider)
                 .build();
 
     }
