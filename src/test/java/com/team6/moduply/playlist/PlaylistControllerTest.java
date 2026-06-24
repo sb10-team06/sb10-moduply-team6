@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,7 +70,6 @@ class PlaylistControllerTest {
   }
 
   @Test
-  @WithMockUser
   @DisplayName("제목 없이 플레이리스트 생성 시 400 반환")
   void createPlaylist_fail_no_title() throws Exception {
     // given
