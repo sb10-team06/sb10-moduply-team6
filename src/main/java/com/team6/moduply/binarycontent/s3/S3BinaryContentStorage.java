@@ -35,7 +35,6 @@ public class S3BinaryContentStorage {
     /// user의 프로필: String key = "users/%s/profile/%s".formatted(userId, binaryContentId);
     /// content의 이미지: String key = "contents/%s/images/%s".formatted(contentId, binaryContentId);
     @Retryable(
-            /// RuntimeException 발생시 재시도.
             retryFor = {
                     S3UploadException.class,
                     S3Exception.class
