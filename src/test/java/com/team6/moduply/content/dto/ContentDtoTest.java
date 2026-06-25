@@ -2,6 +2,7 @@ package com.team6.moduply.content.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.enums.ContentType;
 import java.math.BigDecimal;
@@ -45,8 +46,8 @@ class ContentDtoTest {
   }
 
   @Test
-  @DisplayName("콘텐츠 커서 페이지 응답 객체를 생성하면 페이지 정보가 유지된다.")
-  void create_success_with_cursor_response_content_dto_fields() {
+  @DisplayName("공통 커서 페이지 응답 객체를 생성하면 페이지 정보가 유지된다.")
+  void create_success_with_cursor_response_fields() {
     // Given
     UUID contentId = UUID.randomUUID();
     UUID nextIdAfter = UUID.randomUUID();
@@ -63,7 +64,7 @@ class ContentDtoTest {
     );
 
     // When
-    CursorResponseContentDto response = new CursorResponseContentDto(
+    CursorResponse<ContentDto> response = new CursorResponse<>(
         List.of(content),
         "2026-06-24T00:00:00Z",
         nextIdAfter,

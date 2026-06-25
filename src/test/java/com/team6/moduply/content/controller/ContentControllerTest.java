@@ -12,9 +12,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
-import com.team6.moduply.content.dto.CursorResponseContentDto;
+import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.user.enums.Role;
@@ -154,20 +156,35 @@ class ContentControllerTest {
         0,
         0L
     );
-    CursorResponseContentDto response = new CursorResponseContentDto(
+    CursorResponse<ContentDto> response = new CursorResponse<>(
         List.of(content),
         null,
         null,
         false,
         1,
-        null,
-        null
+        "createdAt",
+        SortDirection.DESCENDING
     );
 
-    given(contentService.findContents()).willReturn(response);
+    given(contentService.findContents(
+        eq(ContentType.movie),
+        eq("dream"),
+        eq(List.of("SF", "액션")),
+        isNull(),
+        isNull(),
+        eq(20),
+        eq(ContentSortBy.createdAt),
+        eq(SortDirection.DESCENDING)
+    )).willReturn(response);
 
     // When & Then
     mockMvc.perform(get("/api/contents")
+            .param("typeEqual", "movie")
+            .param("keywordLike", "dream")
+            .param("tagsIn", "SF", "액션")
+            .param("limit", "20")
+            .param("sortBy", "createdAt")
+            .param("sortDirection", "DESCENDING")
             .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data[0].id").value(content.id().toString()))
@@ -181,9 +198,20 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.data[0].reviewCount").value(0))
         .andExpect(jsonPath("$.data[0].watcherCount").value(0))
         .andExpect(jsonPath("$.hasNext").value(false))
-        .andExpect(jsonPath("$.totalCount").value(1));
+        .andExpect(jsonPath("$.totalCount").value(1))
+        .andExpect(jsonPath("$.sortBy").value("createdAt"))
+        .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
 
-    verify(contentService).findContents();
+    verify(contentService).findContents(
+        ContentType.movie,
+        "dream",
+        List.of("SF", "액션"),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
   }
 
   @Test

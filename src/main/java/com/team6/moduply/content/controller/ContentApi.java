@@ -1,15 +1,20 @@
 package com.team6.moduply.content.controller;
 
 import com.team6.moduply.common.error.ErrorResponse;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
-import com.team6.moduply.content.dto.CursorResponseContentDto;
+import com.team6.moduply.content.enums.ContentSortBy;
+import com.team6.moduply.content.enums.ContentType;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -78,7 +83,7 @@ public interface ContentApi {
           description = "성공",
           content = @Content(
               mediaType = MediaType.ALL_VALUE,
-              schema = @Schema(implementation = CursorResponseContentDto.class)
+              schema = @Schema(implementation = CursorResponse.class)
           )
       ),
       @ApiResponse(
@@ -106,7 +111,24 @@ public interface ContentApi {
           )
       )
   })
-  ResponseEntity<CursorResponseContentDto> findContents();
+  ResponseEntity<CursorResponse<ContentDto>> findContents(
+      @Parameter(description = "콘텐츠 타입")
+      ContentType typeEqual,
+      @Parameter(description = "제목 또는 설명 검색어")
+      String keywordLike,
+      @Parameter(description = "포함할 태그 목록")
+      List<String> tagsIn,
+      @Parameter(description = "다음 페이지 커서")
+      String cursor,
+      @Parameter(description = "다음 페이지 보조 커서")
+      UUID idAfter,
+      @Parameter(description = "페이지 크기")
+      Integer limit,
+      @Parameter(description = "정렬 기준")
+      ContentSortBy sortBy,
+      @Parameter(description = "정렬 방향")
+      SortDirection sortDirection
+  );
 
   @Operation(
       summary = "콘텐츠 단건 조회",

@@ -4,10 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.team6.moduply.binarycontent.BinaryContentStatus;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.common.config.JpaAuditingConfig;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.entity.ContentTag;
+import com.team6.moduply.content.entity.Tag;
+import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +25,12 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Autowired
   private ContentRepository contentRepository;
+
+  @Autowired
+  private TagRepository tagRepository;
+
+  @Autowired
+  private ContentTagRepository contentTagRepository;
 
   @Test
   @DisplayName("콘텐츠 ID로 콘텐츠 이미지와 함께 조회한다.")
@@ -45,6 +56,101 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     assertThat(result.get().getContentImg().getStorageKey()).isEqualTo("contents/images/thumbnail.jpg");
   }
 
+  @Test
+  @DisplayName("콘텐츠 목록을 인기순으로 조회하고 커서 이후 목록을 조회한다.")
+  void find_contents_success_with_watcher_count_sort_and_cursor() {
+    // Given
+    Content first = contentRepository.save(createContent(
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        100L
+    ));
+    Content second = contentRepository.save(createContent(
+        ContentType.movie,
+        "Interstellar",
+        "우주 SF 영화",
+        50L
+    ));
+
+    // When
+    List<Content> firstPage = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+    List<Content> secondPage = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        String.valueOf(first.getWatcherCount()),
+        first.getId(),
+        2,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(firstPage)
+        .extracting(Content::getId)
+        .containsExactly(first.getId(), second.getId());
+    assertThat(secondPage)
+        .extracting(Content::getId)
+        .containsExactly(second.getId());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 목록을 타입, 검색어, 태그 조건으로 조회한다.")
+  void find_contents_success_with_type_keyword_and_tags() {
+    // Given
+    Content matched = contentRepository.save(createContent(
+        ContentType.movie,
+        "Dream Movie",
+        "꿈을 다루는 영화",
+        100L
+    ));
+    Content unmatched = contentRepository.save(createContent(
+        ContentType.sport,
+        "World Cup",
+        "스포츠 콘텐츠",
+        50L
+    ));
+    Tag sf = tagRepository.save(new Tag("SF"));
+    Tag sports = tagRepository.save(new Tag("스포츠"));
+    contentTagRepository.saveAll(List.of(
+        new ContentTag(matched, sf),
+        new ContentTag(unmatched, sports)
+    ));
+
+    // When
+    List<Content> result = contentRepository.findContents(
+        ContentType.movie,
+        "dream",
+        List.of("SF"),
+        null,
+        null,
+        10,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+    long totalCount = contentRepository.countContents(
+        ContentType.movie,
+        "dream",
+        List.of("SF")
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(matched.getId());
+    assertThat(totalCount).isEqualTo(1);
+  }
+
   private BinaryContent createBinaryContent() {
     BinaryContent contentImg = new BinaryContent();
     ReflectionTestUtils.setField(contentImg, "fileName", "thumbnail.jpg");
@@ -54,5 +160,23 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     ReflectionTestUtils.setField(contentImg, "status", BinaryContentStatus.SUCCESS);
 
     return contentImg;
+  }
+
+  private Content createContent(
+      ContentType type,
+      String title,
+      String description,
+      long watcherCount
+  ) {
+    Content content = new Content(
+        null,
+        null,
+        type,
+        title,
+        description
+    );
+    ReflectionTestUtils.setField(content, "watcherCount", watcherCount);
+
+    return content;
   }
 }

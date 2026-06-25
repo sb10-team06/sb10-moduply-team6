@@ -1,12 +1,15 @@
 package com.team6.moduply.content.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
-import com.team6.moduply.content.dto.CursorResponseContentDto;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
+import com.team6.moduply.content.enums.ContentSortBy;
+import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.mapper.ContentMapper;
@@ -31,6 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class ContentService {
+
+  private static final int DEFAULT_LIMIT = 20;
+  private static final int MAX_LIMIT = 100;
 
   private final ContentRepository contentRepository;
   private final TagRepository tagRepository;
@@ -77,30 +83,66 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
-  public CursorResponseContentDto findContents() {
-    log.debug("콘텐츠 목록 조회 처리 시작");
+  public CursorResponse<ContentDto> findContents(
+      ContentType typeEqual,
+      String keywordLike,
+      List<String> tagsIn,
+      String cursor,
+      UUID idAfter,
+      Integer limit,
+      ContentSortBy sortBy,
+      SortDirection sortDirection
+  ) {
+    ContentSortBy resolvedSortBy = sortBy == null ? ContentSortBy.createdAt : sortBy;
+    SortDirection resolvedSortDirection = sortDirection == null ? SortDirection.DESCENDING : sortDirection;
+    int resolvedLimit = resolveLimit(limit);
+    List<String> normalizedTagsIn = normalizeTags(tagsIn);
 
-    List<Content> contents = contentRepository.findAll();
-    Map<UUID, List<String>> tagNamesByContentId = getTagNamesByContentId(contents);
-    List<ContentDto> data = contents.stream()
+    log.debug(
+        "콘텐츠 목록 조회 처리 시작: typeEqual={}, keywordLike={}, tagsIn={}, cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}",
+        typeEqual,
+        keywordLike,
+        normalizedTagsIn,
+        cursor,
+        idAfter,
+        resolvedLimit,
+        resolvedSortBy,
+        resolvedSortDirection
+    );
+
+    List<Content> contents = contentRepository.findContents(
+        typeEqual,
+        keywordLike,
+        normalizedTagsIn,
+        cursor,
+        idAfter,
+        resolvedLimit + 1,
+        resolvedSortBy,
+        resolvedSortDirection
+    );
+    boolean hasNext = contents.size() > resolvedLimit;
+    List<Content> pageContents = hasNext ? contents.subList(0, resolvedLimit) : contents;
+    Map<UUID, List<String>> tagNamesByContentId = getTagNamesByContentId(pageContents);
+    List<ContentDto> data = pageContents.stream()
         .map(content -> toDto(
             content,
             tagNamesByContentId.getOrDefault(content.getId(), List.of())
         ))
         .toList();
+    Content lastContent = data.isEmpty() ? null : pageContents.get(pageContents.size() - 1);
+    long totalCount = contentRepository.countContents(typeEqual, keywordLike, normalizedTagsIn);
 
-    // TODO: 콘텐츠 정렬 및 커서 페이지네이션 적용 후 cursor/hasNext/sort 응답값 연동
-    CursorResponseContentDto response = new CursorResponseContentDto(
+    CursorResponse<ContentDto> response = new CursorResponse<>(
         data,
-        null,
-        null,
-        false,
-        data.size(),
-        null,
-        null
+        hasNext ? extractCursor(lastContent, resolvedSortBy) : null,
+        hasNext ? lastContent.getId() : null,
+        hasNext,
+        totalCount,
+        resolvedSortBy.name(),
+        resolvedSortDirection
     );
 
-    log.debug("콘텐츠 목록 조회 처리 완료: count={}", data.size());
+    log.debug("콘텐츠 목록 조회 처리 완료: count={}, hasNext={}", data.size(), hasNext);
 
     return response;
   }
@@ -169,6 +211,14 @@ public class ContentService {
         .toList();
   }
 
+  private int resolveLimit(Integer limit) {
+    if (limit == null || limit <= 0) {
+      return DEFAULT_LIMIT;
+    }
+
+    return Math.min(limit, MAX_LIMIT);
+  }
+
   private Map<UUID, List<String>> getTagNamesByContentId(List<Content> contents) {
     List<UUID> contentIds = contents.stream()
         .map(Content::getId)
@@ -188,6 +238,14 @@ public class ContentService {
   private ContentDto toDto(Content content, List<String> tagNames) {
     // TODO: BinaryContent 저장소 추상화 적용 후 thumbnailUrl 생성 로직 연동
     return contentMapper.toDto(content, null, tagNames);
+  }
+
+  private String extractCursor(Content content, ContentSortBy sortBy) {
+    return switch (sortBy) {
+      case createdAt -> content.getCreatedAt().toString();
+      case watcherCount -> String.valueOf(content.getWatcherCount());
+      case rate -> content.getAverageRating().toPlainString();
+    };
   }
 
 }

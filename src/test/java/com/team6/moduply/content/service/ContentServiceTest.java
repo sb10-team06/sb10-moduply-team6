@@ -12,12 +12,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
-import com.team6.moduply.content.dto.CursorResponseContentDto;
 import com.team6.moduply.content.entity.Content;
-import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
+import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
@@ -286,7 +287,16 @@ class ContentServiceTest {
         0L
     );
 
-    given(contentRepository.findAll()).willReturn(List.of(movie, sport));
+    given(contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        21,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(List.of(movie, sport));
     given(contentTagRepository.findTagNamesByContentIds(List.of(movieId, sportId)))
         .willReturn(List.of(
             new TestContentTagNameProjection(movieId, "SF"),
@@ -295,9 +305,19 @@ class ContentServiceTest {
         ));
     given(contentMapper.toDto(movie, null, List.of("SF", "액션"))).willReturn(movieDto);
     given(contentMapper.toDto(sport, null, List.of("스포츠"))).willReturn(sportDto);
+    given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
 
     // When
-    CursorResponseContentDto response = contentService.findContents();
+    CursorResponse<ContentDto> response = contentService.findContents(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    );
 
     // Then
     assertThat(response.data()).containsExactly(movieDto, sportDto);
@@ -305,28 +325,148 @@ class ContentServiceTest {
     assertThat(response.nextIdAfter()).isNull();
     assertThat(response.hasNext()).isFalse();
     assertThat(response.totalCount()).isEqualTo(2);
-    assertThat(response.sortBy()).isNull();
-    assertThat(response.sortDirection()).isNull();
-    verify(contentRepository).findAll();
+    assertThat(response.sortBy()).isEqualTo("createdAt");
+    assertThat(response.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+    verify(contentRepository).findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        21,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+    verify(contentRepository).countContents(null, null, List.of());
     verify(contentTagRepository).findTagNamesByContentIds(List.of(movieId, sportId));
     verify(contentMapper).toDto(movie, null, List.of("SF", "액션"));
     verify(contentMapper).toDto(sport, null, List.of("스포츠"));
   }
 
   @Test
+  @DisplayName("콘텐츠 목록에 다음 페이지가 있으면 다음 커서 정보를 반환한다.")
+  void find_contents_success_with_next_cursor() {
+    // Given
+    UUID firstId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    UUID secondId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content first = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    Content second = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Interstellar",
+        "우주 SF 영화"
+    );
+    ReflectionTestUtils.setField(first, "id", firstId);
+    ReflectionTestUtils.setField(first, "watcherCount", 100L);
+    ReflectionTestUtils.setField(second, "id", secondId);
+    ReflectionTestUtils.setField(second, "watcherCount", 50L);
+    ContentDto firstDto = new ContentDto(
+        firstId,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        null,
+        List.of(),
+        BigDecimal.ZERO,
+        0,
+        100L
+    );
+
+    given(contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    )).willReturn(List.of(first, second));
+    given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
+    given(contentMapper.toDto(first, null, List.of())).willReturn(firstDto);
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findContents(
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(response.data()).containsExactly(firstDto);
+    assertThat(response.nextCursor()).isEqualTo("100");
+    assertThat(response.nextIdAfter()).isEqualTo(firstId);
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.totalCount()).isEqualTo(2);
+    assertThat(response.sortBy()).isEqualTo("watcherCount");
+    assertThat(response.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+    verify(contentRepository).findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+  }
+
+  @Test
   @DisplayName("콘텐츠 목록이 비어 있으면 빈 목록 조회 응답을 반환한다.")
   void find_contents_success_with_empty_contents() {
     // Given
-    given(contentRepository.findAll()).willReturn(List.of());
+    given(contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        21,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(List.of());
+    given(contentRepository.countContents(null, null, List.of())).willReturn(0L);
 
     // When
-    CursorResponseContentDto response = contentService.findContents();
+    CursorResponse<ContentDto> response = contentService.findContents(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    );
 
     // Then
     assertThat(response.data()).isEmpty();
     assertThat(response.hasNext()).isFalse();
     assertThat(response.totalCount()).isZero();
-    verify(contentRepository).findAll();
+    verify(contentRepository).findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        21,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+    verify(contentRepository).countContents(null, null, List.of());
     verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }

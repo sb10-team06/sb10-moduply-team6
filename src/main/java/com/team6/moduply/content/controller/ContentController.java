@@ -1,11 +1,15 @@
 package com.team6.moduply.content.controller;
 
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
-import com.team6.moduply.content.dto.CursorResponseContentDto;
+import com.team6.moduply.content.enums.ContentSortBy;
+import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.user.enums.Role;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,9 +49,27 @@ public class ContentController implements ContentApi {
 
   @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
   @Override
-  public ResponseEntity<CursorResponseContentDto> findContents() {
+  public ResponseEntity<CursorResponse<ContentDto>> findContents(
+      @RequestParam(required = false) ContentType typeEqual,
+      @RequestParam(required = false) String keywordLike,
+      @RequestParam(required = false) List<String> tagsIn,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) UUID idAfter,
+      @RequestParam(required = false) Integer limit,
+      @RequestParam(required = false) ContentSortBy sortBy,
+      @RequestParam(required = false) SortDirection sortDirection
+  ) {
     log.info("콘텐츠 목록 조회 요청 수신");
-    CursorResponseContentDto response = contentService.findContents();
+    CursorResponse<ContentDto> response = contentService.findContents(
+        typeEqual,
+        keywordLike,
+        tagsIn,
+        cursor,
+        idAfter,
+        limit,
+        sortBy,
+        sortDirection
+    );
     log.info("콘텐츠 목록 조회 요청 처리 완료: count={}", response.data().size());
     return ResponseEntity.ok(response);
   }
