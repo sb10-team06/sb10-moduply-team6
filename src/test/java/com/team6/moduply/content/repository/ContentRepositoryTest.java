@@ -12,6 +12,7 @@ import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -124,7 +125,9 @@ class ContentRepositoryTest extends RepositoryTestSupport {
         10,
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
-    )).isInstanceOf(ContentException.class);
+    )).isInstanceOfSatisfying(ContentException.class, exception ->
+        assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.INVALID_CURSOR)
+    );
   }
 
   @Test
@@ -144,7 +147,9 @@ class ContentRepositoryTest extends RepositoryTestSupport {
         10,
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
-    )).isInstanceOf(ContentException.class);
+    )).isInstanceOfSatisfying(ContentException.class, exception ->
+        assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.INVALID_CURSOR)
+    );
   }
 
   @Test
