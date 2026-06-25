@@ -37,10 +37,8 @@ public class S3BinaryContentStorage {
     @Retryable(
             /// RuntimeException 발생시 재시도.
             retryFor = {
-                    RuntimeException.class,
                     S3UploadException.class,
-                    S3Exception.class,
-                    InterruptedException.class
+                    S3Exception.class
             },
             /// 재시도 정책: 최초 실행 1회 + 재시도 2회 = 총 3회
             maxAttempts = 3,
