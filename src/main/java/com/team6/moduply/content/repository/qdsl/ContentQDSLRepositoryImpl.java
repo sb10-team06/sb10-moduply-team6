@@ -11,12 +11,17 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
@@ -38,9 +43,8 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
   ) {
     JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
     List<BooleanExpression> conditions = buildSearchConditions(typeEqual, keywordLike, tagsIn);
-    Object cursorValue = parseCursorValue(cursor, sortBy);
 
-    conditions.add(buildCursorCondition(cursorValue, idAfter, sortBy, sortDirection));
+    conditions.add(buildCursorCondition(sortBy, sortDirection, cursor, idAfter));
 
     return queryFactory
         .selectFrom(content)
@@ -105,19 +109,32 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
 
   // 정렬 기준에 맞는 커서 조건을 선택하여 다음 페이지 조회 범위를 만든다.
   private BooleanExpression buildCursorCondition(
-      Object cursorValue,
-      UUID idAfter,
       ContentSortBy sortBy,
-      SortDirection sortDirection
+      SortDirection sortDirection,
+      String cursorValue,
+      UUID idAfter
   ) {
-    if (cursorValue == null || idAfter == null) {
+    if (cursorValue == null && idAfter == null) {
       return null;
     }
 
+    if (cursorValue == null || idAfter == null) {
+      Map<String, Object> details = new HashMap<>();
+      details.put("cursor", cursorValue);
+      details.put("idAfter", idAfter);
+
+      throw new ContentException(
+          ContentErrorCode.INVALID_CURSOR,
+          details
+      );
+    }
+
+    Object parsedCursor = parseCursorValue(sortBy, cursorValue);
+
     return switch (sortBy) {
-      case createdAt -> buildCreatedAtCursorCondition((Instant) cursorValue, idAfter, sortDirection);
-      case watcherCount -> buildWatcherCountCursorCondition((Long) cursorValue, idAfter, sortDirection);
-      case rate -> buildAverageRatingCursorCondition((BigDecimal) cursorValue, idAfter, sortDirection);
+      case createdAt -> buildCreatedAtCursorCondition((Instant) parsedCursor, idAfter, sortDirection);
+      case watcherCount -> buildWatcherCountCursorCondition((Long) parsedCursor, idAfter, sortDirection);
+      case rate -> buildAverageRatingCursorCondition((BigDecimal) parsedCursor, idAfter, sortDirection);
     };
   }
 
@@ -197,15 +214,18 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
   }
 
   // 문자열 커서를 정렬 기준에 맞는 Java 타입으로 변환한다.
-  private Object parseCursorValue(String cursor, ContentSortBy sortBy) {
-    if (cursor == null || cursor.isBlank()) {
-      return null;
+  private Object parseCursorValue(ContentSortBy sortBy, String cursor) {
+    try {
+      return switch (sortBy) {
+        case createdAt -> Instant.parse(cursor);
+        case watcherCount -> Long.parseLong(cursor);
+        case rate -> new BigDecimal(cursor);
+      };
+    } catch (DateTimeParseException | NumberFormatException e) {
+      throw new ContentException(
+          ContentErrorCode.INVALID_CURSOR,
+          Map.of("sortBy", sortBy, "cursor", cursor)
+      );
     }
-
-    return switch (sortBy) {
-      case createdAt -> Instant.parse(cursor);
-      case watcherCount -> Long.parseLong(cursor);
-      case rate -> new BigDecimal(cursor);
-    };
   }
 }

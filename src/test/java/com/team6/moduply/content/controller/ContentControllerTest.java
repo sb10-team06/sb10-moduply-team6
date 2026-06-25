@@ -18,10 +18,13 @@ import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.user.enums.Role;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -249,5 +252,22 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.watcherCount").value(0));
 
     verify(contentService).findContent(contentId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 콘텐츠를 단건 조회하면 404 응답을 반환한다.")
+  void find_content_fail_when_content_not_found() throws Exception {
+    UUID contentId = UUID.randomUUID();
+
+    given(contentService.findContent(contentId))
+        .willThrow(new ContentException(
+            ContentErrorCode.CONTENT_NOT_FOUND,
+            Map.of("contentId", contentId)
+        ));
+
+    mockMvc.perform(get("/api/contents/{contentId}", contentId))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.exceptionType").value("ContentException"))
+        .andExpect(jsonPath("$.message").value(ContentErrorCode.CONTENT_NOT_FOUND.getMessage()));
   }
 }

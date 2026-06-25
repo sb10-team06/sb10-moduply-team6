@@ -1,6 +1,7 @@
 package com.team6.moduply.content.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -11,7 +12,9 @@ import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.exception.ContentException;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -103,6 +106,45 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     assertThat(secondPage)
         .extracting(Content::getId)
         .containsExactly(second.getId());
+  }
+
+  @Test
+  @DisplayName("커서 값만 있고 보조 커서가 없으면 콘텐츠 목록 조회에 실패한다.")
+  void find_contents_fail_when_cursor_without_id_after() {
+    // Given
+    String cursor = Instant.now().toString();
+
+    // When & Then
+    assertThatThrownBy(() -> contentRepository.findContents(
+        null,
+        null,
+        null,
+        cursor,
+        null,
+        10,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
+  }
+
+  @Test
+  @DisplayName("생성일 커서 형식이 올바르지 않으면 콘텐츠 목록 조회에 실패한다.")
+  void find_contents_fail_when_created_at_cursor_invalid() {
+    // Given
+    String invalidCursor = "invalid-cursor";
+    UUID idAfter = UUID.randomUUID();
+
+    // When & Then
+    assertThatThrownBy(() -> contentRepository.findContents(
+        null,
+        null,
+        null,
+        invalidCursor,
+        idAfter,
+        10,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
   }
 
   @Test
