@@ -1,6 +1,7 @@
 package com.team6.moduply.notification.entity;
 
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import com.team6.moduply.notification.enums.NotificationLevel;
 import com.team6.moduply.notification.enums.NotificationType;
 import jakarta.persistence.Column;

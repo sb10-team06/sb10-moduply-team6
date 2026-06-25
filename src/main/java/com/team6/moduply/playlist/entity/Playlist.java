@@ -1,6 +1,7 @@
 package com.team6.moduply.playlist.entity;
 
-import com.team6.moduply.common.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -14,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "playlists")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Playlist extends BaseEntity {
+public class Playlist extends BaseUpdatableEntity {
 
   @Column(nullable = false)
   private UUID ownerId;
