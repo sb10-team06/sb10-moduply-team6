@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -28,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 class BinaryContentServiceTest {
@@ -104,6 +106,56 @@ class BinaryContentServiceTest {
   }
 
   @Test
+  @DisplayName("프로필 이미지 생성 시 파일이 없으면 EMPTY_FILE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createUserProfile_fail_when_image_is_null() {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, null))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("프로필 이미지 생성 시 빈 파일이면 EMPTY_FILE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createUserProfile_fail_when_image_is_empty() {
+    // given
+    UUID userId = UUID.randomUUID();
+    MockMultipartFile image = createEmptyImage("profile.png", "image/png");
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("프로필 이미지 생성 시 파일 크기가 0 이하이면 INVALID_FILE_SIZE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createUserProfile_fail_when_image_size_is_invalid() {
+    // given
+    UUID userId = UUID.randomUUID();
+    MultipartFile image = createZeroSizeImage("profile.png", "image/png");
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.INVALID_FILE_SIZE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
   @DisplayName("콘텐츠 이미지 생성 시 BinaryContent를 PROCESSING 상태로 저장하고 S3 업로드 이벤트를 발행한다.")
   void createContentImage_success_publish_event() throws IOException {
     // given
@@ -148,6 +200,56 @@ class BinaryContentServiceTest {
     assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("콘텐츠 이미지 생성 시 파일이 없으면 EMPTY_FILE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_image_is_null() {
+    // given
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, null))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("콘텐츠 이미지 생성 시 빈 파일이면 EMPTY_FILE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_image_is_empty() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    MockMultipartFile image = createEmptyImage("thumbnail.png", "image/png");
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("콘텐츠 이미지 생성 시 파일 크기가 0 이하이면 INVALID_FILE_SIZE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_image_size_is_invalid() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    MultipartFile image = createZeroSizeImage("thumbnail.png", "image/png");
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.INVALID_FILE_SIZE)
         );
 
     verify(binaryContentRepository, never()).save(any(BinaryContent.class));
@@ -208,5 +310,23 @@ class BinaryContentServiceTest {
         contentType,
         "image-bytes".getBytes(StandardCharsets.UTF_8)
     );
+  }
+
+  private MockMultipartFile createEmptyImage(String fileName, String contentType) {
+    return new MockMultipartFile(
+        "image",
+        fileName,
+        contentType,
+        new byte[0]
+    );
+  }
+
+  private MultipartFile createZeroSizeImage(String fileName, String contentType) {
+    MultipartFile image = mock(MultipartFile.class);
+    given(image.isEmpty()).willReturn(false);
+    given(image.getSize()).willReturn(0L);
+    given(image.getOriginalFilename()).willReturn(fileName);
+    given(image.getContentType()).willReturn(contentType);
+    return image;
   }
 }
