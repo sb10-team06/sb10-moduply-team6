@@ -54,23 +54,7 @@ public class BinaryContentService {
     // image S3 경로값 생성
     String storageKey = createUserProfileStorageKey(userId, image.getOriginalFilename());
 
-    // 메타데이터 생성
-    BinaryContent binaryContent = BinaryContent.create(
-        image.getOriginalFilename(),
-        image.getSize(),
-        image.getContentType(),
-        storageKey
-    );
-    /// 메타 데이터 DB저장
-    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
-
-    /// S3 업로드 이벤트 발행
-    eventPublisher.publishEvent(new BinaryContentCreatedEvent(savedBinaryContent.getId(), image.getBytes(), userId, null));
-
-    log.info("바이너리 컨텐츠 생성 완료: id={}, fileName={}, size={}",
-            savedBinaryContent.getId(), savedBinaryContent.getFileName(), savedBinaryContent.getSize());
-
-    return savedBinaryContent;
+    return create(image, storageKey, userId, null);
 
   }
 
@@ -90,14 +74,40 @@ public class BinaryContentService {
     /// 메타 데이터 DB저장
     BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
 
-    /// S3 업로드 이벤트 발행
-    eventPublisher.publishEvent(new BinaryContentCreatedEvent(savedBinaryContent.getId(), image.getBytes(), null, contentId));
+    return create(image, storageKey, null, contentId);
 
-    log.info("바이너리 컨텐츠 생성 완료: id={}, fileName={}, size={}",
-            savedBinaryContent.getId(), savedBinaryContent.getFileName(), savedBinaryContent.getSize());
+  }
+
+  /// 공통
+  private BinaryContent create(
+          MultipartFile image,
+          String storageKey,
+          UUID userId,
+          UUID contentId
+  ) throws IOException {
+    BinaryContent binaryContent = BinaryContent.create(
+            image.getOriginalFilename(),
+            image.getSize(),
+            image.getContentType(),
+            storageKey
+    );
+    /// 메타데이터 저장
+    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
+    /// event 발행: S3 비동기 업로드
+    eventPublisher.publishEvent(new BinaryContentCreatedEvent(
+            savedBinaryContent.getId(),
+            image.getBytes(),
+            userId,
+            contentId
+    ));
+
+    log.info("바이너리 컨텐츠 생성 완료: id={}, fileName={}, size={}, storageKey={}",
+            savedBinaryContent.getId(),
+            savedBinaryContent.getFileName(),
+            savedBinaryContent.getSize(),
+            savedBinaryContent.getStorageKey());
 
     return savedBinaryContent;
-
   }
 
   /// binaryContent SUCCESS상태로 업데이트
@@ -124,8 +134,7 @@ public class BinaryContentService {
     binaryContent.fail();
   }
 
-
-
+  /// 이미지 검증메서드
   private void validateImage(MultipartFile image) {
     /// image null이거나 비어있나 검증
     if (image == null || image.isEmpty()) {
