@@ -1,7 +1,9 @@
 package com.team6.moduply.playlist.controller;
 
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
+import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.service.PlaylistService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,5 +64,12 @@ public class PlaylistController {
   public ResponseEntity<PlaylistDto> getPlaylist(
       @PathVariable UUID playlistId) {
     return ResponseEntity.ok(playlistService.findById(playlistId));
+  }
+
+  @GetMapping
+  @Operation(summary = "플레이리스트 목록 조회", description = "플레이리스트 목록을 커서 기반 페이지네이션으로 조회합니다.")
+  public ResponseEntity<CursorResponse<PlaylistDto>> getPlaylists(
+      @ModelAttribute @Valid PlaylistSearchRequest request) {
+    return ResponseEntity.ok(playlistService.findAll(request));
   }
 }
