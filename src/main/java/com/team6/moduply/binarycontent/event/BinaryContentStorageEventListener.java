@@ -8,6 +8,7 @@ import com.team6.moduply.binarycontent.s3.S3BinaryContentStorage;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -26,6 +27,7 @@ public class BinaryContentStorageEventListener {
     private final BinaryContentRepository binaryContentRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    // TODO: 비동기 설정및 이름 설정 필요
     @Async
     public void handleBinaryContentStorage(BinaryContentCreatedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
@@ -43,7 +45,8 @@ public class BinaryContentStorageEventListener {
                     binaryContent.getContentType()
             );
             /// binaryContent 상태 SUCCESS로 업데이트
-            binaryContentService.updatesStatusSuccess(binaryContentId);
+            /// updatesStatusSuccess가 REQUIRES_NEW라서 바로 SUCCESS로 COMMIT
+            binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, event.getOldBinaryContentId(), event.getOldStorageKey());
 
         } catch (Exception e) {
             log.error("S3 업로드 실패. binaryContentId={}", binaryContentId, e);

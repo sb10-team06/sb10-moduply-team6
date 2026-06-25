@@ -12,4 +12,7 @@ public class BinaryContentCreatedEvent {
     byte[] bytes;
     UUID userId;
     UUID contentId;
+
+    private UUID oldBinaryContentId;
+    private String oldStorageKey;
 }
