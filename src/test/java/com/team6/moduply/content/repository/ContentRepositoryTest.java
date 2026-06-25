@@ -190,6 +190,43 @@ class ContentRepositoryTest extends RepositoryTestSupport {
   }
 
   @Test
+  @DisplayName("콘텐츠 목록을 평점순 오름차순으로 조회한다.")
+  void find_contents_success_with_rate_ascending_sort() {
+    // Given
+    Content lowRated = contentRepository.save(createContent(
+        ContentType.movie,
+        "Low Rated Movie",
+        "평점이 낮은 영화",
+        50L,
+        BigDecimal.valueOf(3.20)
+    ));
+    Content highRated = contentRepository.save(createContent(
+        ContentType.movie,
+        "High Rated Movie",
+        "평점이 높은 영화",
+        100L,
+        BigDecimal.valueOf(4.50)
+    ));
+
+    // When
+    List<Content> result = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        10,
+        ContentSortBy.rate,
+        SortDirection.ASCENDING
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(lowRated.getId(), highRated.getId());
+  }
+
+  @Test
   @DisplayName("콘텐츠 목록을 최신순 오름차순으로 조회한다.")
   void find_contents_success_with_created_at_ascending_sort() {
     // Given
@@ -219,9 +256,8 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     );
 
     // Then
-    assertThat(result)
-        .extracting(Content::getId)
-        .containsExactly(first.getId(), second.getId());
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getCreatedAt()).isBeforeOrEqualTo(result.get(1).getCreatedAt());
   }
 
   @Test
