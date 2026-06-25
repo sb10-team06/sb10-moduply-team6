@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.CursorResponseContentDto;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
@@ -23,6 +24,7 @@ import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.mapper.ContentMapper;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
+import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.user.enums.Role;
 import java.math.BigDecimal;
@@ -239,6 +241,97 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("콘텐츠 목록이 존재하면 목록 조회 응답을 반환한다.")
+  void find_contents_success_with_existing_contents() {
+    // Given
+    UUID movieId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    UUID sportId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content movie = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    Content sport = new Content(
+        null,
+        null,
+        ContentType.sport,
+        "World Cup",
+        "스포츠 콘텐츠"
+    );
+    ReflectionTestUtils.setField(movie, "id", movieId);
+    ReflectionTestUtils.setField(sport, "id", sportId);
+
+    ContentDto movieDto = new ContentDto(
+        movieId,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        null,
+        List.of("SF", "액션"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+    ContentDto sportDto = new ContentDto(
+        sportId,
+        ContentType.sport,
+        "World Cup",
+        "스포츠 콘텐츠",
+        null,
+        List.of("스포츠"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findAll()).willReturn(List.of(movie, sport));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(movieId, sportId)))
+        .willReturn(List.of(
+            new TestContentTagNameProjection(movieId, "SF"),
+            new TestContentTagNameProjection(movieId, "액션"),
+            new TestContentTagNameProjection(sportId, "스포츠")
+        ));
+    given(contentMapper.toDto(movie, null, List.of("SF", "액션"))).willReturn(movieDto);
+    given(contentMapper.toDto(sport, null, List.of("스포츠"))).willReturn(sportDto);
+
+    // When
+    CursorResponseContentDto response = contentService.findContents();
+
+    // Then
+    assertThat(response.data()).containsExactly(movieDto, sportDto);
+    assertThat(response.nextCursor()).isNull();
+    assertThat(response.nextIdAfter()).isNull();
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.totalCount()).isEqualTo(2);
+    assertThat(response.sortBy()).isNull();
+    assertThat(response.sortDirection()).isNull();
+    verify(contentRepository).findAll();
+    verify(contentTagRepository).findTagNamesByContentIds(List.of(movieId, sportId));
+    verify(contentMapper).toDto(movie, null, List.of("SF", "액션"));
+    verify(contentMapper).toDto(sport, null, List.of("스포츠"));
+  }
+
+  @Test
+  @DisplayName("콘텐츠 목록이 비어 있으면 빈 목록 조회 응답을 반환한다.")
+  void find_contents_success_with_empty_contents() {
+    // Given
+    given(contentRepository.findAll()).willReturn(List.of());
+
+    // When
+    CursorResponseContentDto response = contentService.findContents();
+
+    // Then
+    assertThat(response.data()).isEmpty();
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.totalCount()).isZero();
+    verify(contentRepository).findAll();
+    verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
+    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  @Test
   @DisplayName("콘텐츠가 존재하면 단건 조회 응답을 반환한다.")
   void find_content_success_with_existing_content() {
     // Given
@@ -297,5 +390,21 @@ class ContentServiceTest {
     verify(contentRepository).findByIdWithContentImg(contentId);
     verify(contentTagRepository, never()).findTagNamesByContentId(any(UUID.class));
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  private record TestContentTagNameProjection(
+      UUID contentId,
+      String tagName
+  ) implements ContentTagNameProjection {
+
+    @Override
+    public UUID getContentId() {
+      return contentId;
+    }
+
+    @Override
+    public String getTagName() {
+      return tagName;
+    }
   }
 }

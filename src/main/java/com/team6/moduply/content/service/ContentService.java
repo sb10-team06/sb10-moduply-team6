@@ -3,6 +3,7 @@ package com.team6.moduply.content.service;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.CursorResponseContentDto;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
@@ -10,6 +11,7 @@ import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.mapper.ContentMapper;
 import com.team6.moduply.content.repository.ContentTagRepository;
+import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.user.enums.Role;
@@ -75,6 +77,35 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
+  public CursorResponseContentDto findContents() {
+    log.debug("콘텐츠 목록 조회 처리 시작");
+
+    List<Content> contents = contentRepository.findAll();
+    Map<UUID, List<String>> tagNamesByContentId = getTagNamesByContentId(contents);
+    List<ContentDto> data = contents.stream()
+        .map(content -> toDto(
+            content,
+            tagNamesByContentId.getOrDefault(content.getId(), List.of())
+        ))
+        .toList();
+
+    // TODO: 콘텐츠 정렬 및 커서 페이지네이션 적용 후 cursor/hasNext/sort 응답값 연동
+    CursorResponseContentDto response = new CursorResponseContentDto(
+        data,
+        null,
+        null,
+        false,
+        data.size(),
+        null,
+        null
+    );
+
+    log.debug("콘텐츠 목록 조회 처리 완료: count={}", data.size());
+
+    return response;
+  }
+
+  @Transactional(readOnly = true)
   public ContentDto findContent(UUID contentId) {
     log.debug("콘텐츠 단건 조회 처리 시작: contentId={}", contentId);
 
@@ -86,8 +117,7 @@ public class ContentService {
 
     List<String> tagNames = contentTagRepository.findTagNamesByContentId(contentId);
 
-    // TODO: BinaryContent 저장소 추상화 적용 후 thumbnailUrl 생성 로직 연동
-    ContentDto response = contentMapper.toDto(content, null, tagNames);
+    ContentDto response = toDto(content, tagNames);
 
     log.debug("콘텐츠 단건 조회 처리 완료: contentId={}", contentId);
 
@@ -137,6 +167,27 @@ public class ContentService {
     return tagNames.stream()
         .map(existingTags::get)
         .toList();
+  }
+
+  private Map<UUID, List<String>> getTagNamesByContentId(List<Content> contents) {
+    List<UUID> contentIds = contents.stream()
+        .map(Content::getId)
+        .toList();
+
+    if (contentIds.isEmpty()) {
+      return Map.of();
+    }
+
+    return contentTagRepository.findTagNamesByContentIds(contentIds).stream()
+        .collect(Collectors.groupingBy(
+            ContentTagNameProjection::getContentId,
+            Collectors.mapping(ContentTagNameProjection::getTagName, Collectors.toList())
+        ));
+  }
+
+  private ContentDto toDto(Content content, List<String> tagNames) {
+    // TODO: BinaryContent 저장소 추상화 적용 후 thumbnailUrl 생성 로직 연동
+    return contentMapper.toDto(content, null, tagNames);
   }
 
 }

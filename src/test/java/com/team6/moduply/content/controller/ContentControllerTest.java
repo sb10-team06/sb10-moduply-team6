@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.CursorResponseContentDto;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.user.enums.Role;
@@ -139,6 +140,53 @@ class ContentControllerTest {
   }
 
   @Test
+  @DisplayName("콘텐츠 목록 조회 API를 호출하면 콘텐츠 목록 응답을 반환한다.")
+  void find_contents_success_with_existing_contents() throws Exception {
+    // Given
+    ContentDto content = new ContentDto(
+        UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        null,
+        List.of("SF", "액션"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+    CursorResponseContentDto response = new CursorResponseContentDto(
+        List.of(content),
+        null,
+        null,
+        false,
+        1,
+        null,
+        null
+    );
+
+    given(contentService.findContents()).willReturn(response);
+
+    // When & Then
+    mockMvc.perform(get("/api/contents")
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data[0].id").value(content.id().toString()))
+        .andExpect(jsonPath("$.data[0].type").value("movie"))
+        .andExpect(jsonPath("$.data[0].title").value(content.title()))
+        .andExpect(jsonPath("$.data[0].description").value(content.description()))
+        .andExpect(jsonPath("$.data[0].thumbnailUrl").doesNotExist())
+        .andExpect(jsonPath("$.data[0].tags[0]").value("SF"))
+        .andExpect(jsonPath("$.data[0].tags[1]").value("액션"))
+        .andExpect(jsonPath("$.data[0].averageRating").value(0))
+        .andExpect(jsonPath("$.data[0].reviewCount").value(0))
+        .andExpect(jsonPath("$.data[0].watcherCount").value(0))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(1));
+
+    verify(contentService).findContents();
+  }
+
+  @Test
   @DisplayName("콘텐츠 단건 조회 API를 호출하면 콘텐츠 응답을 반환한다.")
   void find_content_success_with_existing_content() throws Exception {
     // Given
@@ -148,7 +196,7 @@ class ContentControllerTest {
         ContentType.movie,
         "Inception",
         "꿈과 현실을 넘나드는 SF 영화",
-        "https://example.com/thumbnail.jpg",
+        null,
         List.of("SF", "액션"),
         BigDecimal.ZERO,
         0,
@@ -165,7 +213,7 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.type").value("movie"))
         .andExpect(jsonPath("$.title").value(response.title()))
         .andExpect(jsonPath("$.description").value(response.description()))
-        .andExpect(jsonPath("$.thumbnailUrl").value(response.thumbnailUrl()))
+        .andExpect(jsonPath("$.thumbnailUrl").doesNotExist())
         .andExpect(jsonPath("$.tags[0]").value("SF"))
         .andExpect(jsonPath("$.tags[1]").value("액션"))
         .andExpect(jsonPath("$.averageRating").value(0))

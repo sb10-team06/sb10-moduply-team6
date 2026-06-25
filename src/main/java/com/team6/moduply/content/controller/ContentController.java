@@ -2,6 +2,7 @@ package com.team6.moduply.content.controller;
 
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.CursorResponseContentDto;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.user.enums.Role;
 import jakarta.validation.Valid;
@@ -39,6 +40,15 @@ public class ContentController implements ContentApi {
     ContentDto response = contentService.createContent(request, null, null, Role.ADMIN);
     log.info("콘텐츠 생성 요청 처리 완료: contentId={}", response.id());
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+  @Override
+  public ResponseEntity<CursorResponseContentDto> findContents() {
+    log.info("콘텐츠 목록 조회 요청 수신");
+    CursorResponseContentDto response = contentService.findContents();
+    log.info("콘텐츠 목록 조회 요청 처리 완료: count={}", response.data().size());
+    return ResponseEntity.ok(response);
   }
 
   @GetMapping(value = "/{contentId}", produces = MediaType.APPLICATION_JSON_VALUE)

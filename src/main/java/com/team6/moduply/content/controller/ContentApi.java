@@ -3,6 +3,7 @@ package com.team6.moduply.content.controller;
 import com.team6.moduply.common.error.ErrorResponse;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.CursorResponseContentDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -65,6 +66,47 @@ public interface ContentApi {
       )
   })
   ResponseEntity<ContentDto> createContent(ContentCreateRequest request, MultipartFile thumbnail);
+
+  @Operation(
+      summary = "콘텐츠 목록 조회",
+      description = "콘텐츠 목록을 조회합니다.",
+      operationId = "findContents"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "성공",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = CursorResponseContentDto.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<CursorResponseContentDto> findContents();
 
   @Operation(
       summary = "콘텐츠 단건 조회",
