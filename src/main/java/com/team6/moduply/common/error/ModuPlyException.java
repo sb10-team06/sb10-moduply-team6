@@ -26,4 +26,12 @@ public abstract class ModuPlyException extends RuntimeException {
     this.errorCode = errorCode;
     this.details = Map.of(getClass().getSimpleName(), id);
   }
+
+  /// 원본 원인 추적이 가능하도록 cause 전달 처리
+  public ModuPlyException(ErrorCode errorCode, Map<String, Object> details, Throwable cause) {
+    super(errorCode.getMessage(), cause);
+    this.timestamp = Instant.now();
+    this.errorCode = errorCode;
+    this.details = details;
+  }
 }

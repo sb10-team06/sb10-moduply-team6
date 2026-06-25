@@ -38,8 +38,8 @@ class PlaylistServiceTest {
   private PlaylistMapper playlistMapper;
 
   @Test
-  @DisplayName("플레이리스트를 생성하면 저장된 플레이리스트를 반환한다.")
-  void create_success() {
+  @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")
+  void create_success_with_owner() {
     // given
     UUID ownerId = UUID.randomUUID();
     PlaylistCreateRequest request = new PlaylistCreateRequest("내 최애 영화", "비 오는 날 보기 좋은 영화들");
@@ -83,8 +83,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("플레이리스트를 수정하면 수정된 플레이리스트를 반환한다.")
-  void update_success() {
+  @DisplayName("소유자가 플레이리스트를 수정하면 수정된 플레이리스트를 반환한다.")
+  void update_success_with_owner() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();
@@ -154,8 +154,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("플레이리스트를 삭제하면 레포지토리의 delete가 호출된다.")
-  void delete_success() {
+  @DisplayName("소유자가 플레이리스트를 삭제하면 레포지토리의 delete가 호출된다.")
+  void delete_success_with_owner() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();

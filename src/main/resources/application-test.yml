@@ -26,3 +26,14 @@ cors:
   allowed-origins:
     - "http://localhost:[*]"
     - "http://127.0.0.1:[*]"
+
+#S3 호출하지 않는 테스트라 region, bucket 기본값만 셋팅
+#컨텍스트 로딩 통과용.
+moduply:
+  storage:
+    s3:
+      access-key: test-access-key
+      secret-key: test-secret-key
+      region: ap-northeast-2
+      bucket: test-bucket
+      presigned-url-expiration: 600
