@@ -47,7 +47,7 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
         .where(toWhereArray(conditions))
         .orderBy(buildOrderSpecifiers(sortBy, sortDirection))
         .limit(limit)
-      .fetch();
+        .fetch();
   }
 
   // 현재 검색 조건에 해당하는 콘텐츠 전체 개수를 조회한다.

@@ -12,8 +12,10 @@ import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,6 +107,136 @@ class ContentRepositoryTest extends RepositoryTestSupport {
   }
 
   @Test
+  @DisplayName("콘텐츠 목록을 평점순으로 조회한다.")
+  void find_contents_success_with_rate_sort() {
+    // Given
+    Content highRated = contentRepository.save(createContent(
+        ContentType.movie,
+        "High Rated Movie",
+        "평점이 높은 영화",
+        100L,
+        BigDecimal.valueOf(4.50)
+    ));
+    Content lowRated = contentRepository.save(createContent(
+        ContentType.movie,
+        "Low Rated Movie",
+        "평점이 낮은 영화",
+        50L,
+        BigDecimal.valueOf(3.20)
+    ));
+
+    // When
+    List<Content> result = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        10,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(highRated.getId(), lowRated.getId());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 목록을 최신순 오름차순으로 조회한다.")
+  void find_contents_success_with_created_at_ascending_sort() {
+    // Given
+    Content first = contentRepository.save(createContent(
+        ContentType.movie,
+        "Old Movie",
+        "먼저 등록된 영화",
+        100L
+    ));
+    Content second = contentRepository.save(createContent(
+        ContentType.movie,
+        "New Movie",
+        "나중에 등록된 영화",
+        50L
+    ));
+
+    // When
+    List<Content> result = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        10,
+        ContentSortBy.createdAt,
+        SortDirection.ASCENDING
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(first.getId(), second.getId());
+  }
+
+  @Test
+  @DisplayName("동일한 정렬값이면 ID 보조 커서로 다음 목록을 조회한다.")
+  void find_contents_success_with_id_after_when_sort_values_are_same() {
+    // Given
+    Content first = contentRepository.save(createContent(
+        ContentType.movie,
+        "First Movie",
+        "시청자 수가 같은 영화",
+        100L
+    ));
+    Content second = contentRepository.save(createContent(
+        ContentType.movie,
+        "Second Movie",
+        "시청자 수가 같은 영화",
+        100L
+    ));
+    Content third = contentRepository.save(createContent(
+        ContentType.movie,
+        "Third Movie",
+        "시청자 수가 같은 영화",
+        100L
+    ));
+    List<UUID> allIds = List.of(first.getId(), second.getId(), third.getId());
+
+    // When
+    List<Content> firstPage = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        1,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+    UUID idAfter = firstPage.get(0).getId();
+    List<Content> secondPage = contentRepository.findContents(
+        null,
+        null,
+        List.of(),
+        "100",
+        idAfter,
+        2,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(firstPage)
+        .extracting(Content::getId)
+        .hasSize(1);
+    assertThat(secondPage)
+        .extracting(Content::getId)
+        .hasSize(2)
+        .doesNotContain(idAfter)
+        .isSubsetOf(allIds);
+  }
+
+  @Test
   @DisplayName("콘텐츠 목록을 타입, 검색어, 태그 조건으로 조회한다.")
   void find_contents_success_with_type_keyword_and_tags() {
     // Given
@@ -176,6 +308,19 @@ class ContentRepositoryTest extends RepositoryTestSupport {
         description
     );
     ReflectionTestUtils.setField(content, "watcherCount", watcherCount);
+
+    return content;
+  }
+
+  private Content createContent(
+      ContentType type,
+      String title,
+      String description,
+      long watcherCount,
+      BigDecimal averageRating
+  ) {
+    Content content = createContent(type, title, description, watcherCount);
+    ReflectionTestUtils.setField(content, "averageRating", averageRating);
 
     return content;
   }
