@@ -69,7 +69,12 @@ class ContentServiceTest {
         "꿈과 현실을 넘나드는 SF 영화",
         List.of("SF", "액션", "SF ")
     );
-    BinaryContent contentImg = new BinaryContent();
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/images/binary-content-id.png"
+    );
     Tag existingTag = new Tag("SF");
     Tag newTag = new Tag("액션");
     ContentDto expected = new ContentDto(
@@ -476,9 +481,12 @@ class ContentServiceTest {
   void find_content_success_with_existing_content() {
     // Given
     UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
-    BinaryContent contentImg = new BinaryContent();
-    ReflectionTestUtils.setField(contentImg, "storageKey", "contents/images/thumbnail.jpg");
-    ReflectionTestUtils.setField(contentImg, "contentType", "image/jpeg");
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.jpg",
+        1024L,
+        "image/jpeg",
+        "contents/images/thumbnail.jpg"
+    );
     Content content = new Content(
         contentImg,
         null,

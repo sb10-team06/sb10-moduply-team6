@@ -1,6 +1,7 @@
 package com.team6.moduply.content.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +44,7 @@ public class ContentService {
   private final TagRepository tagRepository;
   private final ContentTagRepository contentTagRepository;
   private final ContentMapper contentMapper;
+  private final BinaryContentService binaryContentService;
 
   @Transactional
   public ContentDto createContent(
@@ -49,6 +52,7 @@ public class ContentService {
       BinaryContent contentImg,
       String thumbnailUrl,
       Role requesterRole
+//      MultipartFile thumbnail
   ) {
     log.debug("콘텐츠 생성 처리 시작: type={}, title={}", request.type(), request.title());
     // TODO: Spring Security 인가 구조 적용 시 createContent 메서드에 관리자 권한 검증 적용 예정
@@ -63,6 +67,15 @@ public class ContentService {
     );
     Content savedContent = contentRepository.save(content);
 
+      // TODO: BinaryContentService.createContentImage(contentId, thumbnail) 호출
+//    if(thumbnail != null && !thumbnailUrl.isEmpty()) {
+//      BinaryContent contentImg = binaryContentService.createContentImage(savedContent.getId(), thumbnail);
+//      // TODO: content.contentImg 연결
+//      savedContent.updateContentImg(contentImg);
+       // TODO: BinaryContentService.generateUrl(contentImg) 호출
+//      String thumbnailUrl = binaryContentService.generateUrl(contentImg);
+//    }
+
     List<String> tagNames = normalizeTags(request.tags());
 
     List<Tag> tags = getOrCreateTags(tagNames);
@@ -74,7 +87,7 @@ public class ContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
-
+    // TODO: ContentDto.thumbnailUrl에 presigned URL 세팅
     ContentDto response = contentMapper.toDto(savedContent, thumbnailUrl, tagNames);
 
     log.debug("콘텐츠 생성 처리 완료: contentId={}", savedContent.getId());

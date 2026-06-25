@@ -2,7 +2,6 @@ package com.team6.moduply.content.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.team6.moduply.binarycontent.BinaryContentStatus;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.common.config.JpaAuditingConfig;
@@ -284,12 +283,13 @@ class ContentRepositoryTest extends RepositoryTestSupport {
   }
 
   private BinaryContent createBinaryContent() {
-    BinaryContent contentImg = new BinaryContent();
-    ReflectionTestUtils.setField(contentImg, "fileName", "thumbnail.jpg");
-    ReflectionTestUtils.setField(contentImg, "size", 1024L);
-    ReflectionTestUtils.setField(contentImg, "contentType", "image/jpeg");
-    ReflectionTestUtils.setField(contentImg, "storageKey", "contents/images/thumbnail.jpg");
-    ReflectionTestUtils.setField(contentImg, "status", BinaryContentStatus.SUCCESS);
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.jpg",
+        1024L,
+        "image/jpeg",
+        "contents/images/thumbnail.jpg"
+    );
+    contentImg.success();
 
     return contentImg;
   }
