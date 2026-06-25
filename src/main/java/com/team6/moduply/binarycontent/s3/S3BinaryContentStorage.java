@@ -105,7 +105,18 @@ public class S3BinaryContentStorage {
 
     }
 
-    /// S3업로드된 이미지 파일 삭제
+    @Retryable(
+            retryFor = {
+                    S3StorageException.class,
+                    S3Exception.class
+            },
+            /// 재시도 정책: 최초 실행 1회 + 재시도 2회 = 총 3회
+            maxAttempts = 3,
+            /// 실패 후 1초 대기
+            /// multiplier = 2: 재시도할수록 대기시간 증가
+            /// 1차 실패후 1초대기, 2차 실패후 2초 대기.
+            backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
     public String delete(String key) {
         try {
             // bucket명과 key로 이미지 삭제.
