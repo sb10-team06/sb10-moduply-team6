@@ -75,16 +75,6 @@ public class BinaryContentService {
     validateImage(image);
     String storageKey = createContentStorageKey(contentId, image.getOriginalFilename());
 
-    // 메타데이터 생성
-    BinaryContent binaryContent = BinaryContent.create(
-            image.getOriginalFilename(),
-            image.getSize(),
-            image.getContentType(),
-            storageKey
-    );
-    /// 메타 데이터 DB저장
-    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
-
     return create(image, storageKey, null, contentId);
 
   }
