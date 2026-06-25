@@ -8,7 +8,7 @@ import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -62,5 +62,13 @@ public class PlaylistService {
 //    }
 
     playlistRepository.delete(playlist);
+  }
+
+  @Transactional(readOnly = true)
+  public PlaylistDto findById(UUID playlistId) {
+    Playlist playlist = playlistRepository.findById(playlistId)
+        .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+
+    return playlistMapper.toDto(playlist);
   }
 }

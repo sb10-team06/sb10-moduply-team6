@@ -11,6 +11,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,5 +54,12 @@ public class PlaylistController {
     UUID tempOwnerId = UUID.randomUUID();
     playlistService.delete(playlistId, tempOwnerId);
     return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/{playlistId}")
+  @Operation(summary = "플레이리스트 단건 조회", description = "플레이리스트 상세 정보를 조회합니다.")
+  public ResponseEntity<PlaylistDto> getPlaylist(
+      @PathVariable UUID playlistId) {
+    return ResponseEntity.ok(playlistService.findById(playlistId));
   }
 }
