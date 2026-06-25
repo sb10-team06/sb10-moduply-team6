@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -33,7 +34,11 @@ class JwtLoginSuccessHandlerTest {
   void login_success() throws Exception {
     // Given
     ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-    JwtLoginSuccessHandler handler = new JwtLoginSuccessHandler(jwtTokenProvider, objectMapper);
+    JwtLoginSuccessHandler handler = new JwtLoginSuccessHandler(
+        jwtTokenProvider,
+        objectMapper,
+        CookieCsrfTokenRepository.withHttpOnlyFalse()
+    );
 
     UserDto userDto = new UserDto(
         UUID.randomUUID(),
@@ -62,6 +67,7 @@ class JwtLoginSuccessHandlerTest {
 
     // Then
     Cookie refreshTokenCookie = response.getCookie("REFRESH_TOKEN");
+    Cookie csrfTokenCookie = response.getCookie("XSRF-TOKEN");
     JsonNode responseBody = objectMapper.readTree(response.getContentAsString());
 
     assertThat(response.getStatus()).isEqualTo(200);
@@ -70,6 +76,9 @@ class JwtLoginSuccessHandlerTest {
     assertThat(refreshTokenCookie.getValue()).isEqualTo("refresh-token");
     assertThat(refreshTokenCookie.isHttpOnly()).isTrue();
     assertThat(refreshTokenCookie.getPath()).isEqualTo("/");
+    assertThat(csrfTokenCookie).isNotNull();
+    assertThat(csrfTokenCookie.isHttpOnly()).isFalse();
+    assertThat(csrfTokenCookie.getPath()).isEqualTo("/");
     assertThat(responseBody.get("accessToken").asText()).isEqualTo("access-token");
     assertThat(responseBody.get("userDto").get("email").asText()).isEqualTo("tester@example.com");
   }
