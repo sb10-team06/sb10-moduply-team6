@@ -277,6 +277,21 @@ class BinaryContentServiceTest {
   }
 
   @Test
+  @DisplayName("S3 업로드 성공 처리 시 BinaryContent가 존재하지 않으면 BINARY_CONTENT_NOT_FOUND 예외가 발생한다.")
+  void updatesStatusSuccess_fail_when_binary_content_not_found() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.updatesStatusSuccess(binaryContentId))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
+        });
+  }
+
+  @Test
   @DisplayName("S3 업로드 실패 처리 시 BinaryContent 상태를 FAIL로 변경한다.")
   void updatesStatusFail_success() {
     // given
@@ -294,6 +309,21 @@ class BinaryContentServiceTest {
 
     // then
     assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.FAIL);
+  }
+
+  @Test
+  @DisplayName("S3 업로드 실패 처리 시 BinaryContent가 존재하지 않으면 BINARY_CONTENT_NOT_FOUND 예외가 발생한다.")
+  void updatesStatusFail_fail_when_binary_content_not_found() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.updatesStatusFail(binaryContentId))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
+        });
   }
 
   private BinaryContent saveWithId(BinaryContent binaryContent) {
@@ -326,7 +356,6 @@ class BinaryContentServiceTest {
     given(image.isEmpty()).willReturn(false);
     given(image.getSize()).willReturn(0L);
     given(image.getOriginalFilename()).willReturn(fileName);
-    given(image.getContentType()).willReturn(contentType);
     return image;
   }
 }
