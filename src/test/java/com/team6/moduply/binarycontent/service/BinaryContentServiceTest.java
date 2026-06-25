@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import com.team6.moduply.binarycontent.BinaryContentStatus;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
+import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
@@ -324,6 +325,57 @@ class BinaryContentServiceTest {
           assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
           assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
         });
+  }
+
+  @Test
+  @DisplayName("BinaryContent 삭제 요청 시 삭제 이벤트를 발행한다.")
+  void delete_success_publish_event() {
+    // given
+    // 삭제할 binaryContentId
+    UUID binaryContentId = UUID.randomUUID();
+    // 삭제할 이미지의 S3경로
+    String storageKey = "users/user-id/profile/profile.png";
+    BinaryContent binaryContent = BinaryContent.create(
+        "profile.png",
+        100L,
+        "image/png",
+        storageKey
+    );
+    // 위에서만든 binaryContentId값을 binaryContent에 강제 주입
+    ReflectionTestUtils.setField(binaryContent, "id", binaryContentId);
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+
+    // when
+    binaryContentService.delete(binaryContentId);
+
+    // then
+    // eventPublisher.publishEvnet(???) -> ???에 해당하는 인자를 가로채서 가져온다.
+    ArgumentCaptor<BinaryContentDeletedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentDeletedEvent.class);
+    // 이벤트발행 됐는지?
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+    // BinaryContentDeletedEvent 객체를 가져오게 됨.
+    BinaryContentDeletedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(binaryContentId);
+    assertThat(event.getStorageKey()).isEqualTo(storageKey);
+  }
+
+  @Test
+  @DisplayName("BinaryContent 삭제 요청 시 대상이 없으면 BINARY_CONTENT_NOT_FOUND 예외가 발생하고 이벤트를 발행하지 않는다.")
+  void delete_fail_when_binary_content_not_found() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.delete(binaryContentId))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
+        });
+
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentDeletedEvent.class));
   }
 
   private BinaryContent saveWithId(BinaryContent binaryContent) {
