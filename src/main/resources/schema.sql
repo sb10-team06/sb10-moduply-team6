@@ -120,7 +120,7 @@ CREATE TABLE playlist_subscriptions (
 
 -- 리뷰 테이블
 CREATE TABLE reviews (
-    id              UUID             PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              UUID             PRIMARY KEY,
     content_id      UUID             NOT NULL,
     author_id       UUID             NOT NULL,
     text            TEXT             NOT NULL,
