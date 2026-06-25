@@ -27,7 +27,7 @@ public class BinaryContentStorageEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
-    public void hadnleBinaryContentStorage(BinaryContentCreatedEvent event) {
+    public void handleBinaryContentStorage(BinaryContentCreatedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
 
         try {
