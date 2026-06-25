@@ -210,4 +210,47 @@ class PlaylistServiceTest {
     assertThatThrownBy(() -> playlistService.delete(playlistId, ownerId))
         .isInstanceOf(PlaylistException.class);
   }
+
+  @Test
+  @DisplayName("소유자가 플레이리스트를 단건 조회하면 플레이리스트를 반환한다.")
+  void findById_success_with_owner() {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId)
+        .title("내 최애 영화")
+        .description("비 오는 날 보기 좋은 영화들")
+        .build();
+
+    PlaylistDto expectedDto = new PlaylistDto(
+        playlistId, null, "내 최애 영화",
+        "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
+    );
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistMapper.toDto(playlist)).willReturn(expectedDto);
+
+    // when
+    PlaylistDto result = playlistService.findById(playlistId);
+
+    // then
+    assertThat(result.title()).isEqualTo("내 최애 영화");
+    assertThat(result.description()).isEqualTo("비 오는 날 보기 좋은 영화들");
+    verify(playlistMapper).toDto(playlist);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트를 단건 조회하면 예외가 발생한다.")
+  void findById_fail_with_not_found_playlist() {
+    // given
+    UUID playlistId = UUID.randomUUID();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.findById(playlistId))
+        .isInstanceOf(PlaylistException.class);
+  }
 }

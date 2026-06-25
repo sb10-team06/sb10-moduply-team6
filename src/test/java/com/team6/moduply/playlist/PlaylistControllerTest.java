@@ -5,6 +5,8 @@ import com.team6.moduply.playlist.controller.PlaylistController;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
+import com.team6.moduply.playlist.exception.PlaylistErrorCode;
+import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.service.PlaylistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -120,5 +123,43 @@ class PlaylistControllerTest {
             .with(user("test-user").roles("USER"))
             .with(csrf()))
         .andExpect(status().isNoContent());
+  }
+
+  @Test
+  @DisplayName("플레이리스트를 단건 조회하면 200을 반환한다.")
+  void getPlaylist_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+
+    PlaylistDto response = new PlaylistDto(
+        playlistId, null, "내 최애 영화",
+        "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
+    );
+
+    given(playlistService.findById(any())).willReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/api/playlists/" + playlistId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("내 최애 영화"))
+        .andExpect(jsonPath("$.description").value("비 오는 날 보기 좋은 영화들"));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트를 조회하면 404를 반환한다.")
+  void getPlaylist_fail_with_not_found() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+
+    given(playlistService.findById(any()))
+        .willThrow(new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+
+    // when & then
+    mockMvc.perform(get("/api/playlists/" + playlistId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNotFound());
   }
 }
