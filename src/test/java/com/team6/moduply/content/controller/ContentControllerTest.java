@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,7 +58,7 @@ class ContentControllerTest {
         ContentType.movie,
         "Inception",
         "꿈과 현실을 넘나드는 SF 영화",
-        "https://example.com/thumbnail.jpg",
+        null,
         List.of("SF", "액션"),
         BigDecimal.ZERO,
         0,
@@ -89,7 +90,7 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.type").value("movie"))
         .andExpect(jsonPath("$.title").value(response.title()))
         .andExpect(jsonPath("$.description").value(response.description()))
-        .andExpect(jsonPath("$.thumbnailUrl").value(response.thumbnailUrl()))
+        .andExpect(jsonPath("$.thumbnailUrl").doesNotExist())
         .andExpect(jsonPath("$.tags[0]").value("SF"))
         .andExpect(jsonPath("$.tags[1]").value("액션"))
         .andExpect(jsonPath("$.averageRating").value(0))
@@ -135,5 +136,42 @@ class ContentControllerTest {
         any(),
         any()
     );
+  }
+
+  @Test
+  @DisplayName("콘텐츠 단건 조회 API를 호출하면 콘텐츠 응답을 반환한다.")
+  void find_content_success_with_existing_content() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    ContentDto response = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        "https://example.com/thumbnail.jpg",
+        List.of("SF", "액션"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentService.findContent(contentId)).willReturn(response);
+
+    // When & Then
+    mockMvc.perform(get("/api/contents/{contentId}", contentId)
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(response.id().toString()))
+        .andExpect(jsonPath("$.type").value("movie"))
+        .andExpect(jsonPath("$.title").value(response.title()))
+        .andExpect(jsonPath("$.description").value(response.description()))
+        .andExpect(jsonPath("$.thumbnailUrl").value(response.thumbnailUrl()))
+        .andExpect(jsonPath("$.tags[0]").value("SF"))
+        .andExpect(jsonPath("$.tags[1]").value("액션"))
+        .andExpect(jsonPath("$.averageRating").value(0))
+        .andExpect(jsonPath("$.reviewCount").value(0))
+        .andExpect(jsonPath("$.watcherCount").value(0));
+
+    verify(contentService).findContent(contentId);
   }
 }

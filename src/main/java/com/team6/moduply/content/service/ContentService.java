@@ -74,6 +74,26 @@ public class ContentService {
     return response;
   }
 
+  @Transactional(readOnly = true)
+  public ContentDto findContent(UUID contentId) {
+    log.debug("콘텐츠 단건 조회 처리 시작: contentId={}", contentId);
+
+    Content content = contentRepository.findByIdWithContentImg(contentId)
+        .orElseThrow(() -> {
+          log.warn("콘텐츠 단건 조회 실패: 콘텐츠 없음. contentId={}", contentId);
+          return new ContentException(ContentErrorCode.CONTENT_NOT_FOUND, contentId);
+        });
+
+    List<String> tagNames = contentTagRepository.findTagNamesByContentId(contentId);
+
+    // TODO: BinaryContent 저장소 추상화 적용 후 thumbnailUrl 생성 로직 연동
+    ContentDto response = contentMapper.toDto(content, null, tagNames);
+
+    log.debug("콘텐츠 단건 조회 처리 완료: contentId={}", contentId);
+
+    return response;
+  }
+
   private void validateAdmin(Role requesterRole) {
     if (requesterRole != Role.ADMIN) {
       log.warn("콘텐츠 생성 실패: 관리자 권한 없음. requesterRole={}", requesterRole);
@@ -118,4 +138,5 @@ public class ContentService {
         .map(existingTags::get)
         .toList();
   }
+
 }
