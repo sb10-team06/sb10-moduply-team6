@@ -56,4 +56,34 @@ public class BinaryContentStorageEventListener {
         }
     }
 
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleBinaryContentDelete(BinaryContentDeletedEvent event) {
+        try {
+            // S3에서 삭제
+            s3BinaryContentStorage.delete(event.getStorageKey());
+            // DB에서 binaryContent status값 DELETED로 변경
+            binaryContentService.updatesStatusDeleted(event.getBinaryContentId());
+
+            log.info("BinaryContent 삭제 완료. binaryContentId={}, storageKey={}",
+                    event.getBinaryContentId(),
+                    event.getStorageKey());
+
+        } catch (Exception e) {
+            try {
+                binaryContentService.updatesStatusFail(event.getBinaryContentId());
+              //FAIL로 업데이트되는게 예외발생될때.
+            } catch (Exception statusException) {
+                log.error("BinaryContent 삭제 실패 상태 변경 실패. binaryContentId={}",
+                        event.getBinaryContentId(),
+                        statusException);
+            }
+            log.error("BinaryContent 삭제 실패. binaryContentId={}, storageKey={}",
+                    event.getBinaryContentId(),
+                    event.getStorageKey(),
+                    e);
+        }
+    }
+
 }

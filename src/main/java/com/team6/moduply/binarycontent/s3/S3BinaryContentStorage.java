@@ -1,7 +1,7 @@
 package com.team6.moduply.binarycontent.s3;
 
 import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
-import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
+import com.team6.moduply.binarycontent.s3.exception.S3StorageException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.annotation.Backoff;
@@ -9,6 +9,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -36,7 +37,7 @@ public class S3BinaryContentStorage {
     /// content의 이미지: String key = "contents/%s/images/%s".formatted(contentId, binaryContentId);
     @Retryable(
             retryFor = {
-                    S3UploadException.class,
+                    S3StorageException.class,
                     S3Exception.class
             },
             /// 재시도 정책: 최초 실행 1회 + 재시도 2회 = 총 3회
@@ -57,9 +58,9 @@ public class S3BinaryContentStorage {
             s3Client.putObject(request, RequestBody.fromBytes(bytes));
 
             return key;
-        } catch (S3Exception e) {
+        } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
             /// S3Exception 원본 원인 추적이 가능하도록 cause 전달 처리
-            throw new S3UploadException(S3ErrorCode.S3_UPLOAD_FAILED, Map.of("key", key), e);
+            throw new S3StorageException(S3ErrorCode.S3_UPLOAD_FAILED, Map.of("key", key), e);
         }
     }
 
@@ -102,6 +103,24 @@ public class S3BinaryContentStorage {
             PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
             return presignedRequest.url().toString();
 
+    }
+
+    /// S3업로드된 이미지 파일 삭제
+    public String delete(String key) {
+        try {
+            // bucket명과 key로 이미지 삭제.
+            DeleteObjectRequest request = DeleteObjectRequest.builder()
+                    .bucket(properties.getBucket())
+                    .key(key)
+                    .build();
+
+            s3Client.deleteObject(request);
+            log.info("S3 파일 삭제완료. key={}", key);
+
+            return key;
+        } catch (S3Exception e) {
+            throw new  S3StorageException(S3ErrorCode.S3_DELETE_FAILED, Map.of("key", key), e);
+        }
     }
 
 }

@@ -2,6 +2,7 @@ package com.team6.moduply.binarycontent.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
+import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
@@ -11,8 +12,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
-import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -20,6 +19,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+/**
+ 프로필이나 콘텐츠 이미지 수정시
+ (1)기존 이미지: BinaryContent oldProfileImg = user.getProfileImg();
+ (2)변경할 이미지: newProfileImg = binaryContentService.createUserProfile(userId, newProfileIamge)
+ (3)새이미지로 변경: user.updateProfileImg(newProfileImg)
+ (4)기존 이미지 삭제: binaryContentService.delete(oldProfileImg.getId());
+
+ ** 기존이미지를 먼저 삭제하면 안됨.
+ ** 새 이미지로 변경후, 기존 이미지 삭제할것.
+
+ **/
 
 @Slf4j
 @Service
@@ -110,6 +121,24 @@ public class BinaryContentService {
     return savedBinaryContent;
   }
 
+  @Transactional
+  public void delete(UUID binaryContentId) {
+    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            .orElseThrow(() -> new BinaryContentException(
+                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
+                    Map.of("binaryContentId", binaryContentId))
+            );
+
+    eventPublisher.publishEvent(new BinaryContentDeletedEvent(
+            binaryContent.getId(),
+            binaryContent.getStorageKey()
+    ));
+
+    log.info("바이너리 컨텐츠 삭제 이벤트 발행 완료. binaryContentId={}, storageKey={}",
+            binaryContent.getId(),
+            binaryContent.getStorageKey());
+  }
+
   /// binaryContent SUCCESS상태로 업데이트
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void updatesStatusSuccess(UUID binaryContentId) {
@@ -132,6 +161,18 @@ public class BinaryContentService {
             );
 
     binaryContent.fail();
+  }
+
+  /// binaryContent DELETED상태로 업데이트
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void updatesStatusDeleted(UUID binaryContentId) {
+    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            .orElseThrow(() -> new BinaryContentException(
+                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
+                    Map.of("binaryContentId", binaryContentId)
+            ));
+
+    binaryContent.delete();
   }
 
   /// 이미지 검증메서드
