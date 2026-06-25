@@ -3,19 +3,20 @@ package com.team6.moduply.binarycontent.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.BinaryContentStatus;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
+import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
+import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.binarycontent.s3.S3BinaryContentStorage;
-import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
-import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class BinaryContentServiceTest {
@@ -35,90 +38,79 @@ class BinaryContentServiceTest {
   @Mock
   private BinaryContentRepository binaryContentRepository;
 
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
+
   @InjectMocks
   private BinaryContentService binaryContentService;
 
   @Test
-  @DisplayName("프로필 이미지 생성에 성공하면 S3 업로드 후 BinaryContent를 SUCCESS 상태로 저장한다.")
-  void createUserProfile_success_with_user() throws IOException {
+  @DisplayName("프로필 이미지 생성 시 BinaryContent를 PROCESSING 상태로 저장하고 S3 업로드 이벤트를 발행한다.")
+  void createUserProfile_success_publish_event() throws IOException {
     // given
-    // 사용자id 생성
+    // userId 생성
     UUID userId = UUID.randomUUID();
-    // MultipartFile 생성
+    // 이미지 생성
     MockMultipartFile image = createImage("profile.png", "image/png");
-    // S3 upload 동작: key 반환
-    given(s3BinaryContentStorage.upload(any(String.class), any(byte[].class), eq("image/png")))
-        .willAnswer(invocation -> invocation.getArgument(0));
-    // BinaryContent save: BinaryContent 반환
+    // binaryContent 저장
     given(binaryContentRepository.save(any(BinaryContent.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
-    // PresignedUrl 생성
-    given(s3BinaryContentStorage.generatePresignedUrl(any(String.class), eq("image/png")))
-        .willReturn("https://example.com/profile.png");
+        .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
 
     // when
     BinaryContent result = binaryContentService.createUserProfile(userId, image);
 
     // then
+    // binaryContent가 잘 저장됐는지
     assertThat(result.getFileName()).isEqualTo("profile.png");
     assertThat(result.getSize()).isEqualTo(image.getSize());
     assertThat(result.getContentType()).isEqualTo("image/png");
     assertThat(result.getStorageKey())
         .startsWith("users/%s/profile/".formatted(userId))
         .endsWith(".png");
-    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
-
-    verify(s3BinaryContentStorage).upload(
-        eq(result.getStorageKey()),
-        eq(image.getBytes()),
-        eq("image/png")
-    );
+    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
+    //binaryContent.save() 실행됐는지
     verify(binaryContentRepository).save(result);
-    verify(s3BinaryContentStorage).generatePresignedUrl(result.getStorageKey(), "image/png");
+
+    //event 발행 잘 됐는지
+    ArgumentCaptor<BinaryContentCreatedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentCreatedEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+    BinaryContentCreatedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(result.getId());
+    assertThat(event.getBytes()).isEqualTo(image.getBytes());
+    assertThat(event.getUserId()).isEqualTo(userId);
+    assertThat(event.getContentId()).isNull();
   }
 
   @Test
-  @DisplayName("프로필 이미지 S3 업로드에 실패하면 BinaryContent를 FAIL 상태로 저장하고 S3UploadException을 던진다.")
-  void createUserProfile_fail_when_s3_upload_failed() {
+  @DisplayName("프로필 이미지 생성 시 지원하지 않는 이미지 타입이면 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createUserProfile_fail_when_unsupported_image_type() {
     // given
     UUID userId = UUID.randomUUID();
-    MockMultipartFile image = createImage("profile.png", "image/png");
-    RuntimeException cause = new RuntimeException("upload failed");
-    given(s3BinaryContentStorage.upload(any(String.class), any(byte[].class), eq("image/png")))
-        .willThrow(cause);
-    given(binaryContentRepository.save(any(BinaryContent.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
+    /// 지원하지않는 .gif타입인 이미지 생성
+    MockMultipartFile image = createImage("profile.gif", "image/gif");
 
     // when & then
+    /// UNSUPPORTED_IMAGE_TYPE 예외 발생됐는지?
     assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image))
-        .isInstanceOfSatisfying(S3UploadException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(S3ErrorCode.S3_UPLOAD_FAILED);
-          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
-          assertThat(exception.getDetails().get("storageKey")).isInstanceOf(String.class);
-          assertThat(exception.getCause()).isEqualTo(cause);
-        });
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE)
+        );
 
-    ArgumentCaptor<BinaryContent> captor = ArgumentCaptor.forClass(BinaryContent.class);
-    verify(binaryContentRepository).save(captor.capture());
-    BinaryContent failed = captor.getValue();
-    assertThat(failed.getStatus()).isEqualTo(BinaryContentStatus.FAIL);
-    assertThat(failed.getStorageKey())
-        .startsWith("users/%s/profile/".formatted(userId))
-        .endsWith(".png");
+    /// save랑 evnet 발행 안됐는지?
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
   }
 
   @Test
-  @DisplayName("콘텐츠 이미지 생성에 성공하면 S3 업로드 후 BinaryContent를 SUCCESS 상태로 저장한다.")
-  void createContentImage_success_with_content() throws IOException {
+  @DisplayName("콘텐츠 이미지 생성 시 BinaryContent를 PROCESSING 상태로 저장하고 S3 업로드 이벤트를 발행한다.")
+  void createContentImage_success_publish_event() throws IOException {
     // given
     UUID contentId = UUID.randomUUID();
     MockMultipartFile image = createImage("thumbnail.webp", "image/webp");
-    given(s3BinaryContentStorage.upload(any(String.class), any(byte[].class), eq("image/webp")))
-        .willAnswer(invocation -> invocation.getArgument(0));
     given(binaryContentRepository.save(any(BinaryContent.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
-    given(s3BinaryContentStorage.generatePresignedUrl(any(String.class), eq("image/webp")))
-        .willReturn("https://example.com/thumbnail.webp");
+        .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
 
     // when
     BinaryContent result = binaryContentService.createContentImage(contentId, image);
@@ -130,45 +122,83 @@ class BinaryContentServiceTest {
     assertThat(result.getStorageKey())
         .startsWith("contents/%s/thumbnail/".formatted(contentId))
         .endsWith(".webp");
-    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
+    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
 
-    verify(s3BinaryContentStorage).upload(
-        eq(result.getStorageKey()),
-        eq(image.getBytes()),
-        eq("image/webp")
-    );
     verify(binaryContentRepository).save(result);
-    verify(s3BinaryContentStorage).generatePresignedUrl(result.getStorageKey(), "image/webp");
+
+    ArgumentCaptor<BinaryContentCreatedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentCreatedEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+    BinaryContentCreatedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(result.getId());
+    assertThat(event.getBytes()).isEqualTo(image.getBytes());
+    assertThat(event.getUserId()).isNull();
+    assertThat(event.getContentId()).isEqualTo(contentId);
   }
 
   @Test
-  @DisplayName("콘텐츠 이미지 S3 업로드에 실패하면 BinaryContent를 FAIL 상태로 저장하고 S3UploadException을 던진다.")
-  void createContentImage_fail_when_s3_upload_failed() {
+  @DisplayName("콘텐츠 이미지 생성 시 지원하지 않는 이미지 타입이면 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_unsupported_image_type() {
     // given
     UUID contentId = UUID.randomUUID();
-    MockMultipartFile image = createImage("thumbnail.jpeg", "image/jpeg");
-    RuntimeException cause = new RuntimeException("upload failed");
-    given(s3BinaryContentStorage.upload(any(String.class), any(byte[].class), eq("image/jpeg")))
-        .willThrow(cause);
-    given(binaryContentRepository.save(any(BinaryContent.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
+    MockMultipartFile image = createImage("thumbnail.gif", "image/gif");
 
     // when & then
     assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
-        .isInstanceOfSatisfying(S3UploadException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(S3ErrorCode.S3_UPLOAD_FAILED);
-          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
-          assertThat(exception.getDetails().get("storageKey")).isInstanceOf(String.class);
-          assertThat(exception.getCause()).isEqualTo(cause);
-        });
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE)
+        );
 
-    ArgumentCaptor<BinaryContent> captor = ArgumentCaptor.forClass(BinaryContent.class);
-    verify(binaryContentRepository).save(captor.capture());
-    BinaryContent failed = captor.getValue();
-    assertThat(failed.getStatus()).isEqualTo(BinaryContentStatus.FAIL);
-    assertThat(failed.getStorageKey())
-        .startsWith("contents/%s/thumbnail/".formatted(contentId))
-        .endsWith(".jpeg");
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("S3 업로드 성공 처리 시 BinaryContent 상태를 SUCCESS로 변경한다.")
+  void updatesStatusSuccess_success() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    BinaryContent binaryContent = BinaryContent.create(
+        "profile.png",
+        100L,
+        "image/png",
+        "users/%s/profile/test.png".formatted(UUID.randomUUID())
+    );
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+
+    // when
+    binaryContentService.updatesStatusSuccess(binaryContentId);
+
+    // then
+    assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
+  }
+
+  @Test
+  @DisplayName("S3 업로드 실패 처리 시 BinaryContent 상태를 FAIL로 변경한다.")
+  void updatesStatusFail_success() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    BinaryContent binaryContent = BinaryContent.create(
+        "profile.png",
+        100L,
+        "image/png",
+        "users/%s/profile/test.png".formatted(UUID.randomUUID())
+    );
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+
+    // when
+    binaryContentService.updatesStatusFail(binaryContentId);
+
+    // then
+    assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.FAIL);
+  }
+
+  private BinaryContent saveWithId(BinaryContent binaryContent) {
+    if (binaryContent.getId() == null) {
+      ReflectionTestUtils.setField(binaryContent, "id", UUID.randomUUID());
+    }
+    return binaryContent;
   }
 
   private MockMultipartFile createImage(String fileName, String contentType) {
