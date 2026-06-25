@@ -29,6 +29,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -38,6 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
         @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = EnableWebSecurity.class)
     }
 )
+@ActiveProfiles("test")
 @AutoConfigureMockMvc(addFilters = false)
 class ContentControllerTest {
 
