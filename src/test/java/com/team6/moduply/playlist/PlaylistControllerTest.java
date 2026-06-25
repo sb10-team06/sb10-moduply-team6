@@ -153,7 +153,7 @@ class PlaylistControllerTest {
   @DisplayName("존재하지 않는 플레이리스트를 조회하면 404를 반환한다.")
   void getPlaylist_fail_with_not_found() throws Exception {
     // given
-    UUID playlistId = UUID.randomUUID();햣
+    UUID playlistId = UUID.randomUUID();
 
     given(playlistService.findById(any()))
         .willThrow(new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
