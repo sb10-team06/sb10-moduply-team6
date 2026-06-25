@@ -3,6 +3,7 @@ package com.team6.moduply.binarycontent.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -324,6 +325,43 @@ class BinaryContentServiceTest {
           assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
           assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
         });
+  }
+
+  @Test
+  @DisplayName("BinaryContent가 null이면 presigned URL을 생성하지 않고 null을 반환한다.")
+  void generateUrl_return_null_when_binary_content_is_null() {
+    // when
+    String result = binaryContentService.generateUrl(null);
+
+    // then
+    assertThat(result).isNull();
+    verify(s3BinaryContentStorage, never()).generatePresignedUrl(any(String.class), any(String.class));
+  }
+
+  @Test
+  @DisplayName("BinaryContent가 있으면 storageKey와 contentType으로 presigned URL을 생성한다.")
+  void generateUrl_success() {
+    // given
+    BinaryContent binaryContent = BinaryContent.create(
+        "profile.png",
+        100L,
+        "image/png",
+        "users/user-id/profile/profile.png"
+    );
+    given(s3BinaryContentStorage.generatePresignedUrl(
+        eq("users/user-id/profile/profile.png"),
+        eq("image/png")
+    )).willReturn("https://example.com/profile.png");
+
+    // when
+    String result = binaryContentService.generateUrl(binaryContent);
+
+    // then
+    assertThat(result).isEqualTo("https://example.com/profile.png");
+    verify(s3BinaryContentStorage).generatePresignedUrl(
+        "users/user-id/profile/profile.png",
+        "image/png"
+    );
   }
 
   private BinaryContent saveWithId(BinaryContent binaryContent) {
