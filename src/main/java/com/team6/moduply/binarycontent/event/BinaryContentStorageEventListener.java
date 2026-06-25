@@ -63,28 +63,41 @@ public class BinaryContentStorageEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleBinaryContentDelete(BinaryContentDeletedEvent event) {
+        UUID binaryContentId = event.getBinaryContentId();
+        String storageKey = event.getStorageKey();
+
         try {
             // S3에서 삭제
             s3BinaryContentStorage.delete(event.getStorageKey());
-            // DB에서 binaryContent status값 DELETED로 변경
-            binaryContentService.updatesStatusDeleted(event.getBinaryContentId());
-
-            log.info("BinaryContent 삭제 완료. binaryContentId={}, storageKey={}",
-                    event.getBinaryContentId(),
-                    event.getStorageKey());
-
         } catch (Exception e) {
             try {
                 binaryContentService.updatesStatusFail(event.getBinaryContentId());
               //FAIL로 업데이트되는게 예외발생될때.
             } catch (Exception statusException) {
                 log.error("BinaryContent 삭제 실패 상태 변경 실패. binaryContentId={}",
-                        event.getBinaryContentId(),
+                        binaryContentId,
                         statusException);
             }
             log.error("BinaryContent 삭제 실패. binaryContentId={}, storageKey={}",
-                    event.getBinaryContentId(),
-                    event.getStorageKey(),
+                    binaryContentId,
+                    storageKey,
+                    e);
+
+            return;
+        }
+
+        /// 실제 S3삭제는 성공했지만 updatesStatusDeleted()가 실패되면 updatesStatusFail()가 실행되는걸 방지하고자
+        /// S3삭제 실패와 상태 갱신 실패 분리
+        try {
+            binaryContentService.updatesStatusDeleted(binaryContentId);
+            log.info("BinaryContent 삭제 완료. binaryContentId={}, storageKey={}",
+                    binaryContentId,
+                    storageKey);
+
+        } catch (Exception e) {
+            log.error("S3 삭제는 완료됐지만 DELETED 상태 반영에 실패했습니다. binaryContentId={}, storageKey={}",
+                    binaryContentId,
+                    storageKey,
                     e);
         }
     }
