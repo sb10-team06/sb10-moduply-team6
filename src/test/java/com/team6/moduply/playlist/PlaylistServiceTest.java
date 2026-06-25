@@ -38,7 +38,7 @@ class PlaylistServiceTest {
   private PlaylistMapper playlistMapper;
 
   @Test
-  @DisplayName("소유자가 플레이리스트를 수정하면 수정된 플레이리스트를 반환한다.")
+  @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")
   void create_success_with_owner() {
     // given
     UUID ownerId = UUID.randomUUID();
@@ -83,8 +83,8 @@ class PlaylistServiceTest {
   }
 
   @Test
-  @DisplayName("플레이리스트를 수정하면 수정된 플레이리스트를 반환한다.")
-  void update_success() {
+  @DisplayName("소유자가 플레이리스트를 수정하면 수정된 플레이리스트를 반환한다.")
+  void update_success_with_owner() {
     // given
     UUID ownerId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();
