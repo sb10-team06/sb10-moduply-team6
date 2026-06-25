@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Component;
 public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
   private final JwtTokenProvider jwtTokenProvider;
   private final ObjectMapper objectMapper;
+  private final CsrfTokenRepository csrfTokenRepository;
 
   @Override
   public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -48,6 +51,9 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     refreshTokenCookie.setPath("/");
     refreshTokenCookie.setMaxAge(24 * 60 * 60);
     response.addCookie(refreshTokenCookie);
+
+    CsrfToken csrfToken = csrfTokenRepository.generateToken(request);
+    csrfTokenRepository.saveToken(csrfToken, request, response);
 
     objectMapper.writeValue(response.getWriter(), new JwtDto(userDto, accessToken));
   }

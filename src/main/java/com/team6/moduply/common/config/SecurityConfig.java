@@ -19,7 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
@@ -33,15 +32,18 @@ public class SecurityConfig {
   private final ModuPlyLoginFailureHandler moduPlyLoginFailureHandler;
   private final JwtLogoutHandler jwtLogoutHandler;
   private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
+  private final CsrfTokenRepository csrfTokenRepository;
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.
         csrf(csrf -> csrf
-            .csrfTokenRepository(csrfTokenRepository())
+            .csrfTokenRepository(csrfTokenRepository)
             .ignoringRequestMatchers(
                 new AntPathRequestMatcher("/api/users", "POST"),
                 new AntPathRequestMatcher("/api/auth/sign-in", "POST"),
+                // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
+                new AntPathRequestMatcher("/api/auth/refresh", "POST"),
                 new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
                 new AntPathRequestMatcher("/ws/**")
             )
@@ -65,6 +67,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 // 문서 관련 api 인증 불필요
                 .requestMatchers("/swagger-ui/**").permitAll()
+                // 정적 리소스 접근 인증 불필요
+                .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**").permitAll()
                 // sse 관련 api 인증 불필요
                 .requestMatchers("/api/sse/**").permitAll()
                 // 그외는 모두 인증 요구
@@ -82,8 +86,4 @@ public class SecurityConfig {
     return new BCryptPasswordEncoder();
   }
 
-  @Bean
-  public CsrfTokenRepository csrfTokenRepository(){
-    return new CookieCsrfTokenRepository().withHttpOnlyFalse();
-  }
 }
