@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.playlist.controller.PlaylistController;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
+import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.service.PlaylistService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -21,6 +21,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,7 +40,7 @@ class PlaylistControllerTest {
   private PlaylistService playlistService;
 
   @Test
-  @DisplayName("플레이리스트 생성 성공 - 201 반환")
+  @DisplayName("플레이리스트를 생성하면 201을 반환한다.")
   void createPlaylist_success() throws Exception {
     // given
     PlaylistCreateRequest request = new PlaylistCreateRequest("내 최애 영화", "비 오는 날 보기 좋은 영화들");
@@ -68,9 +70,8 @@ class PlaylistControllerTest {
   }
 
   @Test
-  @WithMockUser
-  @DisplayName("제목 없이 플레이리스트 생성 시 400 반환")
-  void createPlaylist_fail_no_title() throws Exception {
+  @DisplayName("제목 없이 플레이리스트를 생성하면 400을 반환한다.")
+  void createPlaylist_fail_with_no_title() throws Exception {
     // given
     PlaylistCreateRequest request = new PlaylistCreateRequest("", "설명");
 
@@ -81,5 +82,43 @@ class PlaylistControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("플레이리스트를 수정하면 200을 반환한다.")
+  void updatePlaylist_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    PlaylistUpdateRequest request = new PlaylistUpdateRequest("수정된 제목", "수정된 설명");
+
+    PlaylistDto response = new PlaylistDto(
+        playlistId, null, "수정된 제목",
+        "수정된 설명", null, 0L, false, List.of()
+    );
+
+    given(playlistService.update(any(), any(), any())).willReturn(response);
+
+    // when & then
+    mockMvc.perform(patch("/api/playlists/" + playlistId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title").value("수정된 제목"))
+        .andExpect(jsonPath("$.description").value("수정된 설명"));
+  }
+
+  @Test
+  @DisplayName("플레이리스트를 삭제하면 204를 반환한다.")
+  void deletePlaylist_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/playlists/" + playlistId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNoContent());
   }
 }
