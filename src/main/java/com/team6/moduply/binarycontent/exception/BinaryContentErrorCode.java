@@ -12,7 +12,7 @@ public enum BinaryContentErrorCode implements ErrorCode {
   INVALID_FILE_SIZE(HttpStatus.BAD_REQUEST, "binaryContent02", "파일 크기는 0보다 커야 합니다."),
   UNSUPPORTED_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "binaryContent03", "지원하지 않는 이미지 형식입니다."),
   FILE_READ_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "binaryContent04", "파일을 읽는 중 오류가 발생했습니다."),
-  BINARY_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "binaryContent05", "존재하지않는 파일입니다.");
+  BINARY_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "binaryContent05", "존재하지 않는 파일입니다.");
 
   private final HttpStatus httpStatus;
   private final String code;
