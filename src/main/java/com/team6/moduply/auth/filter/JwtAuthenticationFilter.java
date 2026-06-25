@@ -1,6 +1,7 @@
 package com.team6.moduply.auth.filter;
 
 import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.JwtAuthenticationService;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import jakarta.servlet.FilterChain;
@@ -8,6 +9,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -22,6 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private final JwtTokenProvider jwtTokenProvider;
+  private final JwtAuthenticationService jwtAuthenticationService;
   private final ModuPlyAuthenticationEntryPoint moduPlyAuthenticationEntryPoint;
 
   @Override
@@ -38,7 +41,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.");
       }
       if(SecurityContextHolder.getContext().getAuthentication() == null){
-        Authentication authentication = jwtTokenProvider.getAuthentication(token);
+        UUID userId = jwtTokenProvider.getUserId(token);
+        Authentication authentication = jwtAuthenticationService.getAuthentication(userId);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       }
 

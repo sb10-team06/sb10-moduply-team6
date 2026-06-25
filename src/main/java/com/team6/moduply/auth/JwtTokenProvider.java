@@ -13,20 +13,15 @@ import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.user.dto.UserDto;
-import com.team6.moduply.user.enums.Role;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
-import java.time.Instant;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -76,25 +71,12 @@ public class JwtTokenProvider {
     return validateToken(token, REFRESH_TOKEN_TYPE);
   }
 
-  // validateAccessToken 통과 후에만 호출됨
-  public Authentication getAuthentication(String token) {
-    try{
-      // 토큰 준비, 페이로드 준비
+  public UUID getUserId(String token) {
+    try {
       SignedJWT signedJWT = SignedJWT.parse(token);
       JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
-
-      // 인증 정보 꺼내옴
-      UUID userId = UUID.fromString(claimsSet.getSubject());
-      String email = claimsSet.getStringClaim("email");
-      Role role = Role.valueOf(claimsSet.getStringClaim("role"));
-
-      SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role.name());
-
-      UserDto userDto = new UserDto(userId, null, email, null,null, null, null);
-      ModuPlyUserDetails userDetails = new ModuPlyUserDetails(userDto, "");
-
-      return new UsernamePasswordAuthenticationToken(userDetails, null, Collections.singletonList(authority));
-    } catch (ParseException e) {
+      return UUID.fromString(claimsSet.getSubject());
+    } catch (ParseException | IllegalArgumentException | NullPointerException e) {
       log.warn("유효하지 않은 JWT 토큰입니다.", e);
       throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
     }
@@ -123,12 +105,6 @@ public class JwtTokenProvider {
           .claim("type", tokenType)
           .issueTime(issuedAt)
           .expirationTime(expiresAt);
-
-      // 토큰 타입에 따른 페이로드 추가 정보 설정 - AT이면 권한, 인증정보를 페이로드에 추가
-      if (ACCESS_TOKEN_TYPE.equals(tokenType)) {
-        claimsBuilder
-            .claim("email", userDto.getEmail());
-      }
 
       // 토큰 타입에 따른 페이로드 추가 정보 설정 - RT면 토큰 식별 id(Redis 조회용) 추가
       if (REFRESH_TOKEN_TYPE.equals(tokenType)) {
@@ -182,4 +158,3 @@ public class JwtTokenProvider {
     }
   }
 }
-
