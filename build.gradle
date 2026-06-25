@@ -53,6 +53,9 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     //websocket
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    //retry
+    implementation 'org.springframework.retry:spring-retry'
 }
 
 // =========================================

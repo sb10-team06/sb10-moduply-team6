@@ -2,17 +2,12 @@ package com.team6.moduply.binarycontent.s3;
 
 import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
 import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
-import com.team6.moduply.common.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -39,6 +34,21 @@ public class S3BinaryContentStorage {
     /// key: 이미지가 S3에 저장되는 경로.
     /// user의 프로필: String key = "users/%s/profile/%s".formatted(userId, binaryContentId);
     /// content의 이미지: String key = "contents/%s/images/%s".formatted(contentId, binaryContentId);
+    @Retryable(
+            /// RuntimeException 발생시 재시도.
+            retryFor = {
+                    RuntimeException.class,
+                    S3UploadException.class,
+                    S3Exception.class,
+                    InterruptedException.class
+            },
+            /// 재시도 정책: 최초 실행 1회 + 재시도 2회 = 총 3회
+            maxAttempts = 3,
+            /// 실패 후 1초 대기
+            /// multiplier = 2: 재시도할수록 대기시간 증가
+            /// 1차 실패후 1초대기, 2차 실패후 2초 대기.
+            backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
     public String upload(String key, byte[] bytes, String contentType) {
         try {
             PutObjectRequest request = PutObjectRequest.builder()
@@ -56,7 +66,22 @@ public class S3BinaryContentStorage {
         }
     }
 
-    //TODO upload() 재시도전략도 실패시 복구메서드 추후 필요.
+    //TODO 추후 복구전략 구현: Spring event로 알림 생성 구현 예정
+//    @Recover
+//    public UUID recover(S3UploadException e, UUID binaryContentId, byte[] bytes) {
+//
+////        String requestId = MDC.get(MDCLoggingInterceptor.REQUEST_ID);
+////
+////        eventPublisher.publishEvent(new BinaryContentUploadFailedEvent(
+////                "S3_BINARY_CONTENT_UPLOAD",   //작업내용
+////                requestId,  //requestId
+////                binaryContentId,
+////                e.getMessage()  //실패이유.
+////        ));
+////
+////        /// 기존 이벤트 리스너의 catch가 실행되어 BinaryContentStatus.FAIL로 변경.
+////        throw e;
+//    }
 
     /// 비공개 bucket의 경우 presigner 필요.
     /// Presigner를 이용해서 특정 S3 객체에 접근 가능한 임시 URL 생성
@@ -81,6 +106,5 @@ public class S3BinaryContentStorage {
             return presignedRequest.url().toString();
 
     }
-
 
 }

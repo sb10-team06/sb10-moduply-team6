@@ -1,6 +1,7 @@
 package com.team6.moduply.binarycontent.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
@@ -14,7 +15,9 @@ import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
 import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,9 +36,12 @@ public class BinaryContentService {
   private final S3BinaryContentStorage s3BinaryContentStorage;
   private final BinaryContentRepository binaryContentRepository;
 
+  private final ApplicationEventPublisher eventPublisher;
+
   // TODO 사용자 A가 이미지 100번 변경시 이미지 100개 DB저장되는 구조 수정필요
   /// user프로필 이미지 변경
-  public BinaryContent createUserProfile(UUID userId, MultipartFile image) {
+  @Transactional
+  public BinaryContent createUserProfile(UUID userId, MultipartFile image) throws IOException {
     log.debug("프로필 이미지 생성 시작. userId={}, fileName={}, size={}, contentType={}",
         userId,
         image != null ? image.getOriginalFilename() : null,
@@ -47,7 +53,6 @@ public class BinaryContentService {
 
     // image S3 경로값 생성
     String storageKey = createUserProfileStorageKey(userId, image.getOriginalFilename());
-    log.debug("프로필 이미지 storageKey 생성 완료. userId={}, storageKey={}", userId, storageKey);
 
     // 메타데이터 생성
     BinaryContent binaryContent = BinaryContent.create(
@@ -56,46 +61,22 @@ public class BinaryContentService {
         image.getContentType(),
         storageKey
     );
+    /// 메타 데이터 DB저장
+    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
 
-    try {
+    /// S3 업로드 이벤트 발행
+    eventPublisher.publishEvent(new BinaryContentCreatedEvent(savedBinaryContent.getId(), image.getBytes(), userId, null));
 
-      //TODO Spring event 구조로 비동기 적용해서 수정예정
-      log.info("S3 프로필 이미지 업로드 시작. userId={}, storageKey={}", userId, storageKey);
-      s3BinaryContentStorage.upload(storageKey, image.getBytes(), image.getContentType());
+    log.info("바이너리 컨텐츠 생성 완료: id={}, fileName={}, size={}",
+            savedBinaryContent.getId(), savedBinaryContent.getFileName(), savedBinaryContent.getSize());
 
-      // binaryContent 상태 SUCCESS로 변경
-      binaryContent.success();
+    return savedBinaryContent;
 
-      // DB에 저장
-      BinaryContent saved = binaryContentRepository.save(binaryContent);
-      log.info("프로필 이미지 생성 완료. userId={}, binaryContentId={}, storageKey={}, status={}",
-          userId, saved.getId(), saved.getStorageKey(), saved.getStatus());
-
-      // TODO userService에서 생성하도록 수정예정(log로 잘 생성되는지 확인하기위한 용도.)
-      // S3Presigned URL 생성
-      String presignedUrl = s3BinaryContentStorage.generatePresignedUrl(
-          saved.getStorageKey(),
-          saved.getContentType()
-      );
-      log.debug("프로필 이미지 presigned URL 생성 완료. userId={}, binaryContentId={}, urlGenerated={}",
-          userId, saved.getId(), presignedUrl != null);
-
-      return saved;
-    } catch (IOException | RuntimeException e) {
-      binaryContent.fail();
-      binaryContentRepository.save(binaryContent);
-
-      log.error("프로필 이미지 업로드 실패. userId={}, storageKey={}, fileName={}", userId, storageKey, image.getOriginalFilename(), e);
-      throw new S3UploadException(
-              S3ErrorCode.S3_UPLOAD_FAILED,
-              Map.of("userId", userId, "storageKey", storageKey),
-              e
-      );
-    }
   }
 
   /// 콘텐츠 생성시 썸네일 등록
-  public BinaryContent createContentImage(UUID contentId, MultipartFile image) {
+  @Transactional
+  public BinaryContent createContentImage(UUID contentId, MultipartFile image) throws IOException {
     validateImage(image);
     String storageKey = createContentStorageKey(contentId, image.getOriginalFilename());
 
@@ -106,44 +87,44 @@ public class BinaryContentService {
             image.getContentType(),
             storageKey
     );
+    /// 메타 데이터 DB저장
+    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
 
-    try {
+    /// S3 업로드 이벤트 발행
+    eventPublisher.publishEvent(new BinaryContentCreatedEvent(savedBinaryContent.getId(), image.getBytes(), null, contentId));
 
-      //TODO Spring event 구조로 비동기 적용해서 수정예정
-      log.info("S3 프로필 이미지 업로드 시작. contentId={}, storageKey={}", contentId, storageKey);
-      s3BinaryContentStorage.upload(storageKey, image.getBytes(), image.getContentType());
+    log.info("바이너리 컨텐츠 생성 완료: id={}, fileName={}, size={}",
+            savedBinaryContent.getId(), savedBinaryContent.getFileName(), savedBinaryContent.getSize());
 
-      // binaryContent 상태 SUCCESS로 변경
-      binaryContent.success();
-
-      // DB에 저장
-      BinaryContent saved = binaryContentRepository.save(binaryContent);
-      log.info("프로필 이미지 생성 완료. contentId={}, binaryContentId={}, storageKey={}, status={}",
-              contentId, saved.getId(), saved.getStorageKey(), saved.getStatus());
-
-      // TODO contentService에서 생성하도록 수정예정(log로 잘 생성되는지 확인하기위한 용도.)
-      // S3Presigned URL 생성
-      String presignedUrl = s3BinaryContentStorage.generatePresignedUrl(
-              saved.getStorageKey(),
-              saved.getContentType()
-      );
-      log.debug("프로필 이미지 presigned URL 생성 완료. contentId={}, binaryContentId={}, urlGenerated={}",
-              contentId, saved.getId(), presignedUrl != null);
-
-      return saved;
-    } catch (IOException | RuntimeException e) {
-      binaryContent.fail();
-      binaryContentRepository.save(binaryContent);
-
-      log.error("프로필 이미지 업로드 실패. contentId={}, storageKey={}, fileName={}", contentId, storageKey, image.getOriginalFilename(), e);
-      throw new S3UploadException(
-              S3ErrorCode.S3_UPLOAD_FAILED,
-              Map.of("contentId", contentId, "storageKey", storageKey),
-              e
-      );
-    }
+    return savedBinaryContent;
 
   }
+
+  /// binaryContent SUCCESS상태로 업데이트
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void updatesStatusSuccess(UUID binaryContentId) {
+    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            .orElseThrow(() -> new BinaryContentException(
+                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
+                    Map.of("binaryContentId", binaryContentId))
+            );
+
+    binaryContent.success();
+  }
+
+  /// binaryContent FAIL상태로 업데이트
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void updatesStatusFail(UUID binaryContentId) {
+    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            .orElseThrow(() -> new BinaryContentException(
+                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
+                    Map.of("binaryContentId", binaryContentId))
+            );
+
+    binaryContent.fail();
+  }
+
+
 
   private void validateImage(MultipartFile image) {
     /// image null이거나 비어있나 검증
