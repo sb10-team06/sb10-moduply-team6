@@ -1,11 +1,14 @@
 package com.team6.moduply.playlist.repository.qdsl;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
+import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.entity.QPlaylist;
+import com.team6.moduply.playlist.entity.QPlaylistSubscription;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -25,12 +28,17 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
         .where(
             keywordLikeCondition(request.keywordLike()),
             ownerIdCondition(request.ownerIdEqual()),
-            cursorCondition(request)
+            cursorCondition(request),
+            subscriberIdCondition(request.subscriberIdEqual())
         )
         .orderBy(
-            request.sortDirection() == SortDirection.ASCENDING
-                ? playlist.updatedAt.asc()
-                : playlist.updatedAt.desc(),
+            request.sortBy() == PlaylistSortBy.createdAt
+                ? (request.sortDirection() == SortDirection.ASCENDING
+                ? playlist.createdAt.asc()
+                : playlist.createdAt.desc())
+                : (request.sortDirection() == SortDirection.ASCENDING
+                    ? playlist.updatedAt.asc()
+                    : playlist.updatedAt.desc()),
             playlist.id.asc()
         )
         .limit(request.limit());
@@ -44,10 +52,21 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
         .from(playlist)
         .where(
             keywordLikeCondition(request.keywordLike()),
-            ownerIdCondition(request.ownerIdEqual())
+            ownerIdCondition(request.ownerIdEqual()),
+            subscriberIdCondition(request.subscriberIdEqual())
         )
         .fetchOne();
     return result != null ? result : 0L;
+  }
+
+  private BooleanExpression subscriberIdCondition(UUID subscriberId) {
+    if (subscriberId == null) return null;
+    QPlaylistSubscription subscription = QPlaylistSubscription.playlistSubscription;
+    return playlist.id.in(
+        JPAExpressions.select(subscription.playlist.id)
+            .from(subscription)
+            .where(subscription.subscriberId.eq(subscriberId))
+    );
   }
 
   private BooleanExpression keywordLikeCondition(String keyword) {

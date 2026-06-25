@@ -79,10 +79,16 @@ public class PlaylistService {
 
   @Transactional(readOnly = true)
   public CursorResponse<PlaylistDto> findAll(PlaylistSearchRequest request) {
+    // limit + 1개 조회 (sentinel 방식)
     List<Playlist> playlists = playlistQDSLRepository.findAllWithCursor(request);
     long totalCount = playlistQDSLRepository.countWithCondition(request);
 
-    boolean hasNext = playlists.size() == request.limit();
+    boolean hasNext = playlists.size() > request.limit();
+
+    // hasNext면 sentinel 레코드 제거
+    if (hasNext) {
+      playlists = playlists.subList(0, request.limit());
+    }
 
     String nextCursor = null;
     UUID nextIdAfter = null;
@@ -103,7 +109,7 @@ public class PlaylistService {
         nextIdAfter,
         hasNext,
         totalCount,
-        request.sortBy(),
+        request.sortBy().name(),
         request.sortDirection()
     );
   }

@@ -5,6 +5,7 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
+import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.exception.PlaylistException;
@@ -23,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
 
+import static com.team6.moduply.playlist.dto.PlaylistSortBy.updatedAt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -267,7 +269,8 @@ class PlaylistServiceTest {
     // given
     UUID ownerId = UUID.randomUUID();
     PlaylistSearchRequest request = new PlaylistSearchRequest(
-        null, null, null, null, null, 10, SortDirection.DESCENDING, "updatedAt"
+        null, null, null, null, null, 10,
+        SortDirection.DESCENDING, updatedAt
     );
 
     Playlist playlist = Playlist.builder()
@@ -292,5 +295,38 @@ class PlaylistServiceTest {
     assertThat(result.data()).hasSize(1);
     assertThat(result.totalCount()).isEqualTo(1L);
     assertThat(result.hasNext()).isFalse();
+  }
+
+  @Test
+  @DisplayName("플레이리스트 목록이 limit개이면 hasNext가 true를 반환한다.")
+  void findAll_success_with_has_next() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 1,
+        SortDirection.DESCENDING, PlaylistSortBy.updatedAt
+    );
+
+    Playlist playlist1 = Playlist.builder()
+        .ownerId(ownerId).title("첫번째").description("설명1").build();
+    Playlist playlist2 = Playlist.builder()
+        .ownerId(ownerId).title("두번째").description("설명2").build();
+
+    PlaylistDto dto1 = new PlaylistDto(
+        UUID.randomUUID(), null, "첫번째", "설명1", null, 0L, false, List.of()
+    );
+
+    // limit+1개 반환 (sentinel)
+    given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist1, playlist2));
+    given(playlistQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(playlistMapper.toDto(playlist1)).willReturn(dto1);
+
+    // when
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+
+    // then
+    assertThat(result.data()).hasSize(1);
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isNotNull();
   }
 }

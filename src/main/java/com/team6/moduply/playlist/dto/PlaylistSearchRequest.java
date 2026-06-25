@@ -33,5 +33,5 @@ public record PlaylistSearchRequest (
 
     @NotNull
     @Schema(description = "정렬 기준")
-    String sortBy
+    PlaylistSortBy sortBy
 ) {}
