@@ -50,6 +50,8 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     //websocket
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    // jwt
+    implementation 'com.nimbusds:nimbus-jose-jwt:10.3'
 }
 
 // =========================================
