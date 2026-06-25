@@ -11,8 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
-import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -63,16 +61,6 @@ public class BinaryContentService {
   public BinaryContent createContentImage(UUID contentId, MultipartFile image) throws IOException {
     validateImage(image);
     String storageKey = createContentStorageKey(contentId, image.getOriginalFilename());
-
-    // 메타데이터 생성
-    BinaryContent binaryContent = BinaryContent.create(
-            image.getOriginalFilename(),
-            image.getSize(),
-            image.getContentType(),
-            storageKey
-    );
-    /// 메타 데이터 DB저장
-    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
 
     return create(image, storageKey, null, contentId);
 
