@@ -46,10 +46,13 @@ public class BinaryContentStorageEventListener {
             binaryContentService.updatesStatusSuccess(binaryContentId);
 
         } catch (Exception e) {
-            /// binaryContent 상태 FAIL로 업데이트
-            binaryContentService.updatesStatusFail(binaryContentId);
             log.error("S3 업로드 실패. binaryContentId={}", binaryContentId, e);
-
+            try {
+                /// binaryContent 상태 FAIL로 업데이트
+                binaryContentService.updatesStatusFail(binaryContentId);
+            } catch (Exception statusEx) {
+                log.error("FAIL 상태 갱신 실패. binaryContentId={}", binaryContentId, statusEx);
+            }
         }
     }
 
