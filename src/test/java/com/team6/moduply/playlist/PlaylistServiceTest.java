@@ -1,12 +1,16 @@
 package com.team6.moduply.playlist;
 
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
+import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
+import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +40,9 @@ class PlaylistServiceTest {
 
   @Mock
   private PlaylistMapper playlistMapper;
+
+  @Mock
+  private PlaylistQDSLRepository playlistQDSLRepository;
 
   @Test
   @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")
@@ -252,5 +259,38 @@ class PlaylistServiceTest {
     // when & then
     assertThatThrownBy(() -> playlistService.findById(playlistId))
         .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("플레이리스트 목록을 조회하면 커서 응답을 반환한다.")
+  void findAll_success() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10, SortDirection.DESCENDING, "updatedAt"
+    );
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId)
+        .title("내 최애 영화")
+        .description("비 오는 날 보기 좋은 영화들")
+        .build();
+
+    PlaylistDto dto = new PlaylistDto(
+        UUID.randomUUID(), null, "내 최애 영화",
+        "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
+    );
+
+    given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist));
+    given(playlistQDSLRepository.countWithCondition(request)).willReturn(1L);
+    given(playlistMapper.toDto(playlist)).willReturn(dto);
+
+    // when
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+
+    // then
+    assertThat(result.data()).hasSize(1);
+    assertThat(result.totalCount()).isEqualTo(1L);
+    assertThat(result.hasNext()).isFalse();
   }
 }

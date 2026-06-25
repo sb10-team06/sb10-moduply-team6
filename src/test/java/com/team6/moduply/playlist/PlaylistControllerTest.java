@@ -1,6 +1,8 @@
 package com.team6.moduply.playlist;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.playlist.controller.PlaylistController;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
@@ -151,7 +153,7 @@ class PlaylistControllerTest {
   @DisplayName("존재하지 않는 플레이리스트를 조회하면 404를 반환한다.")
   void getPlaylist_fail_with_not_found() throws Exception {
     // given
-    UUID playlistId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();햣
 
     given(playlistService.findById(any()))
         .willThrow(new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
@@ -161,5 +163,27 @@ class PlaylistControllerTest {
             .with(user("test-user").roles("USER"))
             .with(csrf()))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("플레이리스트 목록을 조회하면 200을 반환한다.")
+  void getPlaylists_success() throws Exception {
+    // given
+    CursorResponse<PlaylistDto> response = new CursorResponse<>(
+        List.of(), null, null, false, 0L, "updatedAt", SortDirection.DESCENDING
+    );
+
+    given(playlistService.findAll(any())).willReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/api/playlists")
+            .with(user("test-user").roles("USER"))
+            .with(csrf())
+            .param("limit", "10")
+            .param("sortDirection", "DESCENDING")
+            .param("sortBy", "updatedAt"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(0));
   }
 }
