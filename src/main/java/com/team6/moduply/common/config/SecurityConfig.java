@@ -13,7 +13,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -72,6 +71,8 @@ public class SecurityConfig {
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**").permitAll()
                 // sse 관련 api 인증 불필요
                 .requestMatchers("/api/sse/**").permitAll()
+                // TODO: WebSocket STOMP CONNECT JWT 검증 구현 후 인가 정책 재검토
+                .requestMatchers("/ws/**").permitAll()
                 // 그외는 모두 인증 요구
                 .anyRequest().authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -85,13 +86,6 @@ public class SecurityConfig {
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
-  }
-
-  //
-  @Bean
-  public WebSecurityCustomizer webSecurityCustomizer() {
-    // 웹소켓 핸드쉐이크 경로(/ws/**)는 보안 필터를 아예 거치지 않도록 완전 면제 처리!
-    return (web) -> web.ignoring().requestMatchers("/ws/**");
   }
 
 }
