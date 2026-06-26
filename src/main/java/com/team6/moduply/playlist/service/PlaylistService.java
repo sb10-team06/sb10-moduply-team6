@@ -1,14 +1,19 @@
 package com.team6.moduply.playlist.service;
 
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
+import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
-import jakarta.transaction.Transactional;
+import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
+import java.util.List;
+import java.util.Map;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +24,7 @@ public class PlaylistService {
 
   private final PlaylistRepository playlistRepository;
   private final PlaylistMapper playlistMapper;
+  private final PlaylistQDSLRepository playlistQDSLRepository;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -39,7 +45,10 @@ public class PlaylistService {
   public PlaylistDto update(UUID playlistId, PlaylistUpdateRequest request, UUID ownerId) {
     // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
     Playlist playlist = playlistRepository.findById(playlistId)
-        .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
 // TODO: 인증 연동 후 소유자 검증 활성화 필요
 //    if (!playlist.getOwnerId().equals(ownerId)) {
 //      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, playlistId);
@@ -54,7 +63,10 @@ public class PlaylistService {
   public void delete(UUID playlistId, UUID ownerId) {
     // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
     Playlist playlist = playlistRepository.findById(playlistId)
-        .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
 
 // TODO: 인증 연동 후 소유자 검증 활성화 필요
 //    if (!playlist.getOwnerId().equals(ownerId)) {
@@ -62,5 +74,53 @@ public class PlaylistService {
 //    }
 
     playlistRepository.delete(playlist);
+  }
+
+  @Transactional(readOnly = true)
+  public PlaylistDto findById(UUID playlistId) {
+    Playlist playlist = playlistRepository.findById(playlistId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
+
+    return playlistMapper.toDto(playlist);
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<PlaylistDto> findAll(PlaylistSearchRequest request) {
+    // limit + 1개 조회 (sentinel 방식)
+    List<Playlist> playlists = playlistQDSLRepository.findAllWithCursor(request);
+    long totalCount = playlistQDSLRepository.countWithCondition(request);
+
+    boolean hasNext = playlists.size() > request.limit();
+
+    // hasNext면 sentinel 레코드 제거
+    if (hasNext) {
+      playlists = playlists.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      Playlist last = playlists.get(playlists.size() - 1);
+      nextCursor = last.getUpdatedAt() != null ? last.getUpdatedAt().toString() : null;
+      nextIdAfter = last.getId();
+    }
+
+    List<PlaylistDto> data = playlists.stream()
+        .map(playlistMapper::toDto)
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
   }
 }
