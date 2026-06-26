@@ -56,14 +56,6 @@ public interface FollowApi {
           )
       ),
       @ApiResponse(
-          responseCode = "404",
-          description = "팔로우 요청자 또는 대상 사용자를 찾을 수 없음",
-          content = @Content(
-              mediaType = MediaType.ALL_VALUE,
-              schema = @Schema(implementation = ErrorResponse.class)
-          )
-      ),
-      @ApiResponse(
           responseCode = "409",
           description = "이미 존재하는 팔로우 관계",
           content = @Content(
