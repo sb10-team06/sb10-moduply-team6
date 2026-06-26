@@ -42,11 +42,28 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       case CONNECT:
         String token = resolveToken(accessor)
             .orElseThrow(() -> new RuntimeException("토큰 없음"));
+//        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+//            token, null);
+//        accessor.setUser(authenticationToken);
+//        if (sessionAttributes != null) {
+//          sessionAttributes.put("userId", UUID.randomUUID());
+//        }
+//        break;
+        UUID parsedUserId;
+        try {
+          // 테스트환경
+          parsedUserId = UUID.fromString(token);
+        } catch (IllegalArgumentException e) {
+          // 💡프론트 환경!
+          parsedUserId = UUID.randomUUID();
+        }
+        
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-            token, null);
+            parsedUserId, null, null);
         accessor.setUser(authenticationToken);
+
         if (sessionAttributes != null) {
-          sessionAttributes.put("userId", UUID.fromString(token));
+          sessionAttributes.put("userId", parsedUserId);
         }
         break;
 
