@@ -50,7 +50,7 @@ public class RedisConfig {
     ObjectMapper redisObjectMapper = objectMapper.copy();
     redisObjectMapper.activateDefaultTyping(
         LaissezFaireSubTypeValidator.instance,
-        DefaultTyping.EVERYTHING,
+        DefaultTyping.NON_FINAL,
         As.PROPERTY
     );
     return new GenericJackson2JsonRedisSerializer(redisObjectMapper);
