@@ -144,11 +144,12 @@ public class PlaylistService {
     //     throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, Map.of("playlistId", playlistId));
     // }
 
-    Content content = contentRepository.findById(contentId)
-        .orElseThrow(() -> new PlaylistException(
-            PlaylistErrorCode.CONTENT_NOT_FOUND,
-            Map.of("contentId", contentId)
-        ));
+    if (!contentRepository.existsById(contentId)) {
+      throw new PlaylistException(
+          PlaylistErrorCode.CONTENT_NOT_FOUND,
+          Map.of("contentId", contentId)
+      );
+    }
 
     boolean alreadyExists = playlistContentRepository
         .existsByPlaylistAndContentId(playlist, contentId);
