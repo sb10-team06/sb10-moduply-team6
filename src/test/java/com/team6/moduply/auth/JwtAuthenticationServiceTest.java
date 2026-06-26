@@ -60,7 +60,7 @@ class JwtAuthenticationServiceTest {
     // Then
     ModuPlyUserDetails principal = (ModuPlyUserDetails) authentication.getPrincipal();
 
-    assertThat(principal.getUserdto().getId()).isEqualTo(userId);
+    assertThat(principal.getUserDto().getId()).isEqualTo(userId);
     assertThat(principal.getUsername()).isEqualTo(user.getEmail());
     assertThat(authentication.getAuthorities())
         .extracting("authority")
