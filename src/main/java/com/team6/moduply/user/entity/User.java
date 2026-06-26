@@ -78,6 +78,10 @@ public class User extends BaseUpdatableEntity {
     this.encodedPassword = encodedPassword;
   }
 
+  public void updateRole(Role role){
+    this.role = Objects.requireNonNull(role, "role must not be null");
+  }
+
   public void updateProfileImg(BinaryContent profileImg) {
     this.profileImg = profileImg;
   }

@@ -3,16 +3,22 @@ package com.team6.moduply.user.controller;
 import com.team6.moduply.common.error.ErrorResponse;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserRoleUpdateRequest;
+import com.team6.moduply.user.dto.UserUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "사용자 관리", description = "사용자 관련 API")
 public interface UserApi {
@@ -108,5 +114,115 @@ public interface UserApi {
   ResponseEntity<UserDto> getUser(
       @Parameter(description = "사용자 ID", required = true)
       UUID userId
+  );
+
+  @Operation(
+      summary = "[어드민] 권한 수정",
+      operationId = "updateUser_Role"
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "성공"),
+      @ApiResponse(responseCode = "200", description = "성공"),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<Void> updateUserRole(
+      @Parameter(description = "사용자 ID", required = true)
+      UUID userId,
+      @RequestBody(
+          required = true,
+          content = @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @Schema(implementation = UserRoleUpdateRequest.class)
+          )
+      )
+      UserRoleUpdateRequest request
+  );
+
+  @Operation(
+      summary = "프로필 변경",
+      description = "본인의 프로필만 변경할 수 있습니다.",
+      operationId = "updateUser"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "성공",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = UserDto.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<UserDto> updateUser(
+      @Parameter(description = "사용자 ID", required = true)
+      @PathVariable UUID userId,
+      @Parameter(description = "프로필 변경 요청", required = true)
+      @RequestPart("request") UserUpdateRequest request,
+      @Parameter(description = "프로필 이미지")
+      @RequestPart(value = "image", required = false)
+      MultipartFile image
   );
 }

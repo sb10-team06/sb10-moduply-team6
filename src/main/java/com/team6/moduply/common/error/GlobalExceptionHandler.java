@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -84,6 +86,14 @@ public class GlobalExceptionHandler {
     log.warn("[HttpMediaTypeNotSupportedException] {}", ex.getMessage());
     return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
         .body(ErrorResponse.from(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex));
+  }
+
+  // @PreAuthorize 등 메서드 시큐리티 인가 실패
+  @ExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})
+  public ResponseEntity<ErrorResponse> handleAccessDenied(Exception ex) {
+    log.warn("[{}] {}", ex.getClass().getSimpleName(), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(ErrorResponse.from(HttpStatus.FORBIDDEN, ex));
   }
 
   // 클라이언트가 응답 완료 전에 연결을 끊은 경우
