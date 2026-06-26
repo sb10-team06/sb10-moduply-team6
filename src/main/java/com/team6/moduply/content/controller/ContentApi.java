@@ -68,7 +68,7 @@ public interface ContentApi {
           )
       )
   })
-  ResponseEntity<ContentDto> createContent(ContentCreateRequest request, MultipartFile thumbnail);
+  ResponseEntity<ContentDto> create(ContentCreateRequest request, MultipartFile thumbnail);
 
   @Operation(
       summary = "콘텐츠 목록 조회",

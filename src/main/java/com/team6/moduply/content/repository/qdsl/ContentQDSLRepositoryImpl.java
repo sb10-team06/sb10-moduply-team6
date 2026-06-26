@@ -49,6 +49,7 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
 
     return queryFactory
         .selectFrom(content)
+        .leftJoin(content.contentImg).fetchJoin()
         .where(toWhereArray(conditions))
         .orderBy(buildOrderSpecifiers(sortBy, sortDirection))
         .limit(limit)

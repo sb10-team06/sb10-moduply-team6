@@ -31,8 +31,8 @@ class ContentCreateRequestTest {
   }
 
   @Test
-  @DisplayName("유효한 콘텐츠 생성이면 요청 검증 성공")
-  void content_create_request_validation_success() {
+  @DisplayName("유효한 콘텐츠 생성 요청이면 검증에 성공한다.")
+  void validate_success_with_valid_request() {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -49,8 +49,8 @@ class ContentCreateRequestTest {
   }
 
   @Test
-  @DisplayName("태그 목록이 비어 있거나 생략된 콘텐츠 생성 요청이면 검증 성공")
-  void content_create_request_validation_success_without_tags() {
+  @DisplayName("태그 목록이 비어 있거나 생략된 콘텐츠 생성 요청이면 검증에 성공한다.")
+  void validate_success_without_tags() {
     // Given
     ContentCreateRequest emptyTagsRequest = new ContentCreateRequest(
         ContentType.movie,
@@ -77,8 +77,8 @@ class ContentCreateRequestTest {
   }
 
   @Test
-  @DisplayName("필수 값이 없거나 비어 있는 콘텐츠 생성이면 요청 검증 실패")
-  void content_create_request_validation_fail_when_required_fields_are_missing() {
+  @DisplayName("필수 값이 없거나 비어 있는 콘텐츠 생성 요청이면 검증에 실패한다.")
+  void validate_fail_when_required_fields_are_missing() {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         null,
@@ -97,8 +97,8 @@ class ContentCreateRequestTest {
   }
 
   @Test
-  @DisplayName("제목이 255자를 초과하면 콘텐츠 생성 요청 검증 실패")
-  void content_create_request_validation_fail_when_title_exceeds_max_length() {
+  @DisplayName("제목이 255자를 초과하면 콘텐츠 생성 요청 검증에 실패한다.")
+  void validate_fail_when_title_exceeds_max_length() {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -117,8 +117,8 @@ class ContentCreateRequestTest {
   }
 
   @Test
-  @DisplayName("태그 이름이 비어 있거나 100자를 초과하면 콘텐츠 생성 요청 검증 실패")
-  void content_create_request_validation_fail_when_tag_is_invalid() {
+  @DisplayName("태그 이름이 비어 있거나 100자를 초과하면 콘텐츠 생성 요청 검증에 실패한다.")
+  void validate_fail_when_tag_is_invalid() {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.sport,

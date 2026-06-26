@@ -1,6 +1,8 @@
 package com.team6.moduply.content.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
+import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -20,6 +22,7 @@ import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameP
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.user.enums.Role;
+import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -44,34 +48,26 @@ public class ContentService {
   private final BinaryContentService binaryContentService;
 
   @Transactional
-  public ContentDto createContent(
+  public ContentDto create(
       ContentCreateRequest request,
-      BinaryContent contentImg,
-      String thumbnailUrl,
+      MultipartFile thumbnail,
       Role requesterRole
-//      MultipartFile thumbnail
   ) {
     log.debug("콘텐츠 생성 처리 시작: type={}, title={}", request.type(), request.title());
-    // TODO: Spring Security 인가 구조 적용 시 createContent 메서드에 관리자 권한 검증 적용 예정
+    // TODO: Spring Security 인가 구조 적용 시 create 메서드에 관리자 권한 검증 적용 예정
     validateAdmin(requesterRole);
 
     Content content = new Content(
-        contentImg,
+        null,
         null,
         request.type(),
         request.title(),
         request.description()
     );
     Content savedContent = contentRepository.save(content);
-
-      // TODO: BinaryContentService.createContentImage(contentId, thumbnail) 호출
-//    if(thumbnail != null && !thumbnailUrl.isEmpty()) {
-//      BinaryContent contentImg = binaryContentService.createContentImage(savedContent.getId(), thumbnail);
-//      // TODO: content.contentImg 연결
-//      savedContent.updateContentImg(contentImg);
-       // TODO: BinaryContentService.generateUrl(contentImg) 호출
-//      String thumbnailUrl = binaryContentService.generateUrl(contentImg);
-//    }
+    BinaryContent contentImg = createContentImage(savedContent, thumbnail);
+    savedContent.updateContentImg(contentImg);
+    String thumbnailUrl = binaryContentService.generateUrl(contentImg);
 
     List<String> tagNames = normalizeTags(request.tags());
 
@@ -84,7 +80,6 @@ public class ContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
-    // TODO: ContentDto.thumbnailUrl에 presigned URL 세팅
     ContentDto response = contentMapper.toDto(savedContent, thumbnailUrl, tagNames);
 
     log.debug("콘텐츠 생성 처리 완료: contentId={}", savedContent.getId());
@@ -183,6 +178,18 @@ public class ContentService {
     }
   }
 
+  private BinaryContent createContentImage(Content content, MultipartFile thumbnail) {
+    try {
+      return binaryContentService.createContentImage(content.getId(), thumbnail, content.getContentImg());
+    } catch (IOException e) {
+      throw new BinaryContentException(
+          BinaryContentErrorCode.FILE_READ_FAILED,
+          Map.of("fileName", thumbnail == null ? "null" : thumbnail.getOriginalFilename()),
+          e
+      );
+    }
+  }
+
   private List<String> normalizeTags(List<String> tags) {
     if (tags == null) {
       return List.of();
@@ -236,8 +243,8 @@ public class ContentService {
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {
-    // TODO: BinaryContent 저장소 추상화 적용 후 thumbnailUrl 생성 로직 연동
-    return contentMapper.toDto(content, null, tagNames);
+    String thumbnailUrl = binaryContentService.generateUrl(content.getContentImg());
+    return contentMapper.toDto(content, thumbnailUrl, tagNames);
   }
 
   private String extractCursor(Content content, ContentSortBy sortBy) {
