@@ -32,12 +32,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 
-@WebMvcTest(ContentController.class)
+@WebMvcTest(
+    controllers = ContentController.class,
+    // 컨트롤러 slice 테스트는 요청/응답과 검증만 확인한다.
+    // JwtAuthenticationFilter는 별도 auth 테스트에서 검증하므로 여기서는 Bean 생성 대상에서 제외한다.
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = JwtAuthenticationFilter.class
+    )
+)
 @AutoConfigureMockMvc(addFilters = false)
 class ContentControllerTest {
 
