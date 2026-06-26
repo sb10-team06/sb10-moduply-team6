@@ -329,4 +329,41 @@ class PlaylistServiceTest {
     assertThat(result.hasNext()).isTrue();
     assertThat(result.nextCursor()).isNotNull();
   }
+
+  @Test
+  @DisplayName("마지막 페이지의 데이터가 limit개이면 hasNext가 false를 반환한다.")
+  void findAll_success_with_last_page() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 2,
+        SortDirection.DESCENDING, PlaylistSortBy.updatedAt
+    );
+
+    Playlist playlist1 = Playlist.builder()
+        .ownerId(ownerId).title("첫번째").description("설명1").build();
+    Playlist playlist2 = Playlist.builder()
+        .ownerId(ownerId).title("두번째").description("설명2").build();
+
+    PlaylistDto dto1 = new PlaylistDto(
+        UUID.randomUUID(), null, "첫번째", "설명1", null, 0L, false, List.of()
+    );
+    PlaylistDto dto2 = new PlaylistDto(
+        UUID.randomUUID(), null, "두번째", "설명2", null, 0L, false, List.of()
+    );
+
+    // limit개만 반환 (마지막 페이지)
+    given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist1, playlist2));
+    given(playlistQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(playlistMapper.toDto(playlist1)).willReturn(dto1);
+    given(playlistMapper.toDto(playlist2)).willReturn(dto2);
+
+    // when
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+
+    // then
+    assertThat(result.data()).hasSize(2);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.nextCursor()).isNull();
+  }
 }
