@@ -27,6 +27,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -200,5 +201,89 @@ class PlaylistControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.totalCount").value(0));
+  }
+
+  @Test
+  @DisplayName("플레이리스트에 콘텐츠를 추가하면 201을 반환한다.")
+  void addContent_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("플레이리스트에서 콘텐츠를 삭제하면 204를 반환한다.")
+  void removeContent_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNoContent());
+  }
+  @Test
+  @DisplayName("중복 콘텐츠를 추가하면 409를 반환한다.")
+  void addContent_fail_with_duplicate() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_CONTENT_ALREADY_EXISTS,
+        Map.of("playlistId", playlistId, "contentId", contentId)
+    )).when(playlistService).addContent(any(), any(), any());
+
+    // when & then
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트에 콘텐츠를 추가하면 404를 반환한다.")
+  void addContent_fail_with_not_found() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+        Map.of("playlistId", playlistId)
+    )).when(playlistService).addContent(any(), any(), any());
+
+    // when & then
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("플레이리스트에 없는 콘텐츠를 삭제하면 404를 반환한다.")
+  void removeContent_fail_with_not_found() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_CONTENT_NOT_FOUND,
+        Map.of("playlistId", playlistId, "contentId", contentId)
+    )).when(playlistService).removeContent(any(), any(), any());
+
+    // when & then
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNotFound());
   }
 }

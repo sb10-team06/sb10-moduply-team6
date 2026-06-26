@@ -2,14 +2,19 @@ package com.team6.moduply.playlist;
 
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
+import com.team6.moduply.playlist.entity.PlaylistContent;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
+import com.team6.moduply.playlist.repository.PlaylistContentRepository;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
@@ -46,6 +51,12 @@ class PlaylistServiceTest {
 
   @Mock
   private PlaylistQDSLRepository playlistQDSLRepository;
+
+  @Mock
+  private ContentRepository contentRepository;
+
+  @Mock
+  private PlaylistContentRepository playlistContentRepository;
 
   @Test
   @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")
@@ -366,5 +377,126 @@ class PlaylistServiceTest {
     assertThat(result.hasNext()).isFalse();
     assertThat(result.nextCursor()).isNull();
     assertThat(result.nextIdAfter()).isNull();
+  }
+
+  @Test
+  @DisplayName("소유자가 플레이리스트에 콘텐츠를 추가하면 저장된다.")
+  void addContent_success_with_owner() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+
+    given(contentRepository.existsById(contentId)).willReturn(true);
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistContentRepository.existsByPlaylistAndContentId(playlist, contentId)).willReturn(false);
+
+    // when
+    playlistService.addContent(playlistId, contentId, ownerId);
+
+    // then
+    verify(playlistContentRepository).save(any(PlaylistContent.class));
+  }
+
+  @Test
+  @DisplayName("이미 추가된 콘텐츠를 추가하면 예외가 발생한다.")
+  void addContent_fail_with_duplicate() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+
+    given(contentRepository.existsById(contentId)).willReturn(true);
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistContentRepository.existsByPlaylistAndContentId(playlist, contentId)).willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.addContent(playlistId, contentId, ownerId))
+        .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트에 콘텐츠를 추가하면 예외가 발생한다.")
+  void addContent_fail_with_not_found_playlist() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.addContent(playlistId, contentId, ownerId))
+        .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 콘텐츠를 추가하면 예외가 발생한다.")
+  void addContent_fail_with_not_found_content() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+
+    given(contentRepository.existsById(contentId)).willReturn(false);
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.addContent(playlistId, contentId, ownerId))
+        .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("소유자가 플레이리스트에서 콘텐츠를 삭제하면 레포지토리의 delete가 호출된다.")
+  void removeContent_success_with_owner() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+
+    PlaylistContent playlistContent = PlaylistContent.builder()
+        .playlist(playlist).contentId(contentId).build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistContentRepository.findByPlaylistAndContentId(playlist, contentId))
+        .willReturn(Optional.of(playlistContent));
+
+    // when
+    playlistService.removeContent(playlistId, contentId, ownerId);
+
+    // then
+    verify(playlistContentRepository).delete(playlistContent);
+  }
+
+  @Test
+  @DisplayName("플레이리스트에 없는 콘텐츠를 삭제하면 예외가 발생한다.")
+  void removeContent_fail_with_not_found_content() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistContentRepository.findByPlaylistAndContentId(playlist, contentId))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.removeContent(playlistId, contentId, ownerId))
+        .isInstanceOf(PlaylistException.class);
   }
 }
