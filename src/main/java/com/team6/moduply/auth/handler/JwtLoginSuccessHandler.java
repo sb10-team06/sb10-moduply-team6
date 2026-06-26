@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -26,6 +27,8 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
   private final JwtTokenProvider jwtTokenProvider;
   private final ObjectMapper objectMapper;
   private final CsrfTokenRepository csrfTokenRepository;
+  @Value("${jwt.refresh-token-expiration-minutes}")
+  private int refreshTokenExpirationMinutes;
 
   @Override
   public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -50,7 +53,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     refreshTokenCookie.setHttpOnly(true);
     refreshTokenCookie.setPath("/");
     refreshTokenCookie.setSecure(true);
-    refreshTokenCookie.setMaxAge(24 * 60 * 60);
+    refreshTokenCookie.setMaxAge(refreshTokenExpirationMinutes * 60);
     response.addCookie(refreshTokenCookie);
 
     CsrfToken csrfToken = csrfTokenRepository.generateToken(request);
