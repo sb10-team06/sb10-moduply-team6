@@ -1,7 +1,6 @@
 package com.team6.moduply.watching.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.watching.model.WatchingSession;
@@ -71,7 +70,7 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     assertThat(found.getContentId()).isEqualTo(contentId);
     assertThat(found.getWatcherId()).isEqualTo(userId);
     WatchingSession found2 = awaitSessionPresence(found.getSessionId(), true);
-    assertTrue(found.equals(found2));
+    assertThat(found).isEqualTo(found2);
 
     stompSession.disconnect();
   }
@@ -93,7 +92,7 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     assertThat(found.getContentId()).isEqualTo(contentId);
     assertThat(found.getWatcherId()).isEqualTo(userId);
     WatchingSession found2 = awaitSessionPresence(found.getSessionId(), true);
-    assertTrue(found.equals(found2));
+    assertThat(found).isEqualTo(found2);
 
     // when
     subscription.unsubscribe();
