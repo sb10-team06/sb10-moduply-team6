@@ -20,6 +20,10 @@ spring:
   batch:
     job:
       enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 logging:
   level:
@@ -46,3 +50,7 @@ admin:
   init:
     email: ${ADMIN_EMAIL}
     password: ${ADMIN_PASSWORD}
+
+watching:
+  storage:
+    type: redis
