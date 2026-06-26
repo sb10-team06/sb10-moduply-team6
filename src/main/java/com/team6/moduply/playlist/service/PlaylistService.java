@@ -1,14 +1,18 @@
 package com.team6.moduply.playlist.service;
 
 import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
+import com.team6.moduply.playlist.entity.PlaylistContent;
 import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
+import com.team6.moduply.playlist.repository.PlaylistContentRepository;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
@@ -25,6 +29,8 @@ public class PlaylistService {
   private final PlaylistRepository playlistRepository;
   private final PlaylistMapper playlistMapper;
   private final PlaylistQDSLRepository playlistQDSLRepository;
+  private final ContentRepository contentRepository;
+  private final PlaylistContentRepository playlistContentRepository;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -122,5 +128,66 @@ public class PlaylistService {
         request.sortBy().name(),
         request.sortDirection()
     );
+  }
+
+  @Transactional
+  public void addContent(UUID playlistId, UUID contentId, UUID ownerId) {
+    // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
+    Playlist playlist = playlistRepository.findById(playlistId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
+
+    // TODO: 인증 연동 후 소유자 검증 활성화 필요
+    // if (!playlist.getOwnerId().equals(ownerId)) {
+    //     throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, Map.of("playlistId", playlistId));
+    // }
+
+    Content content = contentRepository.findById(contentId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.CONTENT_NOT_FOUND,
+            Map.of("contentId", contentId)
+        ));
+
+    boolean alreadyExists = playlistContentRepository
+        .existsByPlaylistAndContentId(playlist, contentId);
+    if (alreadyExists) {
+      throw new PlaylistException(
+          PlaylistErrorCode.PLAYLIST_CONTENT_ALREADY_EXISTS,
+          Map.of("playlistId", playlistId, "contentId", contentId)
+      );
+    }
+
+    PlaylistContent playlistContent = PlaylistContent.builder()
+        .playlist(playlist)
+        .contentId(contentId)
+        .build();
+
+    playlistContentRepository.save(playlistContent);
+  }
+
+  @Transactional
+  public void removeContent(UUID playlistId, UUID contentId, UUID ownerId) {
+    // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
+    Playlist playlist = playlistRepository.findById(playlistId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
+
+    // TODO: 인증 연동 후 소유자 검증 활성화 필요
+    // if (!playlist.getOwnerId().equals(ownerId)) {
+    //     throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, Map.of("playlistId", playlistId));
+    // }
+
+    PlaylistContent playlistContent = playlistContentRepository
+        .findByPlaylistAndContentId(playlist, contentId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_CONTENT_NOT_FOUND,
+            Map.of("playlistId", playlistId, "contentId", contentId)
+        ));
+
+    playlistContentRepository.delete(playlistContent);
   }
 }

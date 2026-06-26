@@ -72,4 +72,27 @@ public class PlaylistController {
       @ModelAttribute @Valid PlaylistSearchRequest request) {
     return ResponseEntity.ok(playlistService.findAll(request));
   }
+
+  @PostMapping("/{playlistId}/contents/{contentId}")
+  @Operation(summary = "플레이리스트 콘텐츠 추가", description = "플레이리스트에 콘텐츠를 추가합니다.")
+  public ResponseEntity<Void> addContent(
+      @PathVariable UUID playlistId,
+      @PathVariable UUID contentId) {
+    // TODO: 인증 담당자 작업 완료 후 @AuthenticationPrincipal로 ownerId 교체 필요
+    UUID tempOwnerId = UUID.randomUUID();
+    playlistService.addContent(playlistId, contentId, tempOwnerId);
+    return ResponseEntity.status(201).build();
+  }
+
+  @DeleteMapping("/{playlistId}/contents/{contentId}")
+  @Operation(summary = "플레이리스트 콘텐츠 삭제", description = "플레이리스트에서 콘텐츠를 삭제합니다.")
+  public ResponseEntity<Void> removeContent(
+      @PathVariable UUID playlistId,
+      @PathVariable UUID contentId) {
+    // TODO: 인증 담당자 작업 완료 후 @AuthenticationPrincipal로 ownerId 교체 필요
+    UUID tempOwnerId = UUID.randomUUID();
+    playlistService.removeContent(playlistId, contentId, tempOwnerId);
+    return ResponseEntity.noContent().build();
+  }
+
 }

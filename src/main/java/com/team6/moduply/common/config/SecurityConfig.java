@@ -33,7 +33,6 @@ public class SecurityConfig {
   private final JwtLogoutHandler jwtLogoutHandler;
   private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
   private final CsrfTokenRepository csrfTokenRepository;
-
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.
