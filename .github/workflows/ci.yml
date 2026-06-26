@@ -53,7 +53,7 @@ jobs:
 
       # ---------------------------------------------------------------------
       # PR의 목표 브랜치(main/dev)에 따라 커버리지 기준값을 분기
-      # main → 0.80, dev(또는 dev push) → 0.10 (점진적 상향 예정)
+      # main → 0.80, dev(또는 dev push) → 0.60 (점진적 상향 예정)
       # ---------------------------------------------------------------------
       - name: Determine coverage threshold by target branch
         id: coverage-threshold
@@ -62,8 +62,8 @@ jobs:
             echo "value=0.80" >> "$GITHUB_OUTPUT"
             echo "👉 main 대상 PR → 커버리지 기준 80%"
           else
-            echo "value=0.10" >> "$GITHUB_OUTPUT"
-            echo "👉 dev 대상 PR(or push) → 커버리지 기준 10% (점진적 상향 예정)"
+            echo "value=0.60" >> "$GITHUB_OUTPUT"
+            echo "👉 dev 대상 PR(or push) → 커버리지 기준 60% (점진적 상향 예정)"
           fi
 
       - name: Run tests
