@@ -1,5 +1,7 @@
 package com.team6.moduply.watching.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -20,6 +22,21 @@ public class WatchingSession {
     this.watcherId = watcherId;
     this.contentId = contentId;
     this.createdAt = Instant.now();
+  }
+
+  @JsonCreator
+  private WatchingSession(
+      @JsonProperty("id") UUID id,
+      @JsonProperty("sessionId") String sessionId,
+      @JsonProperty("watcherId") UUID watcherId,
+      @JsonProperty("contentId") UUID contentId,
+      @JsonProperty("createdAt") Instant createdAt
+  ) {
+    this.id = id;
+    this.sessionId = sessionId;
+    this.watcherId = watcherId;
+    this.contentId = contentId;
+    this.createdAt = createdAt;
   }
 
   public static WatchingSession create(String sessionId, UUID watcherId, UUID contentId) {
