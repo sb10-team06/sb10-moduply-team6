@@ -13,12 +13,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Getter
 @RequiredArgsConstructor
 public class ModuPlyUserDetails implements UserDetails {
-  private final UserDto userdto;
+  private final UserDto userDto;
   private final String password;
 
   @Override
   public String getUsername() {
-    return userdto.getEmail();
+    return userDto.getEmail();
   }
 
   @Override
@@ -28,7 +28,7 @@ public class ModuPlyUserDetails implements UserDetails {
 
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
-    return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + userdto.getRole().name()));
+    return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + userDto.getRole().name()));
   }
 
   @Override
@@ -43,7 +43,7 @@ public class ModuPlyUserDetails implements UserDetails {
 
   @Override
   public boolean isAccountNonLocked() {
-    return !userdto.isLocked();
+    return !userDto.isLocked();
   }
 
   @Override

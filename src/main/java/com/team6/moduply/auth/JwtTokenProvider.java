@@ -93,7 +93,7 @@ public class JwtTokenProvider {
       JWSSigner jwtSigner = new MACSigner(signingKey);
       // 인증 정보에서 정보를 가져옴
       ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
-      UserDto userDto = userDetails.getUserdto();
+      UserDto userDto = userDetails.getUserDto();
 
       // 발급 시간과 만료 시간 설정
       Date issuedAt = new Date();

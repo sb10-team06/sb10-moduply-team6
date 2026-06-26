@@ -52,7 +52,7 @@ public class AuthController {
     String accessToken = jwtTokenProvider.generateAccessToken(authentication);
 
     ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
-    JwtDto response = new JwtDto(userDetails.getUserdto(), accessToken);
+    JwtDto response = new JwtDto(userDetails.getUserDto(), accessToken);
 
     // TODO: Redis 기반 refresh token 저장소 도입 후 refresh token 검증 및 rotation 처리 추가
     return ResponseEntity.ok(response);

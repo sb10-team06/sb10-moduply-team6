@@ -38,7 +38,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
-    UserDto userDto = userDetails.getUserdto();
+    UserDto userDto = userDetails.getUserDto();
 
     // http 헤더 설정
     response.setStatus(HttpServletResponse.SC_OK);
