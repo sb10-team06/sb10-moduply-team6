@@ -311,7 +311,6 @@ class ContentServiceTest {
         ));
     given(contentMapper.toDto(movie, null, List.of("SF", "액션"))).willReturn(movieDto);
     given(contentMapper.toDto(sport, null, List.of("스포츠"))).willReturn(sportDto);
-    given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -345,7 +344,7 @@ class ContentServiceTest {
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     );
-    verify(contentRepository).countContents(null, null, List.of());
+    verify(contentRepository, never()).countContents(any(), any(), anyList());
     verify(contentTagRepository).findTagNamesByContentIds(List.of(movieId, sportId));
     verify(contentMapper).toDto(movie, null, List.of("SF", "액션"));
     verify(contentMapper).toDto(sport, null, List.of("스포츠"));
@@ -448,7 +447,6 @@ class ContentServiceTest {
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     )).willReturn(List.of());
-    given(contentRepository.countContents(null, null, List.of())).willReturn(0L);
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -478,7 +476,7 @@ class ContentServiceTest {
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     );
-    verify(contentRepository).countContents(null, null, List.of());
+    verify(contentRepository, never()).countContents(any(), any(), anyList());
     verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }

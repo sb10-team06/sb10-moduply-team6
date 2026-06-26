@@ -128,11 +128,14 @@ public class ContentService {
         ))
         .toList();
     Content lastContent = data.isEmpty() ? null : pageContents.get(pageContents.size() - 1);
-    long totalCount = contentRepository.countContents(
-        request.typeEqual(),
-        request.keywordLike(),
-        normalizedTagsIn
-    );
+    boolean isFirstPage = request.cursor() == null && request.idAfter() == null;
+    long totalCount = isFirstPage && !hasNext
+        ? pageContents.size()
+        : contentRepository.countContents(
+            request.typeEqual(),
+            request.keywordLike(),
+            normalizedTagsIn
+        );
 
     CursorResponse<ContentDto> response = new CursorResponse<>(
         data,
