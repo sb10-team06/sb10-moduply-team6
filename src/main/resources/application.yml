@@ -44,5 +44,5 @@ jwt:
   refresh-token-expiration-minutes: 420
 admin:
   init:
-    email: ${ADMIN_EMAIL:admin@moduply.com}
+    email: ${ADMIN_EMAIL}
     password: ${ADMIN_PASSWORD}
