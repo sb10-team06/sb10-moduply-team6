@@ -390,10 +390,8 @@ class PlaylistServiceTest {
     Playlist playlist = Playlist.builder()
         .ownerId(ownerId).title("제목").description("설명").build();
 
-    Content content = new Content(null, "ext-1", ContentType.movie, "영화제목", "설명");
-
+    given(contentRepository.existsById(contentId)).willReturn(true);
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-    given(contentRepository.findById(contentId)).willReturn(Optional.of(content));
     given(playlistContentRepository.existsByPlaylistAndContentId(playlist, contentId)).willReturn(false);
 
     // when
@@ -414,10 +412,8 @@ class PlaylistServiceTest {
     Playlist playlist = Playlist.builder()
         .ownerId(ownerId).title("제목").description("설명").build();
 
-    Content content = new Content(null, "ext-1", ContentType.movie, "영화제목", "설명");
-
+    given(contentRepository.existsById(contentId)).willReturn(true);
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-    given(contentRepository.findById(contentId)).willReturn(Optional.of(content));
     given(playlistContentRepository.existsByPlaylistAndContentId(playlist, contentId)).willReturn(true);
 
     // when & then
@@ -451,8 +447,8 @@ class PlaylistServiceTest {
     Playlist playlist = Playlist.builder()
         .ownerId(ownerId).title("제목").description("설명").build();
 
+    given(contentRepository.existsById(contentId)).willReturn(false);
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-    given(contentRepository.findById(contentId)).willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> playlistService.addContent(playlistId, contentId, ownerId))
