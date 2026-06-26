@@ -85,8 +85,8 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
 
     // 구독 먼저
     Subscription subscription = stompSession.subscribe(destination, new EmptyFrameHandler());
-    assertThat(awaitSessionPresenceByUserId(userId, true)).isNotNull();
     WatchingSession found = awaitSessionPresenceByUserId(userId, true);
+    assertThat(found).isNotNull();
 
     assertThat(found).isNotNull();
     assertThat(found.getContentId()).isEqualTo(contentId);
