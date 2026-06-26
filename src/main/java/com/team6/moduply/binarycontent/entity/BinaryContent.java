@@ -49,7 +49,5 @@ public class BinaryContent extends BaseUpdatableEntity {
     this.status = BinaryContentStatus.FAIL;
   }
 
-  public void delete() {
-    this.status = BinaryContentStatus.DELETED;
-  }
+  public void delete() { this.status = BinaryContentStatus.DELETED; }
 }
