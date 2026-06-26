@@ -38,7 +38,7 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
   public WatchingSession save(WatchingSession watchingSession) {
     watchingSessionStorage.compute(watchingSession.getWatcherId(), (watcherId, previous) -> {
       if (previous != null) {
-        sessionIdAndUserIdMap.remove(watchingSession.getSessionId());
+        sessionIdAndUserIdMap.remove(previous.getSessionId());
       }
       sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watchingSession.getWatcherId());
       return watchingSession;
