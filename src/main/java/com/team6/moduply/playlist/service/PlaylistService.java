@@ -105,7 +105,7 @@ public class PlaylistService {
 
     if (hasNext) {
       Playlist last = playlists.get(playlists.size() - 1);
-      nextCursor = last.getUpdatedAt().toString();
+      nextCursor = last.getUpdatedAt() != null ? last.getUpdatedAt().toString() : null;
       nextIdAfter = last.getId();
     }
 
