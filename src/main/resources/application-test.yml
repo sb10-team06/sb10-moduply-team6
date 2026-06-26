@@ -37,3 +37,9 @@ moduply:
       region: ap-northeast-2
       bucket: test-bucket
       presigned-url-expiration: 600
+
+#컨텍스트 로딩 통과용.
+jwt:
+  key: bW9kdXBseS10ZWFtNi10ZXN0LWVudmlyb25tZW50LWp3dC1zZWNyZXQta2V5LTIwMjYtdmVyeS1zZWN1cmU=
+  access-token-expiration-minutes: 30
+  refresh-token-expiration-minutes: 420

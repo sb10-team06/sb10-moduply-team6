@@ -3,6 +3,7 @@ package com.team6.moduply.playlist;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.playlist.controller.PlaylistController;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
@@ -15,6 +16,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,7 +36,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(PlaylistController.class)
+@WebMvcTest(
+    controllers = PlaylistController.class,
+    // 컨트롤러 slice 테스트는 요청/응답과 검증만 확인한다.
+    // JwtAuthenticationFilter는 별도 auth 테스트에서 검증하므로 여기서는 Bean 생성 대상에서 제외한다.
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = JwtAuthenticationFilter.class
+    )
+)
 class PlaylistControllerTest {
 
   @Autowired
