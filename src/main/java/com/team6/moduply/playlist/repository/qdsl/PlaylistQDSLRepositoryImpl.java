@@ -41,7 +41,7 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
                     : playlist.updatedAt.desc()),
             playlist.id.asc()
         )
-        .limit(request.limit());
+        .limit(request.limit() + 1);
 
     return query.fetch();
   }

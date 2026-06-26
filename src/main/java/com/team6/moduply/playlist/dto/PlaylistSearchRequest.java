@@ -3,6 +3,7 @@ package com.team6.moduply.playlist.dto;
 import com.team6.moduply.common.pagination.SortDirection;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import java.util.UUID;
 
@@ -17,6 +18,10 @@ public record PlaylistSearchRequest (
     UUID subscriberIdEqual,
 
     @Schema(description = "커서")
+    @Pattern(
+        regexp = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+        message = "cursor는 ISO-8601 형식이어야 합니다. (예: 2024-01-01T00:00:00Z)"
+    )
     String cursor,
 
     @Schema(description = "보조 커서")
