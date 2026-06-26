@@ -16,6 +16,7 @@ import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.ContentFindAllRequest;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
@@ -146,7 +147,7 @@ class ContentControllerTest {
 
   @Test
   @DisplayName("콘텐츠 목록 조회 API를 호출하면 콘텐츠 목록 응답을 반환한다.")
-  void find_contents_success_with_existing_contents() throws Exception {
+  void find_all_success_with_existing_contents() throws Exception {
     // Given
     ContentDto content = new ContentDto(
         UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
@@ -168,17 +169,18 @@ class ContentControllerTest {
         "createdAt",
         SortDirection.DESCENDING
     );
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        ContentType.movie,
+        "dream",
+        List.of("SF", "액션"),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
 
-    given(contentService.findContents(
-        eq(ContentType.movie),
-        eq("dream"),
-        eq(List.of("SF", "액션")),
-        isNull(),
-        isNull(),
-        eq(20),
-        eq(ContentSortBy.createdAt),
-        eq(SortDirection.DESCENDING)
-    )).willReturn(response);
+    given(contentService.findAll(eq(request))).willReturn(response);
 
     // When & Then
     mockMvc.perform(get("/api/contents")
@@ -205,21 +207,12 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.sortBy").value("createdAt"))
         .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
 
-    verify(contentService).findContents(
-        ContentType.movie,
-        "dream",
-        List.of("SF", "액션"),
-        null,
-        null,
-        20,
-        ContentSortBy.createdAt,
-        SortDirection.DESCENDING
-    );
+    verify(contentService).findAll(request);
   }
 
   @Test
   @DisplayName("콘텐츠 단건 조회 API를 호출하면 콘텐츠 응답을 반환한다.")
-  void find_content_success_with_existing_content() throws Exception {
+  void find_success_with_existing_content() throws Exception {
     // Given
     UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
     ContentDto response = new ContentDto(
@@ -234,7 +227,7 @@ class ContentControllerTest {
         0L
     );
 
-    given(contentService.findContent(contentId)).willReturn(response);
+    given(contentService.find(contentId)).willReturn(response);
 
     // When & Then
     mockMvc.perform(get("/api/contents/{contentId}", contentId)
@@ -251,15 +244,15 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.reviewCount").value(0))
         .andExpect(jsonPath("$.watcherCount").value(0));
 
-    verify(contentService).findContent(contentId);
+    verify(contentService).find(contentId);
   }
 
   @Test
   @DisplayName("존재하지 않는 콘텐츠를 단건 조회하면 404 응답을 반환한다.")
-  void find_content_fail_when_content_not_found() throws Exception {
+  void find_fail_when_content_not_found() throws Exception {
     UUID contentId = UUID.randomUUID();
 
-    given(contentService.findContent(contentId))
+    given(contentService.find(contentId))
         .willThrow(new ContentException(
             ContentErrorCode.CONTENT_NOT_FOUND,
             Map.of("contentId", contentId)

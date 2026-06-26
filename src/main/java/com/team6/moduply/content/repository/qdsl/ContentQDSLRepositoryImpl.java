@@ -14,7 +14,6 @@ import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -26,12 +25,15 @@ import java.util.UUID;
 
 public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
 
-  @PersistenceContext
-  private EntityManager entityManager;
+  private final JPAQueryFactory queryFactory;
+
+  public ContentQDSLRepositoryImpl(EntityManager entityManager) {
+    this.queryFactory = new JPAQueryFactory(entityManager);
+  }
 
   // 검색 조건, 커서 조건, 정렬 조건을 조합하여 콘텐츠 목록을 조회한다.
   @Override
-  public List<Content> findContents(
+  public List<Content> findAllByCursor(
       ContentType typeEqual,
       String keywordLike,
       List<String> tagsIn,
@@ -41,7 +43,6 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
       ContentSortBy sortBy,
       SortDirection sortDirection
   ) {
-    JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
     List<BooleanExpression> conditions = buildSearchConditions(typeEqual, keywordLike, tagsIn);
 
     conditions.add(buildCursorCondition(sortBy, sortDirection, cursor, idAfter));
@@ -61,8 +62,6 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
       String keywordLike,
       List<String> tagsIn
   ) {
-    JPAQueryFactory queryFactory = new JPAQueryFactory(entityManager);
-
     Long count = queryFactory
         .select(content.id.countDistinct())
         .from(content)

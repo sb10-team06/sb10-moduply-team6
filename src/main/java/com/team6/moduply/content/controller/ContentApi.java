@@ -2,20 +2,18 @@ package com.team6.moduply.content.controller;
 
 import com.team6.moduply.common.error.ErrorResponse;
 import com.team6.moduply.common.pagination.CursorResponse;
-import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
-import com.team6.moduply.content.enums.ContentSortBy;
-import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.dto.ContentFindAllRequest;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
+import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
@@ -75,7 +73,7 @@ public interface ContentApi {
   @Operation(
       summary = "콘텐츠 목록 조회",
       description = "콘텐츠 목록을 조회합니다.",
-      operationId = "findContents"
+      operationId = "findAll"
   )
   @ApiResponses({
       @ApiResponse(
@@ -111,29 +109,14 @@ public interface ContentApi {
           )
       )
   })
-  ResponseEntity<CursorResponse<ContentDto>> findContents(
-      @Parameter(description = "콘텐츠 타입")
-      ContentType typeEqual,
-      @Parameter(description = "제목 또는 설명 검색어")
-      String keywordLike,
-      @Parameter(description = "포함할 태그 목록")
-      List<String> tagsIn,
-      @Parameter(description = "다음 페이지 커서")
-      String cursor,
-      @Parameter(description = "다음 페이지 보조 커서")
-      UUID idAfter,
-      @Parameter(description = "페이지 크기")
-      Integer limit,
-      @Parameter(description = "정렬 기준")
-      ContentSortBy sortBy,
-      @Parameter(description = "정렬 방향")
-      SortDirection sortDirection
+  ResponseEntity<CursorResponse<ContentDto>> findAll(
+      @Valid @ParameterObject ContentFindAllRequest request
   );
 
   @Operation(
       summary = "콘텐츠 단건 조회",
       description = "콘텐츠 ID로 콘텐츠 상세 정보를 조회합니다.",
-      operationId = "findContent"
+      operationId = "find"
   )
   @ApiResponses({
       @ApiResponse(
@@ -177,5 +160,5 @@ public interface ContentApi {
           )
       )
   })
-  ResponseEntity<ContentDto> findContent(UUID contentId);
+  ResponseEntity<ContentDto> find(UUID contentId);
 }

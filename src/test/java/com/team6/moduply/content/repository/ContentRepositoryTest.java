@@ -63,7 +63,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("콘텐츠 목록을 인기순으로 조회하고 커서 이후 목록을 조회한다.")
-  void find_contents_success_with_watcher_count_sort_and_cursor() {
+  void find_all_by_cursor_success_with_watcher_count_sort_and_cursor() {
     // Given
     Content first = contentRepository.save(createContent(
         ContentType.movie,
@@ -79,7 +79,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     ));
 
     // When
-    List<Content> firstPage = contentRepository.findContents(
+    List<Content> firstPage = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -89,7 +89,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
         ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     );
-    List<Content> secondPage = contentRepository.findContents(
+    List<Content> secondPage = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -111,12 +111,12 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("커서 값만 있고 보조 커서가 없으면 콘텐츠 목록 조회에 실패한다.")
-  void find_contents_fail_when_cursor_without_id_after() {
+  void find_all_by_cursor_fail_when_cursor_without_id_after() {
     // Given
     String cursor = Instant.now().toString();
 
     // When & Then
-    assertThatThrownBy(() -> contentRepository.findContents(
+    assertThatThrownBy(() -> contentRepository.findAllByCursor(
         null,
         null,
         null,
@@ -132,13 +132,13 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("생성일 커서 형식이 올바르지 않으면 콘텐츠 목록 조회에 실패한다.")
-  void find_contents_fail_when_created_at_cursor_invalid() {
+  void find_all_by_cursor_fail_when_created_at_cursor_invalid() {
     // Given
     String invalidCursor = "invalid-cursor";
     UUID idAfter = UUID.randomUUID();
 
     // When & Then
-    assertThatThrownBy(() -> contentRepository.findContents(
+    assertThatThrownBy(() -> contentRepository.findAllByCursor(
         null,
         null,
         null,
@@ -154,7 +154,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("콘텐츠 목록을 평점순으로 조회한다.")
-  void find_contents_success_with_rate_sort() {
+  void find_all_by_cursor_success_with_rate_sort() {
     // Given
     Content highRated = contentRepository.save(createContent(
         ContentType.movie,
@@ -172,7 +172,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     ));
 
     // When
-    List<Content> result = contentRepository.findContents(
+    List<Content> result = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -191,7 +191,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("콘텐츠 목록을 평점순 오름차순으로 조회한다.")
-  void find_contents_success_with_rate_ascending_sort() {
+  void find_all_by_cursor_success_with_rate_ascending_sort() {
     // Given
     Content lowRated = contentRepository.save(createContent(
         ContentType.movie,
@@ -209,7 +209,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     ));
 
     // When
-    List<Content> result = contentRepository.findContents(
+    List<Content> result = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -228,7 +228,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("콘텐츠 목록을 최신순 오름차순으로 조회한다.")
-  void find_contents_success_with_created_at_ascending_sort() {
+  void find_all_by_cursor_success_with_created_at_ascending_sort() {
     // Given
     Content first = contentRepository.save(createContent(
         ContentType.movie,
@@ -244,7 +244,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     ));
 
     // When
-    List<Content> result = contentRepository.findContents(
+    List<Content> result = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -262,7 +262,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("동일한 정렬값이면 ID 보조 커서로 다음 목록을 조회한다.")
-  void find_contents_success_with_id_after_when_sort_values_are_same() {
+  void find_all_by_cursor_success_with_id_after_when_sort_values_are_same() {
     // Given
     Content first = contentRepository.save(createContent(
         ContentType.movie,
@@ -285,7 +285,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     List<UUID> allIds = List.of(first.getId(), second.getId(), third.getId());
 
     // When
-    List<Content> firstPage = contentRepository.findContents(
+    List<Content> firstPage = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -296,7 +296,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
         SortDirection.DESCENDING
     );
     UUID idAfter = firstPage.get(0).getId();
-    List<Content> secondPage = contentRepository.findContents(
+    List<Content> secondPage = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -320,7 +320,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
 
   @Test
   @DisplayName("콘텐츠 목록을 타입, 검색어, 태그 조건으로 조회한다.")
-  void find_contents_success_with_type_keyword_and_tags() {
+  void find_all_by_cursor_success_with_type_keyword_and_tags() {
     // Given
     Content matched = contentRepository.save(createContent(
         ContentType.movie,
@@ -342,7 +342,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     ));
 
     // When
-    List<Content> result = contentRepository.findContents(
+    List<Content> result = contentRepository.findAllByCursor(
         ContentType.movie,
         "dream",
         List.of("SF"),

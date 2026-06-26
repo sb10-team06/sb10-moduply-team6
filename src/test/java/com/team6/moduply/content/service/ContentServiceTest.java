@@ -16,6 +16,7 @@ import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.ContentFindAllRequest;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
@@ -248,7 +249,7 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("콘텐츠 목록이 존재하면 목록 조회 응답을 반환한다.")
-  void find_contents_success_with_existing_contents() {
+  void find_all_success_with_existing_contents() {
     // Given
     UUID movieId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
     UUID sportId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
@@ -292,7 +293,7 @@ class ContentServiceTest {
         0L
     );
 
-    given(contentRepository.findContents(
+    given(contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -312,17 +313,19 @@ class ContentServiceTest {
     given(contentMapper.toDto(sport, null, List.of("스포츠"))).willReturn(sportDto);
     given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
 
-    // When
-    CursorResponse<ContentDto> response = contentService.findContents(
+    ContentFindAllRequest request = new ContentFindAllRequest(
         null,
         null,
         null,
         null,
         null,
-        null,
-        null,
-        null
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
     );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
 
     // Then
     assertThat(response.data()).containsExactly(movieDto, sportDto);
@@ -332,7 +335,7 @@ class ContentServiceTest {
     assertThat(response.totalCount()).isEqualTo(2);
     assertThat(response.sortBy()).isEqualTo("createdAt");
     assertThat(response.sortDirection()).isEqualTo(SortDirection.DESCENDING);
-    verify(contentRepository).findContents(
+    verify(contentRepository).findAllByCursor(
         null,
         null,
         List.of(),
@@ -350,7 +353,7 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("콘텐츠 목록에 다음 페이지가 있으면 다음 커서 정보를 반환한다.")
-  void find_contents_success_with_next_cursor() {
+  void find_all_success_with_next_cursor() {
     // Given
     UUID firstId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
     UUID secondId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
@@ -384,7 +387,7 @@ class ContentServiceTest {
         100L
     );
 
-    given(contentRepository.findContents(
+    given(contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -397,8 +400,7 @@ class ContentServiceTest {
     given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
     given(contentMapper.toDto(first, null, List.of())).willReturn(firstDto);
 
-    // When
-    CursorResponse<ContentDto> response = contentService.findContents(
+    ContentFindAllRequest request = new ContentFindAllRequest(
         null,
         null,
         null,
@@ -409,6 +411,9 @@ class ContentServiceTest {
         SortDirection.DESCENDING
     );
 
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
     // Then
     assertThat(response.data()).containsExactly(firstDto);
     assertThat(response.nextCursor()).isEqualTo("100");
@@ -417,7 +422,7 @@ class ContentServiceTest {
     assertThat(response.totalCount()).isEqualTo(2);
     assertThat(response.sortBy()).isEqualTo("watcherCount");
     assertThat(response.sortDirection()).isEqualTo(SortDirection.DESCENDING);
-    verify(contentRepository).findContents(
+    verify(contentRepository).findAllByCursor(
         null,
         null,
         List.of(),
@@ -431,9 +436,9 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("콘텐츠 목록이 비어 있으면 빈 목록 조회 응답을 반환한다.")
-  void find_contents_success_with_empty_contents() {
+  void find_all_success_with_empty_contents() {
     // Given
-    given(contentRepository.findContents(
+    given(contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
@@ -445,23 +450,25 @@ class ContentServiceTest {
     )).willReturn(List.of());
     given(contentRepository.countContents(null, null, List.of())).willReturn(0L);
 
-    // When
-    CursorResponse<ContentDto> response = contentService.findContents(
+    ContentFindAllRequest request = new ContentFindAllRequest(
         null,
         null,
         null,
         null,
         null,
-        null,
-        null,
-        null
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
     );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
 
     // Then
     assertThat(response.data()).isEmpty();
     assertThat(response.hasNext()).isFalse();
     assertThat(response.totalCount()).isZero();
-    verify(contentRepository).findContents(
+    verify(contentRepository).findAllByCursor(
         null,
         null,
         List.of(),
@@ -478,7 +485,7 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("콘텐츠가 존재하면 단건 조회 응답을 반환한다.")
-  void find_content_success_with_existing_content() {
+  void find_success_with_existing_content() {
     // Given
     UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
     BinaryContent contentImg = BinaryContent.create(
@@ -512,7 +519,7 @@ class ContentServiceTest {
     given(contentMapper.toDto(content, null, tagNames)).willReturn(expected);
 
     // When
-    ContentDto response = contentService.findContent(contentId);
+    ContentDto response = contentService.find(contentId);
 
     // Then
     assertThat(response).isEqualTo(expected);
@@ -523,13 +530,13 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("콘텐츠가 존재하지 않으면 예외를 던진다.")
-  void find_content_fail_when_content_not_found() {
+  void find_fail_when_content_not_found() {
     // Given
     UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.empty());
 
     // When & Then
-    assertThatThrownBy(() -> contentService.findContent(contentId))
+    assertThatThrownBy(() -> contentService.find(contentId))
         .isInstanceOfSatisfying(ContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
           assertThat(exception.getDetails().get("ContentException")).isEqualTo(contentId);

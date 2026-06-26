@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface ContentQDSLRepository {
 
-  List<Content> findContents(
+  List<Content> findAllByCursor(
       ContentType typeEqual,
       String keywordLike,
       List<String> tagsIn,

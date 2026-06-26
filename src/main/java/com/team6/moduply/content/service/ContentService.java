@@ -6,6 +6,7 @@ import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
+import com.team6.moduply.content.dto.ContentFindAllRequest;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
@@ -30,15 +31,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ContentService {
-
-  private static final int DEFAULT_LIMIT = 20;
-  private static final int MAX_LIMIT = 100;
 
   private final ContentRepository contentRepository;
   private final TagRepository tagRepository;
@@ -96,46 +93,34 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
-  public CursorResponse<ContentDto> findContents(
-      ContentType typeEqual,
-      String keywordLike,
-      List<String> tagsIn,
-      String cursor,
-      UUID idAfter,
-      Integer limit,
-      ContentSortBy sortBy,
-      SortDirection sortDirection
-  ) {
-    ContentSortBy resolvedSortBy = sortBy == null ? ContentSortBy.createdAt : sortBy;
-    SortDirection resolvedSortDirection = sortDirection == null ? SortDirection.DESCENDING : sortDirection;
-    int resolvedLimit = resolveLimit(limit);
-    List<String> normalizedTagsIn = normalizeTags(tagsIn);
+  public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
+    List<String> normalizedTagsIn = normalizeTags(request.tagsIn());
 
     log.debug(
         "콘텐츠 목록 조회 처리 시작: typeEqual={}, keywordLike={}, tagsIn={}, cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}",
-        typeEqual,
-        keywordLike,
+        request.typeEqual(),
+        request.keywordLike(),
         normalizedTagsIn,
-        cursor,
-        idAfter,
-        resolvedLimit,
-        resolvedSortBy,
-        resolvedSortDirection
+        request.cursor(),
+        request.idAfter(),
+        request.limit(),
+        request.sortBy(),
+        request.sortDirection()
     );
 
-    List<Content> contents = contentRepository.findContents(
-        typeEqual,
-        keywordLike,
+    List<Content> contents = contentRepository.findAllByCursor(
+        request.typeEqual(),
+        request.keywordLike(),
         normalizedTagsIn,
-        cursor,
-        idAfter,
-        resolvedLimit + 1,
-        resolvedSortBy,
-        resolvedSortDirection
+        request.cursor(),
+        request.idAfter(),
+        request.limit() + 1,
+        request.sortBy(),
+        request.sortDirection()
     );
-    boolean hasNext = contents.size() > resolvedLimit;
-    List<Content> pageContents = hasNext ? contents.subList(0, resolvedLimit) : contents;
-    Map<UUID, List<String>> tagNamesByContentId = getTagNamesByContentId(pageContents);
+    boolean hasNext = contents.size() > request.limit();
+    List<Content> pageContents = hasNext ? contents.subList(0, request.limit()) : contents;
+    Map<UUID, List<String>> tagNamesByContentId = getTagNamesGroupedByContentId(pageContents);
     List<ContentDto> data = pageContents.stream()
         .map(content -> toDto(
             content,
@@ -143,16 +128,20 @@ public class ContentService {
         ))
         .toList();
     Content lastContent = data.isEmpty() ? null : pageContents.get(pageContents.size() - 1);
-    long totalCount = contentRepository.countContents(typeEqual, keywordLike, normalizedTagsIn);
+    long totalCount = contentRepository.countContents(
+        request.typeEqual(),
+        request.keywordLike(),
+        normalizedTagsIn
+    );
 
     CursorResponse<ContentDto> response = new CursorResponse<>(
         data,
-        hasNext ? extractCursor(lastContent, resolvedSortBy) : null,
+        hasNext ? extractCursor(lastContent, request.sortBy()) : null,
         hasNext ? lastContent.getId() : null,
         hasNext,
         totalCount,
-        resolvedSortBy.name(),
-        resolvedSortDirection
+        request.sortBy().name(),
+        request.sortDirection()
     );
 
     log.debug("콘텐츠 목록 조회 처리 완료: count={}, hasNext={}", data.size(), hasNext);
@@ -161,7 +150,7 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
-  public ContentDto findContent(UUID contentId) {
+  public ContentDto find(UUID contentId) {
     log.debug("콘텐츠 단건 조회 처리 시작: contentId={}", contentId);
 
     Content content = contentRepository.findByIdWithContentImg(contentId)
@@ -224,15 +213,7 @@ public class ContentService {
         .toList();
   }
 
-  private int resolveLimit(Integer limit) {
-    if (limit == null || limit <= 0) {
-      return DEFAULT_LIMIT;
-    }
-
-    return Math.min(limit, MAX_LIMIT);
-  }
-
-  private Map<UUID, List<String>> getTagNamesByContentId(List<Content> contents) {
+  private Map<UUID, List<String>> getTagNamesGroupedByContentId(List<Content> contents) {
     List<UUID> contentIds = contents.stream()
         .map(Content::getId)
         .toList();
