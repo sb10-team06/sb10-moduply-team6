@@ -159,7 +159,10 @@ public class ContentService {
     Content content = contentRepository.findByIdWithContentImg(contentId)
         .orElseThrow(() -> {
           log.warn("콘텐츠 단건 조회 실패: 콘텐츠 없음. contentId={}", contentId);
-          return new ContentException(ContentErrorCode.CONTENT_NOT_FOUND, contentId);
+          return new ContentException(
+              ContentErrorCode.CONTENT_NOT_FOUND,
+              Map.of("contentId", contentId)
+          );
         });
 
     List<String> tagNames = contentTagRepository.findTagNamesByContentId(contentId);

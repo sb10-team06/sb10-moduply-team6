@@ -537,7 +537,7 @@ class ContentServiceTest {
     assertThatThrownBy(() -> contentService.find(contentId))
         .isInstanceOfSatisfying(ContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
-          assertThat(exception.getDetails().get("ContentException")).isEqualTo(contentId);
+          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
         });
 
     verify(contentRepository).findByIdWithContentImg(contentId);
