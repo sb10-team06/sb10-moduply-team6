@@ -2,6 +2,7 @@ package com.team6.moduply.binarycontent.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
+import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
@@ -18,6 +19,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+/**
+ 프로필이나 콘텐츠 이미지 수정시
+ (1)기존 이미지: BinaryContent oldProfileImg = user.getProfileImg();
+ (2)변경할 이미지: newProfileImg = binaryContentService.createUserProfile(userId, newProfileIamge)
+ (3)새이미지로 변경: user.updateProfileImg(newProfileImg) -> event발행하고 리스너쪽에서 after commit으로 delete하게 설계
+ (4)기존 이미지 정보(oldBinaryContent)를 createUserProfile/createContentImage에 넘김
+ → 새 이미지 S3 업로드 성공 후 기존 이미지 삭제 이벤트 발행
+
+ ** 기존이미지를 먼저 삭제하면 안됨.
+ ** 새 이미지로 변경후, 기존 이미지 삭제할것.
+
+ **/
 
 @Slf4j
 @Service
@@ -39,7 +53,7 @@ public class BinaryContentService {
   // TODO 사용자 A가 이미지 100번 변경시 이미지 100개 DB저장되는 구조 수정필요
   /// user프로필 이미지 변경
   @Transactional
-  public BinaryContent createUserProfile(UUID userId, MultipartFile image) throws IOException {
+  public BinaryContent createUserProfile(UUID userId, MultipartFile image, BinaryContent oldProfileImg) throws IOException {
     log.debug("프로필 이미지 생성 시작. userId={}, fileName={}, size={}, contentType={}",
         userId,
         image != null ? image.getOriginalFilename() : null,
@@ -52,17 +66,17 @@ public class BinaryContentService {
     // image S3 경로값 생성
     String storageKey = createUserProfileStorageKey(userId, image.getOriginalFilename());
 
-    return create(image, storageKey, userId, null);
+    return create(image, storageKey, userId, null, oldProfileImg);
 
   }
 
   /// 콘텐츠 생성시 썸네일 등록
   @Transactional
-  public BinaryContent createContentImage(UUID contentId, MultipartFile image) throws IOException {
+  public BinaryContent createContentImage(UUID contentId, MultipartFile image, BinaryContent oldContentImg) throws IOException {
     validateImage(image);
     String storageKey = createContentStorageKey(contentId, image.getOriginalFilename());
 
-    return create(image, storageKey, null, contentId);
+    return create(image, storageKey, null, contentId, oldContentImg);
 
   }
 
@@ -71,7 +85,8 @@ public class BinaryContentService {
           MultipartFile image,
           String storageKey,
           UUID userId,
-          UUID contentId
+          UUID contentId,
+          BinaryContent oldBinaryContent
   ) throws IOException {
     BinaryContent binaryContent = BinaryContent.create(
             image.getOriginalFilename(),
@@ -81,12 +96,21 @@ public class BinaryContentService {
     );
     /// 메타데이터 저장
     BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
+
+    /// 기존 binaryContentId 추출
+    UUID oldBinaryContentId = oldBinaryContent != null ? oldBinaryContent.getId() : null;
+
+    /// 기존 storageKey 추출
+    String oldStorageKey = oldBinaryContent != null ? oldBinaryContent.getStorageKey() : null;
+
     /// event 발행: S3 비동기 업로드
     eventPublisher.publishEvent(new BinaryContentCreatedEvent(
             savedBinaryContent.getId(),
             image.getBytes(),
             userId,
-            contentId
+            contentId,
+            oldBinaryContentId,
+            oldStorageKey
     ));
 
     log.info("바이너리 컨텐츠 생성 완료: id={}, fileName={}, size={}, storageKey={}",
@@ -98,16 +122,48 @@ public class BinaryContentService {
     return savedBinaryContent;
   }
 
-  /// binaryContent SUCCESS상태로 업데이트
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void updatesStatusSuccess(UUID binaryContentId) {
+  @Transactional
+  public void delete(UUID binaryContentId) {
     BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
             .orElseThrow(() -> new BinaryContentException(
                     BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
                     Map.of("binaryContentId", binaryContentId))
             );
 
+    eventPublisher.publishEvent(new BinaryContentDeletedEvent(
+            binaryContent.getId(),
+            binaryContent.getStorageKey()
+    ));
+
+    log.info("바이너리 컨텐츠 삭제 이벤트 발행 완료. binaryContentId={}, storageKey={}",
+            binaryContent.getId(),
+            binaryContent.getStorageKey());
+  }
+
+  /// 기존 이미지가 있는경우: updatesStatusSuccess -> delete 이벤트 발해
+  /// 기존 이미지가 없는경우: updatesStatusSuccess만
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void updatesStatusSuccessAndPublishDeleteEvent(
+          UUID binaryContentId,
+          UUID oldBinaryContentId,
+          String oldStorageKey
+  ) {
+    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            .orElseThrow(() -> new BinaryContentException(
+                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
+                    Map.of("binaryContentId", binaryContentId)
+            ));
+
     binaryContent.success();
+
+    if (oldBinaryContentId != null) {
+      eventPublisher.publishEvent(
+              new BinaryContentDeletedEvent(
+                      oldBinaryContentId,
+                      oldStorageKey
+              )
+      );
+    }
   }
 
   /// binaryContent FAIL상태로 업데이트
@@ -120,6 +176,18 @@ public class BinaryContentService {
             );
 
     binaryContent.fail();
+  }
+
+  /// binaryContent DELETED상태로 업데이트
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void updatesStatusDeleted(UUID binaryContentId) {
+    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            .orElseThrow(() -> new BinaryContentException(
+                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
+                    Map.of("binaryContentId", binaryContentId)
+            ));
+
+    binaryContent.delete();
   }
 
   /// 이미지 검증메서드

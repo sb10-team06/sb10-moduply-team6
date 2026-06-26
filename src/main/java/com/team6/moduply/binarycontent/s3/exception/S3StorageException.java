@@ -4,14 +4,13 @@ import com.team6.moduply.common.error.ErrorCode;
 import com.team6.moduply.common.error.ModuPlyException;
 
 import java.util.Map;
-import java.util.UUID;
 
-public class S3UploadException extends ModuPlyException {
-    public S3UploadException(ErrorCode errorCode, Map<String, Object> details) {
+public class S3StorageException extends ModuPlyException {
+    public S3StorageException(ErrorCode errorCode, Map<String, Object> details) {
         super(errorCode, details);
     }
 
-    public S3UploadException(ErrorCode errorCode, Map<String, Object> details, Throwable cause) {
+    public S3StorageException(ErrorCode errorCode, Map<String, Object> details, Throwable cause) {
         super(errorCode, details, cause);
     }
 
