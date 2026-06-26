@@ -27,17 +27,13 @@ import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.Transport;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
-@SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, //실제 톰갯 서버 구동
-    properties = { // 시큐리티 자동 설정 제외
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration,org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration"
-    })
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Tag("integration")
 @Slf4j
 class WebSocketConfigTest {
 
-  // 콤캣 서버 포트 번호
+  // 톰캣 서버 포트 번호
   @LocalServerPort
   private int port;
 
