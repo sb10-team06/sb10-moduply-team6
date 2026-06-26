@@ -365,5 +365,6 @@ class PlaylistServiceTest {
     assertThat(result.data()).hasSize(2);
     assertThat(result.hasNext()).isFalse();
     assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextIdAfter()).isNull();
   }
 }
