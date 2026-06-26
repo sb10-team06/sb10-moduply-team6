@@ -13,6 +13,7 @@ import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -317,7 +318,7 @@ class PlaylistServiceTest {
     );
 
     // limit+1개 반환 (sentinel)
-    given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist1, playlist2));
+    given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(new ArrayList<>(List.of(playlist1, playlist2)));
     given(playlistQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(playlistMapper.toDto(playlist1)).willReturn(dto1);
 
