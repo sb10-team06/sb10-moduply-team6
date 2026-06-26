@@ -64,7 +64,12 @@ class ContentServiceTest {
         "꿈과 현실을 넘나드는 SF 영화",
         List.of("SF", "액션", "SF ")
     );
-    BinaryContent contentImg = new BinaryContent();
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/images/binary-content-id.png"
+    );
     Tag existingTag = new Tag("SF");
     Tag newTag = new Tag("액션");
     ContentDto expected = new ContentDto(
