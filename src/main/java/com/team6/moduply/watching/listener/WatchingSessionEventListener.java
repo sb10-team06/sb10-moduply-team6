@@ -39,7 +39,8 @@ public class WatchingSessionEventListener {
             event.userId());
       }
     } catch (IllegalArgumentException e) {
-      log.warn("[STOMP] 잘못된 형식의 구독 요청 - 세션 ID: {}, 경로: {}", event.sessionId(), event.destination());
+      log.warn("[STOMP] 잘못된 형식의 구독 요청 - 세션 ID: {}, 경로: {}", event.sessionId(), event.destination(),
+          e);
       throw new MessageDeliveryException("올바르지 않은 콘텐츠 ID 형식입니다.");
     }
   }
