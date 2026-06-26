@@ -5,7 +5,7 @@ import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 
 /**
@@ -22,7 +22,6 @@ import org.springframework.data.redis.core.RedisTemplate;
  * @author 김민형
  * @since 26. 6. 24.
  */
-@RequiredArgsConstructor
 public class RedisWatchingSessionRepository implements WatchingSessionRepository {
 
   private final RedisTemplate<String, WatchingSession> watchingSessionRedisTemplate;
@@ -32,6 +31,13 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
 
   private static final String WATCHER_KEY_PREFIX = "watcher:watcher:";
   private static final String SESSION_KEY_PREFIX = "watcher:session:";
+
+  public RedisWatchingSessionRepository(
+      @Qualifier("watchingSessionRedisTemplate") RedisTemplate<String, WatchingSession> watchingSessionRedisTemplate,
+      @Qualifier("sessionIdAndUserIdRedisTemplate") RedisTemplate<String, String> sessionIdAndUserIdRedisTemplate) {
+    this.watchingSessionRedisTemplate = watchingSessionRedisTemplate;
+    this.sessionIdAndUserIdRedisTemplate = sessionIdAndUserIdRedisTemplate;
+  }
 
   @Override
   public WatchingSession save(WatchingSession watchingSession) {
