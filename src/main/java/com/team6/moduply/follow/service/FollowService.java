@@ -37,9 +37,11 @@ public class FollowService {
 
     // 자기 자신 팔로우 하는지 검증.
     validate(followerId, followeeId);
-    Follow saved;
+
     try {
-      saved = followRepository.save(new Follow(follower, followee));
+      Follow saved = followRepository.saveAndFlush(new Follow(follower, followee));
+      return followMapper.toDto(saved);
+
     } catch (DataIntegrityViolationException e) {
       /// A가 B 팔로우를 동시 요청할시,
       /// existsByFollowerIdAndFolloweeId통과해서 DataIntegrityViolationException 예외일어날 수 있음 방어.
@@ -47,7 +49,6 @@ public class FollowService {
     }
     // TODO: SSE용 팔로우 알림 이벤트를 발행한다.
 
-    return followMapper.toDto(saved);
   }
 
 
