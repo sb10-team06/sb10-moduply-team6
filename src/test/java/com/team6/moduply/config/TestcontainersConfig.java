@@ -33,12 +33,15 @@ public class TestcontainersConfig {
     return postgres;
   }
 
-  // 컨테이너에서 띄 운 Redis가 실제 내 pc포트에 접근할때는 랜덤포트로 접근하게 되는데 내가 application.yml에 설정한 포트와
-  // 맞지 않아서 테스트가 실패하게 된다. 그래서 DynamicPropertySource를 이용해서 실제 컨테이너에서 띄운 Redis의 포트를 가져와서
-  // application.yml의 spring.data.redis.port에 동적으로 등록해줌
-  @DynamicPropertySource
-  static void redisProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.data.redis.host", redis::getHost);
-    registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
+
+  /**
+   * Redis 컨테이너를 스프링 레디스 커넥션 팩토리에 자동 연결합니다.
+   * <p>호스트 PC 환경과의 포트 충돌을 방지하기 위해 도커가 할당한 랜덤 포트를
+   * {@code spring.data.redis.port}에 동적으로 바인딩합니다.</p>
+   */
+  @Bean
+  @ServiceConnection(name = "redis")
+  public GenericContainer<?> redisContainer() {
+    return redis;
   }
 }
