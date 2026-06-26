@@ -36,12 +36,13 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
 
   @Override
   public WatchingSession save(WatchingSession watchingSession) {
-    WatchingSession previous = watchingSessionStorage.put(watchingSession.getWatcherId(),
-        watchingSession);
-    if (previous != null) {
-      sessionIdAndUserIdMap.remove(previous.getSessionId());
-    }
-    sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watchingSession.getWatcherId());
+    watchingSessionStorage.compute(watchingSession.getWatcherId(), (watcherId, previous) -> {
+      if (previous != null) {
+        sessionIdAndUserIdMap.remove(watchingSession.getSessionId());
+      }
+      sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watchingSession.getWatcherId());
+      return watchingSession;
+    });
     return watchingSession;
   }
 
