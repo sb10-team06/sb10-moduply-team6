@@ -201,4 +201,32 @@ class PlaylistControllerTest {
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.totalCount").value(0));
   }
+
+  @Test
+  @DisplayName("플레이리스트에 콘텐츠를 추가하면 201을 반환한다.")
+  void addContent_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  @DisplayName("플레이리스트에서 콘텐츠를 삭제하면 204를 반환한다.")
+  void removeContent_success() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNoContent());
+  }
 }
