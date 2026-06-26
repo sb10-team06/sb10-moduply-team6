@@ -1,13 +1,13 @@
 package com.team6.moduply.common.config;
 
-import jakarta.annotation.PostConstruct;
-import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import com.team6.moduply.common.websocket.CorsProperties;
+import com.team6.moduply.common.websocket.StompChannelInterceptor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.util.CollectionUtils;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -23,23 +23,26 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  */
 @Configuration
 @EnableWebSocketMessageBroker
-@ConfigurationProperties(prefix = "cors")
+@EnableConfigurationProperties(CorsProperties.class)
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-  @Getter
-  @Setter
-  private List<String> allowedOrigins;
-
-  @PostConstruct
-  public void validate() {
-    if (CollectionUtils.isEmpty(allowedOrigins)) {
-      throw new IllegalStateException("웹소켓 설정 오류: 'cors.allowed-origins' 가 비어있거나 누락되었습니다");
-    }
-  }
+  private final StompChannelInterceptor stompChannelInterceptor;
+  private final CorsProperties corsProperties;
 
   @Override
   public void configureMessageBroker(MessageBrokerRegistry config) {
-    config.enableSimpleBroker("/sub");
+    // 하트비트 이벤트 관리 단일 스레드 스케줄러
+    ThreadPoolTaskScheduler heartbeatScheduler = new ThreadPoolTaskScheduler();
+    heartbeatScheduler.setPoolSize(1);
+    heartbeatScheduler.setThreadNamePrefix("ws-heartbeat-thread-");
+    heartbeatScheduler.initialize();
+
+    // 10초 주기로 핑 전송, 20초 이내 핑 접수 없으면 연결 끊기
+    config.enableSimpleBroker("/sub")
+        .setHeartbeatValue(new long[]{10000, 20000})
+        .setTaskScheduler(heartbeatScheduler);
+
     config.setApplicationDestinationPrefixes("/pub");
   }
 
@@ -47,10 +50,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   public void registerStompEndpoints(StompEndpointRegistry registry) {
     registry
         .addEndpoint("/ws")
-        .setAllowedOriginPatterns(allowedOrigins.toArray(new String[0]))
+        .setAllowedOriginPatterns(corsProperties.getAllowedOrigins().toArray(new String[0]))
         .withSockJS();
   }
 
-  // TODO: [김민형] configureClientInboundChannel 추가(jwt 로직 개발 이후)
-
+  // TODO: [김민형] 인가 추가(jwt 로직 개발 이후)
+  @Override
+  public void configureClientInboundChannel(ChannelRegistration registration) {
+    registration.interceptors(
+        stompChannelInterceptor
+    );
+  }
 }

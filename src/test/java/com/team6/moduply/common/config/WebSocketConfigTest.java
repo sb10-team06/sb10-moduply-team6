@@ -67,6 +67,8 @@ class WebSocketConfigTest {
 
     // 허용한 오리진(STOMP 혜더)
     StompHeaders stompHeaders = new StompHeaders();
+    String dummyUserId = "00000000-0000-0000-0000-000000000001";
+    stompHeaders.add("Authorization", "Bearer " + dummyUserId);
     stompHeaders.add("Origin", "http://localhost");
     // HTTP 헤더
     WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
