@@ -9,8 +9,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -18,6 +21,7 @@ import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +33,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.mock.web.MockMultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
@@ -40,6 +46,9 @@ public class UserServiceTest {
 
   @Mock
   private PasswordEncoder passwordEncoder;
+
+  @Mock
+  private BinaryContentService binaryContentService;
 
   @InjectMocks
   private UserService userService;
@@ -162,6 +171,98 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(userMapper, never()).toDto(any(User.class));
+  }
+
+  @Test
+  @DisplayName("사용자 이름만 수정 성공")
+  public void update_user_success_with_name_only() throws IOException {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserUpdateRequest request = new UserUpdateRequest("updated-name");
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name", null, Role.USER,
+        false);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(userMapper.toDto(user, null)).willReturn(expected);
+
+    // When
+    UserDto response = userService.updateUser(userId, request, null);
+
+    // Then
+    assertThat(response.getId()).isEqualTo(expected.getId());
+    assertThat(response.getName()).isEqualTo("updated-name");
+    assertThat(user.getName()).isEqualTo("updated-name");
+
+    verify(userRepository).findById(userId);
+    verify(binaryContentService, never())
+        .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
+    verify(userMapper).toDto(user, null);
+  }
+
+  @Test
+  @DisplayName("사용자 이름과 프로필 이미지 수정 성공")
+  public void update_user_success_with_profile_image() throws IOException {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserUpdateRequest request = new UserUpdateRequest("updated-name");
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    MockMultipartFile profileImg = new MockMultipartFile(
+        "image",
+        "profile.png",
+        "image/png",
+        "image".getBytes()
+    );
+    BinaryContent newProfileImg = BinaryContent.create(
+        "profile.png",
+        profileImg.getSize(),
+        profileImg.getContentType(),
+        "users/" + userId + "/profile.png"
+    );
+    String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
+    UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
+        profileImageUrl, Role.USER, false);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.createUserProfile(any(UUID.class), any(MultipartFile.class), any()))
+        .willReturn(newProfileImg);
+    given(binaryContentService.generateUrl(newProfileImg)).willReturn(profileImageUrl);
+    given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
+
+    // When
+    UserDto response = userService.updateUser(userId, request, profileImg);
+
+    // Then
+    assertThat(response.getName()).isEqualTo("updated-name");
+    assertThat(response.getProfileImageUrl()).isEqualTo(profileImageUrl);
+    assertThat(user.getProfileImg()).isEqualTo(newProfileImg);
+
+    verify(userRepository).findById(userId);
+    verify(binaryContentService).createUserProfile(userId, profileImg, null);
+    verify(binaryContentService).generateUrl(newProfileImg);
+    verify(userMapper).toDto(user, profileImageUrl);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 사용자이면 사용자 수정 실패")
+  public void update_user_fail_when_user_not_found() throws IOException {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserUpdateRequest request = new UserUpdateRequest("updated-name");
+
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUser(userId, request, null))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
+        });
+
+    verify(userRepository).findById(userId);
+    verify(binaryContentService, never())
+        .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
+    verify(userMapper, never()).toDto(any(User.class), any());
   }
 
 }
