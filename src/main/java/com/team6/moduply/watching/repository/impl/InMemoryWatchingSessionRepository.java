@@ -53,11 +53,9 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
 
   @Override
   public Optional<WatchingSession> findBySessionId(String sessionId) {
-    UUID watcherId = sessionIdAndUserIdMap.get(sessionId);
-    if (watcherId == null) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(watchingSessionStorage.get(watcherId));
+    return Optional.ofNullable(sessionIdAndUserIdMap.get(sessionId))
+        .map(watcherId -> watchingSessionStorage.get(watcherId))
+        .filter(session -> sessionId.equals(session.getSessionId()));
   }
 
   @Override
