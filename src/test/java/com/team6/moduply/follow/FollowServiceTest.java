@@ -66,7 +66,7 @@ class FollowServiceTest {
     // 팔로우 관계 아니다.
     given(followRepository.existsByFollowerIdAndFolloweeId(followerId, followeeId))
         .willReturn(false);
-    given(followRepository.save(any(Follow.class))).willReturn(savedFollow);
+    given(followRepository.saveAndFlush(any(Follow.class))).willReturn(savedFollow);
     given(followMapper.toDto(savedFollow)).willReturn(expected);
 
     // when
@@ -77,7 +77,7 @@ class FollowServiceTest {
     assertThat(result).isEqualTo(expected);
 
     ArgumentCaptor<Follow> followCaptor = ArgumentCaptor.forClass(Follow.class);
-    verify(followRepository).save(followCaptor.capture());
+    verify(followRepository).saveAndFlush(followCaptor.capture());
     // follow 객체
     Follow capturedFollow = followCaptor.getValue();
     // 팔로우하는사람, 당하는사람이 맞게 저장됐는지?
@@ -105,7 +105,7 @@ class FollowServiceTest {
           assertThat(exception.getDetails().get("followeeId")).isEqualTo(userId);
         });
 
-    verify(followRepository, never()).save(any(Follow.class));
+    verify(followRepository, never()).saveAndFlush(any(Follow.class));
     verify(followMapper, never()).toDto(any(Follow.class));
   }
 
@@ -132,7 +132,7 @@ class FollowServiceTest {
           assertThat(exception.getDetails().get("followeeId")).isEqualTo(followeeId);
         });
 
-    verify(followRepository, never()).save(any(Follow.class));
+    verify(followRepository, never()).saveAndFlush(any(Follow.class));
     verify(followMapper, never()).toDto(any(Follow.class));
   }
 
@@ -154,7 +154,7 @@ class FollowServiceTest {
         });
 
     verify(followRepository, never()).existsByFollowerIdAndFolloweeId(any(UUID.class), any(UUID.class));
-    verify(followRepository, never()).save(any(Follow.class));
+    verify(followRepository, never()).saveAndFlush(any(Follow.class));
     verify(followMapper, never()).toDto(any(Follow.class));
   }
 
@@ -178,7 +178,7 @@ class FollowServiceTest {
         });
 
     verify(followRepository, never()).existsByFollowerIdAndFolloweeId(any(UUID.class), any(UUID.class));
-    verify(followRepository, never()).save(any(Follow.class));
+    verify(followRepository, never()).saveAndFlush(any(Follow.class));
     verify(followMapper, never()).toDto(any(Follow.class));
   }
 }

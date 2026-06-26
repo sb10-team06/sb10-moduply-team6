@@ -72,6 +72,9 @@ public interface FollowApi {
           )
       )
   })
+
+  // TODO: JWT 인증 연동 후 요청 헤더가 아니라 인증 객체에서 followerId를 가져오도록 변경한다.
+  // TODO: @AuthenticationPrincipal 사용 시 Swagger 문서에는 노출되지 않도록 @Parameter(hidden = true)를 적용한다.
   ResponseEntity<FollowDto> createFollow(
       FollowRequest request,
       @Parameter(description = "팔로우 요청자 ID", required = true)
