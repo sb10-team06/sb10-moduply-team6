@@ -15,6 +15,7 @@ import jakarta.transaction.Transactional;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,7 +26,6 @@ public class FollowService {
   private final UserRepository userRepository;
   private final FollowMapper followMapper;
 
-  // TODO: Follow 동시요청 상황 고려 리펙토링 필요.
   @Transactional
   public FollowDto createFollow(FollowRequest request, UUID followerId) {
     UUID followeeId = request.followeeId();
@@ -37,9 +37,14 @@ public class FollowService {
 
     // 자기 자신 팔로우 하는지 검증.
     validate(followerId, followeeId);
-
-    Follow saved = followRepository.save(new Follow(follower, followee));
-
+    Follow saved;
+    try {
+      saved = followRepository.save(new Follow(follower, followee));
+    } catch (DataIntegrityViolationException e) {
+      /// A가 B 팔로우를 동시 요청할시,
+      /// existsByFollowerIdAndFolloweeId통과해서 DataIntegrityViolationException 예외일어날 수 있음 방어.
+      throw new FollowException(FollowErrorCode.FOLLOW_ALREADY_EXISTS, Map.of("followerId", followerId, "followeeId", followeeId));
+    }
     // TODO: SSE용 팔로우 알림 이벤트를 발행한다.
 
     return followMapper.toDto(saved);
