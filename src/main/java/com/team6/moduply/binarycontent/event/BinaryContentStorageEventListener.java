@@ -8,6 +8,7 @@ import com.team6.moduply.binarycontent.s3.S3BinaryContentStorage;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -26,6 +27,7 @@ public class BinaryContentStorageEventListener {
     private final BinaryContentRepository binaryContentRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    // TODO: 비동기 설정및 이름 설정 필요
     @Async
     public void handleBinaryContentStorage(BinaryContentCreatedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
@@ -43,7 +45,8 @@ public class BinaryContentStorageEventListener {
                     binaryContent.getContentType()
             );
             /// binaryContent 상태 SUCCESS로 업데이트
-            binaryContentService.updatesStatusSuccess(binaryContentId);
+            /// updatesStatusSuccess가 REQUIRES_NEW라서 바로 SUCCESS로 COMMIT
+            binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, event.getOldBinaryContentId(), event.getOldStorageKey());
 
         } catch (Exception e) {
             log.error("S3 업로드 실패. binaryContentId={}", binaryContentId, e);
@@ -53,6 +56,49 @@ public class BinaryContentStorageEventListener {
             } catch (Exception statusEx) {
                 log.error("FAIL 상태 갱신 실패. binaryContentId={}", binaryContentId, statusEx);
             }
+        }
+    }
+
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleBinaryContentDelete(BinaryContentDeletedEvent event) {
+        UUID binaryContentId = event.getBinaryContentId();
+        String storageKey = event.getStorageKey();
+
+        try {
+            // S3에서 삭제
+            s3BinaryContentStorage.delete(event.getStorageKey());
+        } catch (Exception e) {
+            try {
+                binaryContentService.updatesStatusFail(event.getBinaryContentId());
+              //FAIL로 업데이트되는게 예외발생될때.
+            } catch (Exception statusException) {
+                log.error("BinaryContent 삭제 실패 상태 변경 실패. binaryContentId={}",
+                        binaryContentId,
+                        statusException);
+            }
+            log.error("BinaryContent 삭제 실패. binaryContentId={}, storageKey={}",
+                    binaryContentId,
+                    storageKey,
+                    e);
+
+            return;
+        }
+
+        /// 실제 S3삭제는 성공했지만 updatesStatusDeleted()가 실패되면 updatesStatusFail()가 실행되는걸 방지하고자
+        /// S3삭제 실패와 상태 갱신 실패 분리
+        try {
+            binaryContentService.updatesStatusDeleted(binaryContentId);
+            log.info("BinaryContent 삭제 완료. binaryContentId={}, storageKey={}",
+                    binaryContentId,
+                    storageKey);
+
+        } catch (Exception e) {
+            log.error("S3 삭제는 완료됐지만 DELETED 상태 반영에 실패했습니다. binaryContentId={}, storageKey={}",
+                    binaryContentId,
+                    storageKey,
+                    e);
         }
     }
 
