@@ -6,5 +6,7 @@ public enum BinaryContentStatus {
     /// 업로드 완료
     SUCCESS,
     /// 업로드 실패
-    FAIL
+    FAIL,
+    /// 삭제됨
+    DELETED
 }

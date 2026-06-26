@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import com.team6.moduply.binarycontent.BinaryContentStatus;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
+import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
@@ -55,12 +56,28 @@ class BinaryContentServiceTest {
     UUID userId = UUID.randomUUID();
     // 이미지 생성
     MockMultipartFile image = createImage("profile.png", "image/png");
+
+    // 기존 프로필 이미지 생성
+    UUID oldBinaryContentId = UUID.randomUUID();
+    String oldStorageKey = "users/%s/profile/old-profile.png".formatted(userId);
+    BinaryContent oldProfileImg = BinaryContent.create(
+            "old-profile.png",
+            1000L,
+            "image/png",
+            oldStorageKey
+    );
+    ReflectionTestUtils.setField(
+            oldProfileImg,
+            "id",
+            oldBinaryContentId
+    );
+
     // binaryContent 저장
     given(binaryContentRepository.save(any(BinaryContent.class)))
         .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
 
     // when
-    BinaryContent result = binaryContentService.createUserProfile(userId, image);
+    BinaryContent result = binaryContentService.createUserProfile(userId, image, oldProfileImg);
 
     // then
     // binaryContent가 잘 저장됐는지
@@ -84,6 +101,8 @@ class BinaryContentServiceTest {
     assertThat(event.getBytes()).isEqualTo(image.getBytes());
     assertThat(event.getUserId()).isEqualTo(userId);
     assertThat(event.getContentId()).isNull();
+    assertThat(event.getOldBinaryContentId()).isEqualTo(oldBinaryContentId);
+    assertThat(event.getOldStorageKey()).isEqualTo(oldStorageKey);
   }
 
   @Test
@@ -96,7 +115,7 @@ class BinaryContentServiceTest {
 
     // when & then
     /// UNSUPPORTED_IMAGE_TYPE 예외 발생됐는지?
-    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image))
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE)
         );
@@ -113,7 +132,7 @@ class BinaryContentServiceTest {
     UUID userId = UUID.randomUUID();
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, null))
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, null, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
         );
@@ -130,7 +149,7 @@ class BinaryContentServiceTest {
     MockMultipartFile image = createEmptyImage("profile.png", "image/png");
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image))
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
         );
@@ -147,7 +166,7 @@ class BinaryContentServiceTest {
     MultipartFile image = createZeroSizeImage("profile.png", "image/png");
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image))
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.INVALID_FILE_SIZE)
         );
@@ -162,11 +181,20 @@ class BinaryContentServiceTest {
     // given
     UUID contentId = UUID.randomUUID();
     MockMultipartFile image = createImage("thumbnail.webp", "image/webp");
+    UUID oldBinaryContentId = UUID.randomUUID();
+    String oldStorageKey = "contents/%s/thumbnail/old-thumbnail.webp".formatted(contentId);
+    BinaryContent oldContentImg = BinaryContent.create(
+        "old-thumbnail.webp",
+        1000L,
+        "image/webp",
+        oldStorageKey
+    );
+    ReflectionTestUtils.setField(oldContentImg, "id", oldBinaryContentId);
     given(binaryContentRepository.save(any(BinaryContent.class)))
         .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
 
     // when
-    BinaryContent result = binaryContentService.createContentImage(contentId, image);
+    BinaryContent result = binaryContentService.createContentImage(contentId, image, oldContentImg);
 
     // then
     assertThat(result.getFileName()).isEqualTo("thumbnail.webp");
@@ -188,6 +216,8 @@ class BinaryContentServiceTest {
     assertThat(event.getBytes()).isEqualTo(image.getBytes());
     assertThat(event.getUserId()).isNull();
     assertThat(event.getContentId()).isEqualTo(contentId);
+    assertThat(event.getOldBinaryContentId()).isEqualTo(oldBinaryContentId);
+    assertThat(event.getOldStorageKey()).isEqualTo(oldStorageKey);
   }
 
   @Test
@@ -198,7 +228,7 @@ class BinaryContentServiceTest {
     MockMultipartFile image = createImage("thumbnail.gif", "image/gif");
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE)
         );
@@ -214,7 +244,7 @@ class BinaryContentServiceTest {
     UUID contentId = UUID.randomUUID();
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, null))
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, null, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
         );
@@ -231,7 +261,7 @@ class BinaryContentServiceTest {
     MockMultipartFile image = createEmptyImage("thumbnail.png", "image/png");
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
         );
@@ -248,7 +278,7 @@ class BinaryContentServiceTest {
     MultipartFile image = createZeroSizeImage("thumbnail.png", "image/png");
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image))
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.INVALID_FILE_SIZE)
         );
@@ -271,7 +301,7 @@ class BinaryContentServiceTest {
     given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
 
     // when
-    binaryContentService.updatesStatusSuccess(binaryContentId);
+    binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, null, null);
 
     // then
     assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
@@ -285,7 +315,7 @@ class BinaryContentServiceTest {
     given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.empty());
 
     // when & then
-    assertThatThrownBy(() -> binaryContentService.updatesStatusSuccess(binaryContentId))
+    assertThatThrownBy(() -> binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, null, null))
         .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
           assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
@@ -362,6 +392,57 @@ class BinaryContentServiceTest {
         "users/user-id/profile/profile.png",
         "image/png"
     );
+  }
+
+  @Test
+  @DisplayName("BinaryContent 삭제 요청 시 삭제 이벤트를 발행한다.")
+  void delete_success_publish_event() {
+    // given
+    // 삭제할 binaryContentId
+    UUID binaryContentId = UUID.randomUUID();
+    // 삭제할 이미지의 S3경로
+    String storageKey = "users/user-id/profile/profile.png";
+    BinaryContent binaryContent = BinaryContent.create(
+        "profile.png",
+        100L,
+        "image/png",
+        storageKey
+    );
+    // 위에서만든 binaryContentId값을 binaryContent에 강제 주입
+    ReflectionTestUtils.setField(binaryContent, "id", binaryContentId);
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+
+    // when
+    binaryContentService.delete(binaryContentId);
+
+    // then
+    // eventPublisher.publishEvnet(???) -> ???에 해당하는 인자를 가로채서 가져온다.
+    ArgumentCaptor<BinaryContentDeletedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentDeletedEvent.class);
+    // 이벤트발행 됐는지?
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+    // BinaryContentDeletedEvent 객체를 가져오게 됨.
+    BinaryContentDeletedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(binaryContentId);
+    assertThat(event.getStorageKey()).isEqualTo(storageKey);
+  }
+
+  @Test
+  @DisplayName("BinaryContent 삭제 요청 시 대상이 없으면 BINARY_CONTENT_NOT_FOUND 예외가 발생하고 이벤트를 발행하지 않는다.")
+  void delete_fail_when_binary_content_not_found() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.delete(binaryContentId))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
+        });
+
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentDeletedEvent.class));
   }
 
   private BinaryContent saveWithId(BinaryContent binaryContent) {

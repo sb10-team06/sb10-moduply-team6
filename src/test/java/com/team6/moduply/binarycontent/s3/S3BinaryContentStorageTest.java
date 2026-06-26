@@ -7,7 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
-import com.team6.moduply.binarycontent.s3.exception.S3UploadException;
+import com.team6.moduply.binarycontent.s3.exception.S3StorageException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +19,6 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,7 +76,7 @@ class S3BinaryContentStorageTest {
     String key = "contents/content-id/images/binary-content-id.png";
     byte[] bytes = "image-bytes".getBytes();
     String contentType = "image/png";
-    S3Exception cause = (S3Exception) S3Exception.builder()
+    software.amazon.awssdk.services.s3.model.S3Exception cause = (software.amazon.awssdk.services.s3.model.S3Exception) software.amazon.awssdk.services.s3.model.S3Exception.builder()
         .message("S3 파일 업로드에 실패했습니다.")
         .build();
 
@@ -87,7 +86,7 @@ class S3BinaryContentStorageTest {
 
     // when & then
     assertThatThrownBy(() -> s3BinaryContentStorage.upload(key, bytes, contentType))
-        .isInstanceOfSatisfying(S3UploadException.class, exception -> {
+        .isInstanceOfSatisfying(S3StorageException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(S3ErrorCode.S3_UPLOAD_FAILED);
           assertThat(exception.getDetails().get("key")).isEqualTo(key);
           assertThat(exception.getCause()).isEqualTo(cause);
