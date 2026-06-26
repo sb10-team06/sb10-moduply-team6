@@ -37,9 +37,8 @@ public class ContentController implements ContentApi {
       @RequestPart("thumbnail") MultipartFile thumbnail
   ) {
     log.info("콘텐츠 생성 요청 수신: title={}", request.title());
-    // TODO: 썸네일 저장/URL 생성 로직 연동 시 contentImg, thumbnailUrl을 서비스에 전달한다.
     // TODO: Spring Security 인가 구조 적용 시 인증 사용자 권한으로 교체한다.
-    ContentDto response = contentService.createContent(request, null, null, Role.ADMIN);
+    ContentDto response = contentService.createContent(request, thumbnail, Role.ADMIN);
     log.info("콘텐츠 생성 요청 처리 완료: contentId={}", response.id());
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }

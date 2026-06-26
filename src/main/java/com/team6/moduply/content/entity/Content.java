@@ -69,4 +69,8 @@ public class Content extends BaseUpdatableEntity {
     this.title = title;
     this.description = description;
   }
+
+  public void updateContentImg(BinaryContent contentImg) {
+    this.contentImg = contentImg;
+  }
 }

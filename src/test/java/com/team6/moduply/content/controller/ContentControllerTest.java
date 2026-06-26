@@ -2,7 +2,6 @@ package com.team6.moduply.content.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -14,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
+import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
@@ -95,7 +96,7 @@ class ContentControllerTest {
         "thumbnail".getBytes()
     );
 
-    given(contentService.createContent(any(ContentCreateRequest.class), isNull(), isNull(), eq(Role.ADMIN)))
+    given(contentService.createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
         .willReturn(response);
 
     // When & Then
@@ -115,7 +116,48 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.reviewCount").value(0))
         .andExpect(jsonPath("$.watcherCount").value(0));
 
-    verify(contentService).createContent(any(ContentCreateRequest.class), isNull(), isNull(), eq(Role.ADMIN));
+    verify(contentService).createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
+  }
+
+  @Test
+  @DisplayName("지원하지 않는 썸네일 파일 형식이면 콘텐츠 생성 API 요청 실패")
+  void create_content_api_fail_when_thumbnail_type_is_unsupported() throws Exception {
+    // Given
+    ContentCreateRequest request = new ContentCreateRequest(
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        List.of("SF", "액션")
+    );
+    MockMultipartFile requestPart = new MockMultipartFile(
+        "request",
+        "",
+        MediaType.APPLICATION_JSON_VALUE,
+        objectMapper.writeValueAsBytes(request)
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.gif",
+        MediaType.IMAGE_GIF_VALUE,
+        "thumbnail".getBytes()
+    );
+
+    given(contentService.createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
+        .willThrow(new BinaryContentException(
+            BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE,
+            Map.of("contentType", MediaType.IMAGE_GIF_VALUE)
+        ));
+
+    // When & Then
+    mockMvc.perform(multipart("/api/contents")
+            .file(requestPart)
+            .file(thumbnail)
+            .contentType(MediaType.MULTIPART_FORM_DATA))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.exceptionType").value("BinaryContentException"))
+        .andExpect(jsonPath("$.message").value(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE.getMessage()));
+
+    verify(contentService).createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
   }
 
   @Test
@@ -150,7 +192,6 @@ class ContentControllerTest {
 
     verify(contentService, never()).createContent(
         any(ContentCreateRequest.class),
-        any(),
         any(),
         any()
     );

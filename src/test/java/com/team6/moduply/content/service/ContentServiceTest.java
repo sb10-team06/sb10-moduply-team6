@@ -6,12 +6,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
+import com.team6.moduply.binarycontent.exception.BinaryContentException;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
@@ -29,6 +33,7 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.user.enums.Role;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +45,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,12 +63,15 @@ class ContentServiceTest {
   @Mock
   private ContentMapper contentMapper;
 
+  @Mock
+  private BinaryContentService binaryContentService;
+
   @InjectMocks
   private ContentService contentService;
 
   @Test
   @DisplayName("관리자가 콘텐츠 생성 요청 시 콘텐츠 저장 성공")
-  void create_content_success_when_requester_is_admin() {
+  void create_content_success_when_requester_is_admin() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -75,6 +84,12 @@ class ContentServiceTest {
         100L,
         "image/png",
         "contents/content-id/images/binary-content-id.png"
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
     );
     Tag existingTag = new Tag("SF");
     Tag newTag = new Tag("액션");
@@ -92,6 +107,10 @@ class ContentServiceTest {
 
     given(contentRepository.save(any(Content.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
+    given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
+        .willReturn(contentImg);
+    given(binaryContentService.generateUrl(contentImg))
+        .willReturn("https://example.com/thumbnail.jpg");
     given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
         .willReturn(List.of(existingTag), List.of(existingTag, newTag));
     given(tagRepository.insertIgnore(any(UUID.class), eq("액션"))).willReturn(1);
@@ -106,8 +125,7 @@ class ContentServiceTest {
     // When
     ContentDto response = contentService.createContent(
         request,
-        contentImg,
-        "https://example.com/thumbnail.jpg",
+        thumbnail,
         Role.ADMIN
     );
 
@@ -123,6 +141,8 @@ class ContentServiceTest {
     assertThat(savedContent.getTitle()).isEqualTo(request.title());
     assertThat(savedContent.getDescription()).isEqualTo(request.description());
 
+    verify(binaryContentService).createContentImage(savedContent.getId(), thumbnail, null);
+    verify(binaryContentService).generateUrl(contentImg);
     verify(contentTagRepository).saveAll(argThat(contentTags -> {
       assertThat(contentTags).hasSize(2);
       return true;
@@ -138,7 +158,7 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("모든 태그가 이미 존재하면 신규 태그 저장 없이 콘텐츠 생성 성공")
-  void create_content_success_when_all_tags_already_exist() {
+  void create_content_success_when_all_tags_already_exist() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -148,6 +168,18 @@ class ContentServiceTest {
     );
     Tag sf = new Tag("SF");
     Tag action = new Tag("액션");
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/images/binary-content-id.png"
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
+    );
     ContentDto expected = new ContentDto(
         null,
         ContentType.movie,
@@ -162,6 +194,9 @@ class ContentServiceTest {
 
     given(contentRepository.save(any(Content.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
+    given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
+        .willReturn(contentImg);
+    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
     given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
         .willReturn(List.of(sf, action));
     given(contentTagRepository.saveAll(anyList()))
@@ -170,10 +205,12 @@ class ContentServiceTest {
         .willReturn(expected);
 
     // When
-    ContentDto response = contentService.createContent(request, null, null, Role.ADMIN);
+    ContentDto response = contentService.createContent(request, thumbnail, Role.ADMIN);
 
     // Then
     assertThat(response).isEqualTo(expected);
+    verify(binaryContentService).createContentImage(any(), eq(thumbnail), isNull());
+    verify(binaryContentService).generateUrl(contentImg);
     verify(tagRepository).findAllByTagNameIn(List.of("SF", "액션"));
     verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
     verify(contentTagRepository).saveAll(anyList());
@@ -181,13 +218,25 @@ class ContentServiceTest {
 
   @Test
   @DisplayName("태그 목록이 비어 있거나 생략된 콘텐츠 생성 성공")
-  void create_content_success_without_tags() {
+  void create_content_success_without_tags() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.sport,
         "World Cup",
         "스포츠 콘텐츠",
         null
+    );
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/images/binary-content-id.png"
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
     );
     ContentDto expected = new ContentDto(
         null,
@@ -203,19 +252,23 @@ class ContentServiceTest {
 
     given(contentRepository.save(any(Content.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
+    given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
+        .willReturn(contentImg);
+    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
     given(contentMapper.toDto(any(Content.class), any(), anyList()))
         .willReturn(expected);
 
     // When
     ContentDto response = contentService.createContent(
         request,
-        null,
-        null,
+        thumbnail,
         Role.ADMIN
     );
 
     // Then
     assertThat(response).isEqualTo(expected);
+    verify(binaryContentService).createContentImage(any(), eq(thumbnail), isNull());
+    verify(binaryContentService).generateUrl(contentImg);
     verify(tagRepository, never()).findAllByTagNameIn(anyList());
     verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
     verify(contentTagRepository, never()).saveAll(anyList());
@@ -223,8 +276,41 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("썸네일 파일 읽기에 실패하면 콘텐츠 생성 실패")
+  void create_content_fail_when_thumbnail_read_fails() throws Exception {
+    // Given
+    ContentCreateRequest request = new ContentCreateRequest(
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        List.of("SF")
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
+    );
+
+    given(contentRepository.save(any(Content.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
+        .willThrow(new IOException("read failed"));
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.createContent(request, thumbnail, Role.ADMIN))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.FILE_READ_FAILED);
+          assertThat(exception.getDetails().get("fileName")).isEqualTo("thumbnail.png");
+        });
+
+    verify(contentTagRepository, never()).saveAll(anyList());
+    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  @Test
   @DisplayName("관리자가 아닌 사용자가 콘텐츠 생성 요청 시 예외 발생")
-  void create_content_fail_when_requester_is_not_admin() {
+  void create_content_fail_when_requester_is_not_admin() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -234,12 +320,21 @@ class ContentServiceTest {
     );
 
     // When & Then
-    assertThatThrownBy(() -> contentService.createContent(request, null, null, Role.USER))
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
+    );
+
+    assertThatThrownBy(() -> contentService.createContent(request, thumbnail, Role.USER))
         .isInstanceOfSatisfying(ContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_CREATE_FORBIDDEN);
           assertThat(exception.getDetails().get("requesterRole")).isEqualTo(Role.USER.name());
         });
 
+    verify(binaryContentService, never()).createContentImage(any(), any(), any());
+    verify(binaryContentService, never()).generateUrl(any());
     verify(contentRepository, never()).save(any(Content.class));
     verify(tagRepository, never()).findAllByTagNameIn(anyList());
     verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
