@@ -63,8 +63,8 @@ class ContentControllerTest {
   private ContentService contentService;
 
   @Test
-  @DisplayName("콘텐츠 생성 API 요청 시 응답 반환 성공")
-  void create_content_api_success() throws Exception {
+  @DisplayName("콘텐츠 생성 API 요청 시 응답을 반환한다.")
+  void create_success_with_valid_request() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -96,7 +96,7 @@ class ContentControllerTest {
         "thumbnail".getBytes()
     );
 
-    given(contentService.createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
+    given(contentService.create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
         .willReturn(response);
 
     // When & Then
@@ -116,12 +116,12 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.reviewCount").value(0))
         .andExpect(jsonPath("$.watcherCount").value(0));
 
-    verify(contentService).createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
+    verify(contentService).create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
   }
 
   @Test
-  @DisplayName("지원하지 않는 썸네일 파일 형식이면 콘텐츠 생성 API 요청 실패")
-  void create_content_api_fail_when_thumbnail_type_is_unsupported() throws Exception {
+  @DisplayName("지원하지 않는 썸네일 파일 형식이면 콘텐츠 생성 API 요청에 실패한다.")
+  void create_fail_when_thumbnail_type_is_unsupported() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -142,7 +142,7 @@ class ContentControllerTest {
         "thumbnail".getBytes()
     );
 
-    given(contentService.createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
+    given(contentService.create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
         .willThrow(new BinaryContentException(
             BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE,
             Map.of("contentType", MediaType.IMAGE_GIF_VALUE)
@@ -157,12 +157,12 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.exceptionType").value("BinaryContentException"))
         .andExpect(jsonPath("$.message").value(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE.getMessage()));
 
-    verify(contentService).createContent(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
+    verify(contentService).create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
   }
 
   @Test
-  @DisplayName("콘텐츠 생성 API 요청 값이 유효하지 않으면 실패")
-  void create_content_api_fail_when_request_is_invalid() throws Exception {
+  @DisplayName("콘텐츠 생성 API 요청 값이 유효하지 않으면 요청에 실패한다.")
+  void create_fail_when_request_is_invalid() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -190,7 +190,7 @@ class ContentControllerTest {
             .contentType(MediaType.MULTIPART_FORM_DATA))
         .andExpect(status().isBadRequest());
 
-    verify(contentService, never()).createContent(
+    verify(contentService, never()).create(
         any(ContentCreateRequest.class),
         any(),
         any()

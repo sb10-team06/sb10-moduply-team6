@@ -48,13 +48,13 @@ public class ContentService {
   private final BinaryContentService binaryContentService;
 
   @Transactional
-  public ContentDto createContent(
+  public ContentDto create(
       ContentCreateRequest request,
       MultipartFile thumbnail,
       Role requesterRole
   ) {
     log.debug("콘텐츠 생성 처리 시작: type={}, title={}", request.type(), request.title());
-    // TODO: Spring Security 인가 구조 적용 시 createContent 메서드에 관리자 권한 검증 적용 예정
+    // TODO: Spring Security 인가 구조 적용 시 create 메서드에 관리자 권한 검증 적용 예정
     validateAdmin(requesterRole);
 
     Content content = new Content(

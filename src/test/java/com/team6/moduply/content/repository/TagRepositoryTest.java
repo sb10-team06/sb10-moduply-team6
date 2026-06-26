@@ -19,8 +19,8 @@ class TagRepositoryTest extends RepositoryTestSupport {
   private TagRepository tagRepository;
 
   @Test
-  @DisplayName("태그 이름 목록으로 기존 태그 조회 성공")
-  void find_all_by_tag_name_in_success() {
+  @DisplayName("태그 이름 목록으로 기존 태그를 조회한다.")
+  void find_all_by_tag_name_in_success_with_existing_tag_names() {
     // Given
     Tag sf = new Tag("SF");
     Tag action = new Tag("액션");
@@ -37,7 +37,7 @@ class TagRepositoryTest extends RepositoryTestSupport {
   }
 
   @Test
-  @DisplayName("이미 존재하는 태그 이름이면 중복 저장 없이 무시 성공")
+  @DisplayName("이미 존재하는 태그 이름이면 중복 저장 없이 무시한다.")
   void insert_ignore_success_when_tag_name_already_exists() {
     // Given
     tagRepository.save(new Tag("SF"));
@@ -52,7 +52,7 @@ class TagRepositoryTest extends RepositoryTestSupport {
   }
 
   @Test
-  @DisplayName("존재하지 않는 태그 이름이면 신규 저장 성공")
+  @DisplayName("존재하지 않는 태그 이름이면 신규 저장한다.")
   void insert_ignore_success_when_tag_name_does_not_exist() {
     // When
     int result = tagRepository.insertIgnore(UUID.randomUUID(), "SF");

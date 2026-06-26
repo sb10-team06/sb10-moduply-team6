@@ -70,8 +70,8 @@ class ContentServiceTest {
   private ContentService contentService;
 
   @Test
-  @DisplayName("관리자가 콘텐츠 생성 요청 시 콘텐츠 저장 성공")
-  void create_content_success_when_requester_is_admin() throws Exception {
+  @DisplayName("관리자가 콘텐츠 생성 요청 시 콘텐츠를 저장한다.")
+  void create_success_when_requester_is_admin() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -123,7 +123,7 @@ class ContentServiceTest {
     )).willReturn(expected);
 
     // When
-    ContentDto response = contentService.createContent(
+    ContentDto response = contentService.create(
         request,
         thumbnail,
         Role.ADMIN
@@ -157,8 +157,8 @@ class ContentServiceTest {
   }
 
   @Test
-  @DisplayName("모든 태그가 이미 존재하면 신규 태그 저장 없이 콘텐츠 생성 성공")
-  void create_content_success_when_all_tags_already_exist() throws Exception {
+  @DisplayName("모든 태그가 이미 존재하면 신규 태그 저장 없이 콘텐츠를 생성한다.")
+  void create_success_when_all_tags_already_exist() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -205,7 +205,7 @@ class ContentServiceTest {
         .willReturn(expected);
 
     // When
-    ContentDto response = contentService.createContent(request, thumbnail, Role.ADMIN);
+    ContentDto response = contentService.create(request, thumbnail, Role.ADMIN);
 
     // Then
     assertThat(response).isEqualTo(expected);
@@ -217,8 +217,8 @@ class ContentServiceTest {
   }
 
   @Test
-  @DisplayName("태그 목록이 비어 있거나 생략된 콘텐츠 생성 성공")
-  void create_content_success_without_tags() throws Exception {
+  @DisplayName("태그 목록이 비어 있거나 생략되면 콘텐츠를 생성한다.")
+  void create_success_without_tags() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.sport,
@@ -259,7 +259,7 @@ class ContentServiceTest {
         .willReturn(expected);
 
     // When
-    ContentDto response = contentService.createContent(
+    ContentDto response = contentService.create(
         request,
         thumbnail,
         Role.ADMIN
@@ -276,8 +276,8 @@ class ContentServiceTest {
   }
 
   @Test
-  @DisplayName("썸네일 파일 읽기에 실패하면 콘텐츠 생성 실패")
-  void create_content_fail_when_thumbnail_read_fails() throws Exception {
+  @DisplayName("썸네일 파일 읽기에 실패하면 콘텐츠 생성에 실패한다.")
+  void create_fail_when_thumbnail_read_fails() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -298,7 +298,7 @@ class ContentServiceTest {
         .willThrow(new IOException("read failed"));
 
     // When & Then
-    assertThatThrownBy(() -> contentService.createContent(request, thumbnail, Role.ADMIN))
+    assertThatThrownBy(() -> contentService.create(request, thumbnail, Role.ADMIN))
         .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.FILE_READ_FAILED);
           assertThat(exception.getDetails().get("fileName")).isEqualTo("thumbnail.png");
@@ -309,8 +309,8 @@ class ContentServiceTest {
   }
 
   @Test
-  @DisplayName("관리자가 아닌 사용자가 콘텐츠 생성 요청 시 예외 발생")
-  void create_content_fail_when_requester_is_not_admin() throws Exception {
+  @DisplayName("관리자가 아닌 사용자가 콘텐츠 생성 요청 시 예외를 던진다.")
+  void create_fail_when_requester_is_not_admin() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
         ContentType.movie,
@@ -327,7 +327,7 @@ class ContentServiceTest {
         "thumbnail".getBytes()
     );
 
-    assertThatThrownBy(() -> contentService.createContent(request, thumbnail, Role.USER))
+    assertThatThrownBy(() -> contentService.create(request, thumbnail, Role.USER))
         .isInstanceOfSatisfying(ContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_CREATE_FORBIDDEN);
           assertThat(exception.getDetails().get("requesterRole")).isEqualTo(Role.USER.name());
