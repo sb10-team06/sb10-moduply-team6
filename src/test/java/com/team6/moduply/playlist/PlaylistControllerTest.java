@@ -10,6 +10,7 @@ import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.service.PlaylistService;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,7 +157,10 @@ class PlaylistControllerTest {
     UUID playlistId = UUID.randomUUID();
 
     given(playlistService.findById(any()))
-        .willThrow(new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+        .willThrow(new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
 
     // when & then
     mockMvc.perform(get("/api/playlists/" + playlistId)

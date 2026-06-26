@@ -12,6 +12,7 @@ import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
+import java.util.Map;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +45,10 @@ public class PlaylistService {
   public PlaylistDto update(UUID playlistId, PlaylistUpdateRequest request, UUID ownerId) {
     // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
     Playlist playlist = playlistRepository.findById(playlistId)
-        .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
 // TODO: 인증 연동 후 소유자 검증 활성화 필요
 //    if (!playlist.getOwnerId().equals(ownerId)) {
 //      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, playlistId);
@@ -59,7 +63,10 @@ public class PlaylistService {
   public void delete(UUID playlistId, UUID ownerId) {
     // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
     Playlist playlist = playlistRepository.findById(playlistId)
-        .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
 
 // TODO: 인증 연동 후 소유자 검증 활성화 필요
 //    if (!playlist.getOwnerId().equals(ownerId)) {
@@ -72,7 +79,10 @@ public class PlaylistService {
   @Transactional(readOnly = true)
   public PlaylistDto findById(UUID playlistId) {
     Playlist playlist = playlistRepository.findById(playlistId)
-        .orElseThrow(() -> new PlaylistException(PlaylistErrorCode.PLAYLIST_NOT_FOUND, playlistId));
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
 
     return playlistMapper.toDto(playlist);
   }
