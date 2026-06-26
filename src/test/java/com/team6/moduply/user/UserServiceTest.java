@@ -13,6 +13,7 @@ import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
@@ -174,6 +175,49 @@ public class UserServiceTest {
   }
 
   @Test
+  @DisplayName("사용자 권한 수정 성공")
+  public void update_user_role_success() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserRoleUpdateRequest request = new UserRoleUpdateRequest(Role.ADMIN);
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    UserDto expected = new UserDto(userId, null, user.getEmail(), user.getName(), null, Role.ADMIN,
+        false);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(userMapper.toDto(user)).willReturn(expected);
+
+    // When
+    userService.updateUserRole(userId, request);
+
+    // Then
+    assertThat(user.getRole()).isEqualTo(Role.ADMIN);
+
+    verify(userRepository).findById(userId);
+    verify(userMapper).toDto(user);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 사용자이면 권한 수정 실패")
+  public void update_user_role_fail_when_user_not_found() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserRoleUpdateRequest request = new UserRoleUpdateRequest(Role.ADMIN);
+
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUserRole(userId, request))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
+        });
+
+    verify(userRepository).findById(userId);
+    verify(userMapper, never()).toDto(any(User.class));
+  }
+
+  @Test
   @DisplayName("사용자 이름만 수정 성공")
   public void update_user_success_with_name_only() throws IOException {
     // Given
@@ -241,6 +285,38 @@ public class UserServiceTest {
     verify(binaryContentService).createUserProfile(userId, profileImg, null);
     verify(binaryContentService).generateUrl(newProfileImg);
     verify(userMapper).toDto(user, profileImageUrl);
+  }
+
+  @Test
+  @DisplayName("프로필 이미지 업로드 중 IOException 발생 시 사용자 수정 실패")
+  public void update_user_fail_when_profile_image_upload_failed() throws IOException {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserUpdateRequest request = new UserUpdateRequest("updated-name");
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    MockMultipartFile profileImg = new MockMultipartFile(
+        "image",
+        "profile.png",
+        "image/png",
+        "image".getBytes()
+    );
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.createUserProfile(any(UUID.class), any(MultipartFile.class), any()))
+        .willThrow(new IOException("upload failed"));
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUser(userId, request, profileImg))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode())
+              .isEqualTo(UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION);
+          assertThat(exception.getDetails().get("reason")).isEqualTo("프로필 이미지 업로드에 실패했습니다.");
+        });
+
+    verify(userRepository).findById(userId);
+    verify(binaryContentService).createUserProfile(userId, profileImg, null);
+    verify(binaryContentService, never()).generateUrl(any(BinaryContent.class));
+    verify(userMapper, never()).toDto(any(User.class), any());
   }
 
   @Test

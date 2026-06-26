@@ -116,7 +116,7 @@ public class UserService {
       } catch (IOException e) {
         throw new UserException(
             UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION,
-            Map.of("reseon", "프로필 이미지 업로드에 실패했습니다.")
+            Map.of("reason", "프로필 이미지 업로드에 실패했습니다.")
         );
       }
     }
