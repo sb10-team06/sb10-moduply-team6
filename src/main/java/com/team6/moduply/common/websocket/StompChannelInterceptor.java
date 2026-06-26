@@ -90,6 +90,9 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     if (subscriptionId != null && destination != null) {
       subscriptionMap.put(subscriptionId, destination);
       UUID userId = (UUID) sessionAttributes.get("userId");
+      if (userId == null) {
+        throw new MessageDeliveryException("웹소켓 세션에 사용자 인증 정보가 존재하지 않습니다.");
+      }
       applicationEventPublisher.publishEvent(new StompSubscribeEvent(
           accessor.getSessionId(),
           userId,
