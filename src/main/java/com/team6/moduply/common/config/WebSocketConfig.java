@@ -4,6 +4,7 @@ import com.team6.moduply.common.websocket.CorsProperties;
 import com.team6.moduply.common.websocket.StompChannelInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -30,18 +31,23 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   private final StompChannelInterceptor stompChannelInterceptor;
   private final CorsProperties corsProperties;
 
+  // 하트비트 이벤트 관리 단일 스레드 스케줄러
+  @Bean(destroyMethod = "destroy")
+  public ThreadPoolTaskScheduler heartbeatScheduler() {
+    ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    scheduler.setPoolSize(1);
+    scheduler.setThreadNamePrefix("ws-heartbeat-thread-");
+    scheduler.initialize();
+    return scheduler;
+  }
+
   @Override
   public void configureMessageBroker(MessageBrokerRegistry config) {
-    // 하트비트 이벤트 관리 단일 스레드 스케줄러
-    ThreadPoolTaskScheduler heartbeatScheduler = new ThreadPoolTaskScheduler();
-    heartbeatScheduler.setPoolSize(1);
-    heartbeatScheduler.setThreadNamePrefix("ws-heartbeat-thread-");
-    heartbeatScheduler.initialize();
 
     // 10초 주기로 핑 전송, 20초 이내 핑 접수 없으면 연결 끊기
     config.enableSimpleBroker("/sub")
         .setHeartbeatValue(new long[]{10000, 20000})
-        .setTaskScheduler(heartbeatScheduler);
+        .setTaskScheduler(heartbeatScheduler());
 
     config.setApplicationDestinationPrefixes("/pub");
   }
