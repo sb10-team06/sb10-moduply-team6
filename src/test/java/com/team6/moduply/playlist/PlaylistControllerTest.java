@@ -267,4 +267,23 @@ class PlaylistControllerTest {
             .with(csrf()))
         .andExpect(status().isNotFound());
   }
+
+  @Test
+  @DisplayName("플레이리스트에 없는 콘텐츠를 삭제하면 404를 반환한다.")
+  void removeContent_fail_with_not_found() throws Exception {
+    // given
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_CONTENT_NOT_FOUND,
+        Map.of("playlistId", playlistId, "contentId", contentId)
+    )).when(playlistService).removeContent(any(), any(), any());
+
+    // when & then
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user("test-user").roles("USER"))
+            .with(csrf()))
+        .andExpect(status().isNotFound());
+  }
 }
