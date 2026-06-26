@@ -27,9 +27,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class InMemoryWatchingSessionRepository implements WatchingSessionRepository {
 
   // 사용자 아이디, 시청 세션
-  Map<UUID, WatchingSession> watchingSessionStorage = new ConcurrentHashMap<>();
+  private final Map<UUID, WatchingSession> watchingSessionStorage = new ConcurrentHashMap<>();
   // websocket session ID, watcher ID
-  Map<String, UUID> sessionIdAndUserIdMap = new ConcurrentHashMap<>();
+  private final Map<String, UUID> sessionIdAndUserIdMap = new ConcurrentHashMap<>();
 
   private static final long EXPIRED_HOURS = 12;
   private static final long SCHEDULED_MINUTES = 30;
