@@ -36,5 +36,5 @@ public class UserDto {
   private Role role;
 
   @Schema(description = "계정 잠금 여부", requiredMode = Schema.RequiredMode.REQUIRED)
-  private Boolean locked;
+  private boolean locked;
 }

@@ -52,7 +52,7 @@ public class ModuPlyAuthenticationEntryPoint implements AuthenticationEntryPoint
     }
 
     return new AuthException(AuthErrorCode.MISSING_TOKEN_EXCEPTION, Map.of(
-        "reason", authException.getClass().getSimpleName()
+        "reason", "EntryPoint01"
     ));
   }
 }

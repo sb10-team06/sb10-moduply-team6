@@ -43,7 +43,7 @@ public class ModuPlyUserDetails implements UserDetails {
 
   @Override
   public boolean isAccountNonLocked() {
-    return !userdto.getLocked();
+    return !userdto.isLocked();
   }
 
   @Override

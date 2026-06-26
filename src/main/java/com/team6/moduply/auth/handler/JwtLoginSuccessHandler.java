@@ -49,6 +49,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     Cookie refreshTokenCookie = new Cookie("REFRESH_TOKEN", refreshToken);
     refreshTokenCookie.setHttpOnly(true);
     refreshTokenCookie.setPath("/");
+    refreshTokenCookie.setSecure(true);
     refreshTokenCookie.setMaxAge(24 * 60 * 60);
     response.addCookie(refreshTokenCookie);
 
