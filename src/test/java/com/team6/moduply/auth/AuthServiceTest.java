@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
@@ -25,7 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 
 @ExtendWith(MockitoExtension.class)
-class JwtAuthenticationServiceTest {
+class AuthServiceTest {
   @Mock
   private UserRepository userRepository;
 
@@ -33,7 +34,7 @@ class JwtAuthenticationServiceTest {
   private UserMapper userMapper;
 
   @InjectMocks
-  private JwtAuthenticationService jwtAuthenticationService;
+  private AuthService authService;
 
   @Test
   @DisplayName("사용자 ID로 최신 사용자 상태를 조회해 인증 객체를 생성한다")
@@ -55,7 +56,7 @@ class JwtAuthenticationServiceTest {
     given(userMapper.toDto(user)).willReturn(userDto);
 
     // When
-    Authentication authentication = jwtAuthenticationService.getAuthentication(userId);
+    Authentication authentication = authService.getAuthentication(userId);
 
     // Then
     ModuPlyUserDetails principal = (ModuPlyUserDetails) authentication.getPrincipal();
@@ -79,7 +80,7 @@ class JwtAuthenticationServiceTest {
     given(userRepository.findById(userId)).willReturn(Optional.empty());
 
     // When & Then
-    assertThatThrownBy(() -> jwtAuthenticationService.getAuthentication(userId))
+    assertThatThrownBy(() -> authService.getAuthentication(userId))
         .isInstanceOfSatisfying(AuthException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_TOKEN_EXCEPTION)
         );
@@ -107,7 +108,7 @@ class JwtAuthenticationServiceTest {
     given(userMapper.toDto(user)).willReturn(lockedUserDto);
 
     // When & Then
-    assertThatThrownBy(() -> jwtAuthenticationService.getAuthentication(userId))
+    assertThatThrownBy(() -> authService.getAuthentication(userId))
         .isInstanceOfSatisfying(AuthException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.ACCOUNT_LOCKED_EXCEPTION)
         );

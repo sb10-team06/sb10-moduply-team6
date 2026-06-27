@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.team6.moduply.auth.JwtAuthenticationService;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import java.util.UUID;
@@ -31,7 +31,7 @@ class JwtAuthenticationFilterTest {
   private JwtTokenProvider jwtTokenProvider;
 
   @Mock
-  private JwtAuthenticationService jwtAuthenticationService;
+  private AuthService authService;
 
   @AfterEach
   void tearDown() {
@@ -48,7 +48,7 @@ class JwtAuthenticationFilterTest {
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
     JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(jwtTokenProvider, jwtAuthenticationService, entryPoint);
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint);
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
@@ -57,7 +57,7 @@ class JwtAuthenticationFilterTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
-    given(jwtAuthenticationService.getAuthentication(userId)).willReturn(authentication);
+    given(authService.getAuthentication(userId)).willReturn(authentication);
 
     // When
     filter.doFilter(request, response, filterChain);
@@ -68,7 +68,7 @@ class JwtAuthenticationFilterTest {
 
     verify(jwtTokenProvider).validateAccessToken(token);
     verify(jwtTokenProvider).getUserId(token);
-    verify(jwtAuthenticationService).getAuthentication(userId);
+    verify(authService).getAuthentication(userId);
   }
 
   @Test
@@ -78,7 +78,7 @@ class JwtAuthenticationFilterTest {
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
     JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(jwtTokenProvider, jwtAuthenticationService, entryPoint);
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint);
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -92,7 +92,7 @@ class JwtAuthenticationFilterTest {
     assertThat(response.getStatus()).isEqualTo(200);
 
     verify(jwtTokenProvider, never()).validateAccessToken(any());
-    verify(jwtAuthenticationService, never()).getAuthentication(any());
+    verify(authService, never()).getAuthentication(any());
   }
 
   @Test
@@ -103,7 +103,7 @@ class JwtAuthenticationFilterTest {
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
     JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(jwtTokenProvider, jwtAuthenticationService, entryPoint);
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint);
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
@@ -122,7 +122,7 @@ class JwtAuthenticationFilterTest {
 
     verify(jwtTokenProvider).validateAccessToken(token);
     verify(jwtTokenProvider, never()).getUserId(token);
-    verify(jwtAuthenticationService, never()).getAuthentication(any());
+    verify(authService, never()).getAuthentication(any());
   }
 
   private ObjectMapper objectMapper() {
