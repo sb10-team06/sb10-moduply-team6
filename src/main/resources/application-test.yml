@@ -11,6 +11,17 @@ spring:
   batch:
     jdbc:
       initialize-schema: always
+  mail:
+    host: localhost
+    port: 1025
+    username: test-smtp-user
+    password: test-smtp-password
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
 
 logging:
   level:
