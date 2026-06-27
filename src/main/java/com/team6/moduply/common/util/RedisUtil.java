@@ -2,6 +2,11 @@ package com.team6.moduply.common.util;
 
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Component;
@@ -17,19 +22,41 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class RedisUtil {
   private final StringRedisTemplate stringRedisTemplate;
 
+  @Retryable(
+      retryFor = DataAccessException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 300, multiplier = 2)
+  )
   public void setDateExpire(String key, String value, Duration duration) {
     ValueOperations<String, String> valueOperations = stringRedisTemplate.opsForValue();
     valueOperations.set(key, value, duration);
   }
 
-  public String getDate(String key){
+  @Retryable(
+      retryFor = DataAccessException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 300, multiplier = 2)
+  )
+  public String getData(String key){
     ValueOperations<String, String> valueOperations = stringRedisTemplate.opsForValue();
     return valueOperations.get(key);
   }
 
+  @Recover
+  public String recoverGetData(DataAccessException e, String key) {
+    log.warn("Redis 조회 재시도 실패. key={}", key, e);
+    throw e;
+  }
+
+  @Retryable(
+      retryFor = DataAccessException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 300, multiplier = 2)
+  )
   public void deleteData(String key){
     stringRedisTemplate.delete(key);
   }
