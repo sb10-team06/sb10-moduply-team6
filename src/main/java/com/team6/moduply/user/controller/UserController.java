@@ -1,5 +1,6 @@
 package com.team6.moduply.user.controller;
 
+import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
@@ -71,5 +72,15 @@ public class UserController implements UserApi {
     log.info("사용자 정보 수정 요청 처리 완료. userId={}", response.getId());
 
     return ResponseEntity.ok(response);
+  }
+
+  @PatchMapping("/{userId}/password")
+  @Override
+  public ResponseEntity<Void> updateUserPassword(
+      @PathVariable UUID userId,
+      @Valid @RequestBody ChangePasswordRequest request
+  ) {
+    userService.updateUserPassword(userId, request);
+    return ResponseEntity.noContent().build();
   }
 }

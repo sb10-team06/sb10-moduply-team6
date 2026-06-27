@@ -2,6 +2,9 @@ package com.team6.moduply.user.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
+import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
@@ -33,6 +36,7 @@ public class UserService {
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
   private final BinaryContentService binaryContentService;
+  private final RedisUtil redisUtil;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -122,5 +126,21 @@ public class UserService {
     }
 
     return userMapper.toDto(user, presignedUrl);
+  }
+
+  @Transactional
+  @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
+  public void updateUserPassword(UUID userId, ChangePasswordRequest request){
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+            "userId", userId
+        )));
+
+    String newEncodedPassword = passwordEncoder.encode(request.getNewPassword());
+    user.updateEncodedPassword(newEncodedPassword);
+
+    // redis 임시 비밀번호 파기
+    String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail());
+    redisUtil.deleteData(redisKey);
   }
 }
