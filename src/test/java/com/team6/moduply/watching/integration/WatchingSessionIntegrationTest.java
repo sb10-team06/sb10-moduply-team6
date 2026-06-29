@@ -7,7 +7,6 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetailsService;
 import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.user.dto.UserCreateRequest;
-import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
