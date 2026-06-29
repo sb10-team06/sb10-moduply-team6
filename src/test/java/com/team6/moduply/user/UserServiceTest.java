@@ -150,7 +150,8 @@ public class UserServiceTest {
         false);
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(userMapper.toDto(user)).willReturn(expected);
+    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(userMapper.toDto(user, null)).willReturn(expected);
 
     // When
     UserDto response = userService.getUser(userId);
@@ -162,7 +163,8 @@ public class UserServiceTest {
     assertThat(response.getRole()).isEqualTo(expected.getRole());
 
     verify(userRepository).findById(userId);
-    verify(userMapper).toDto(user);
+    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(userMapper).toDto(user, null);
   }
 
   @Test
