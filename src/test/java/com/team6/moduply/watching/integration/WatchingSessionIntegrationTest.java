@@ -75,7 +75,7 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
 
     // user 설정
     // user 인증 정보 설정
-    UserDto testUserDto = userService.createUser(
+    userService.createUser(
         new UserCreateRequest("test", "test@test.com", "test1234!"));
     User testUser = userRepository.findByEmail("test@test.com").orElse(null);
     assertThat(testUser).isNotNull();
