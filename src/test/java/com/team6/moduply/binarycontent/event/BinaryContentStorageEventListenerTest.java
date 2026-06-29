@@ -162,6 +162,39 @@ class BinaryContentStorageEventListenerTest {
   }
 
   @Test
+  @DisplayName("파일 저장 이벤트 처리 중 메타데이터 조회 예외가 발생하면 FAIL 상태 변경을 요청한다.")
+  void handleBinaryContentStorage_fail_when_metadata_lookup_fails() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    BinaryContentCreatedEvent event = new BinaryContentCreatedEvent(
+        binaryContentId,
+        "image-bytes".getBytes(),
+        null,
+        UUID.randomUUID(),
+        null,
+        null
+    );
+    given(binaryContentRepository.findById(binaryContentId))
+        .willThrow(new RuntimeException("database error"));
+
+    // when
+    listener.handleBinaryContentStorage(event);
+
+    // then
+    verify(binaryContentStorage, never()).upload(
+        eq("contents/content-id/thumbnail/image.png"),
+        eq("image-bytes".getBytes()),
+        eq("image/png")
+    );
+    verify(binaryContentService).updatesStatusFail(binaryContentId);
+    verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
+        eq(binaryContentId),
+        eq(null),
+        eq(null)
+    );
+  }
+
+  @Test
   @DisplayName("파일 삭제 이벤트 처리 시 저장소 삭제 후 DELETED 상태 변경을 요청한다.")
   void handleBinaryContentDelete_success() {
     // given

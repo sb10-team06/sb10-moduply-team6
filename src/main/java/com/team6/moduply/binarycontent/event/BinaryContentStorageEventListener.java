@@ -39,7 +39,15 @@ public class BinaryContentStorageEventListener {
                             BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
                             Map.of("binaryContentId", binaryContentId.toString())));
         } catch (BinaryContentException e) {
-            log.error("BinaryContent 메타데이터 조회 실패. binaryContentId={}", binaryContentId, e);
+            if (e.getErrorCode() == BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND) {
+                log.error("BinaryContent 메타데이터 조회 실패. binaryContentId={}", binaryContentId, e);
+                return;
+            }
+
+            handleMetadataLookupFailure(binaryContentId, e);
+            return;
+        } catch (Exception e) {
+            handleMetadataLookupFailure(binaryContentId, e);
             return;
         }
 
@@ -70,6 +78,15 @@ public class BinaryContentStorageEventListener {
             } catch (Exception statusEx) {
                 log.error("FAIL 상태 갱신 실패. binaryContentId={}", binaryContentId, statusEx);
             }
+        }
+    }
+
+    private void handleMetadataLookupFailure(UUID binaryContentId, Exception e) {
+        log.error("BinaryContent 메타데이터 조회 중 예외 발생. binaryContentId={}", binaryContentId, e);
+        try {
+            binaryContentService.updatesStatusFail(binaryContentId);
+        } catch (Exception statusEx) {
+            log.error("FAIL 상태 갱신 실패. binaryContentId={}", binaryContentId, statusEx);
         }
     }
 
