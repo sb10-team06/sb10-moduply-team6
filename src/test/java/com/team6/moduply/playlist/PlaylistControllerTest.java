@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -131,7 +132,7 @@ class PlaylistControllerTest {
         "수정된 설명", null, 0L, false, List.of()
     );
 
-    given(playlistService.update(any(), any(), any())).willReturn(response);
+    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID))).willReturn(response);
 
     // when & then
     mockMvc.perform(patch("/api/playlists/" + playlistId)
@@ -142,6 +143,20 @@ class PlaylistControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("수정된 제목"))
         .andExpect(jsonPath("$.description").value("수정된 설명"));
+
+    verify(playlistService).update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID));
+  }
+
+  @Test
+  @DisplayName("인증 없이 플레이리스트를 수정하면 401을 반환한다.")
+  void updatePlaylist_fail_with_no_auth() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+    mockMvc.perform(patch("/api/playlists/" + playlistId)
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                new PlaylistUpdateRequest("제목", "설명"))))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -155,6 +170,17 @@ class PlaylistControllerTest {
             .with(user(createUserDetails()))
             .with(csrf()))
         .andExpect(status().isNoContent());
+
+    verify(playlistService).delete(eq(playlistId), eq(TEST_OWNER_ID));
+  }
+
+  @Test
+  @DisplayName("인증 없이 플레이리스트를 삭제하면 401을 반환한다.")
+  void deletePlaylist_fail_with_no_auth() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+    mockMvc.perform(delete("/api/playlists/" + playlistId)
+            .with(csrf()))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -232,6 +258,18 @@ class PlaylistControllerTest {
             .with(user(createUserDetails()))
             .with(csrf()))
         .andExpect(status().isCreated());
+
+    verify(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
+  }
+
+  @Test
+  @DisplayName("인증 없이 플레이리스트에 콘텐츠를 추가하면 401을 반환한다.")
+  void addContent_fail_with_no_auth() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(csrf()))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -246,6 +284,18 @@ class PlaylistControllerTest {
             .with(user(createUserDetails()))
             .with(csrf()))
         .andExpect(status().isNoContent());
+
+    verify(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
+  }
+
+  @Test
+  @DisplayName("인증 없이 플레이리스트에서 콘텐츠를 삭제하면 401을 반환한다.")
+  void removeContent_fail_with_no_auth() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(csrf()))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test
