@@ -41,7 +41,7 @@ public class RedisUtil {
       maxAttempts = 3,
       backoff = @Backoff(delay = 300, multiplier = 2)
   )
-  public String getData(String key){
+  public String getData(String key) {
     ValueOperations<String, String> valueOperations = stringRedisTemplate.opsForValue();
     return valueOperations.get(key);
   }
@@ -57,8 +57,14 @@ public class RedisUtil {
       maxAttempts = 3,
       backoff = @Backoff(delay = 300, multiplier = 2)
   )
-  public void deleteData(String key){
+  public void deleteData(String key) {
     stringRedisTemplate.delete(key);
+  }
+
+  @Recover
+  public void recoverDeleteData(DataAccessException e, String key) {
+    log.error("Redis 삭제 재시도 실패. key={}", key, e);
+    throw e;
   }
 
 }
