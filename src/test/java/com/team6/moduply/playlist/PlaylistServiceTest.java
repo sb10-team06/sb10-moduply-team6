@@ -10,6 +10,7 @@ import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.entity.PlaylistContent;
+import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistContentRepository;
@@ -153,7 +154,9 @@ class PlaylistServiceTest {
 
     // when & then
     assertThatThrownBy(() -> playlistService.update(playlistId, request, ownerId))
-        .isInstanceOf(PlaylistException.class);
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_FORBIDDEN));
   }
 
   @Test
@@ -211,7 +214,9 @@ class PlaylistServiceTest {
 
     // when & then
     assertThatThrownBy(() -> playlistService.delete(playlistId, ownerId))
-        .isInstanceOf(PlaylistException.class);
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_FORBIDDEN));
   }
 
   @Test

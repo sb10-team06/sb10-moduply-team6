@@ -54,10 +54,7 @@ public class PlaylistService {
             Map.of("playlistId", playlistId)
         ));
 
-    if (!playlist.getOwnerId().equals(ownerId)) {
-      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN,
-          Map.of("playlistId", playlistId));
-    }
+    validateOwner(playlist, ownerId, playlistId);
 
     playlist.update(request.title(), request.description());
 
@@ -72,10 +69,7 @@ public class PlaylistService {
             Map.of("playlistId", playlistId)
         ));
 
-    if (!playlist.getOwnerId().equals(ownerId)) {
-      throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN,
-          Map.of("playlistId", playlistId));
-    }
+    validateOwner(playlist, ownerId, playlistId);
 
     playlistRepository.delete(playlist);
   }
@@ -136,9 +130,7 @@ public class PlaylistService {
             Map.of("playlistId", playlistId)
         ));
 
-     if (!playlist.getOwnerId().equals(ownerId)) {
-         throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, Map.of("playlistId", playlistId));
-     }
+    validateOwner(playlist, ownerId, playlistId);
 
     if (!contentRepository.existsById(contentId)) {
       throw new PlaylistException(
@@ -172,9 +164,7 @@ public class PlaylistService {
             Map.of("playlistId", playlistId)
         ));
 
-     if (!playlist.getOwnerId().equals(ownerId)) {
-         throw new PlaylistException(PlaylistErrorCode.PLAYLIST_FORBIDDEN, Map.of("playlistId", playlistId));
-     }
+    validateOwner(playlist, ownerId, playlistId);
 
     PlaylistContent playlistContent = playlistContentRepository
         .findByPlaylistAndContentId(playlist, contentId)
@@ -184,5 +174,14 @@ public class PlaylistService {
         ));
 
     playlistContentRepository.delete(playlistContent);
+  }
+
+  private void validateOwner(Playlist playlist, UUID ownerId, UUID playlistId) {
+    if (!playlist.getOwnerId().equals(ownerId)) {
+      throw new PlaylistException(
+          PlaylistErrorCode.PLAYLIST_FORBIDDEN,
+          Map.of("playlistId", playlistId)
+      );
+    }
   }
 }
