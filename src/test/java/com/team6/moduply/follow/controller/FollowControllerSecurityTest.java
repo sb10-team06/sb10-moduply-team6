@@ -23,6 +23,7 @@ import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.config.CsrfConfig;
 import com.team6.moduply.common.config.SecurityConfig;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.follow.dto.FollowDto;
 import com.team6.moduply.follow.dto.FollowRequest;
 import com.team6.moduply.follow.service.FollowService;
@@ -50,6 +51,7 @@ import org.springframework.test.web.servlet.MockMvc;
     ModuPlyAccessDeniedHandler.class
 })
 class FollowControllerSecurityTest {
+  private static final String USER_EMAIL = "user@example.com";
 
   @Autowired
   private MockMvc mockMvc;
@@ -65,6 +67,9 @@ class FollowControllerSecurityTest {
 
   @MockitoBean
   private AuthService authService;
+
+  @MockitoBean
+  private RedisUtil redisUtil;
 
   @MockitoBean
   private ModuPlyLoginFailureHandler moduPlyLoginFailureHandler;
@@ -119,6 +124,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(USER_EMAIL);
     given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
     given(followService.createFollow(eq(request), eq(followerId))).willReturn(response);
@@ -144,6 +150,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(USER_EMAIL);
     given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
@@ -168,6 +175,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(USER_EMAIL);
     given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
@@ -193,6 +201,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(USER_EMAIL);
     given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
@@ -219,6 +228,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(USER_EMAIL);
     given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
@@ -240,6 +250,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(USER_EMAIL);
     given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
@@ -265,7 +276,7 @@ class FollowControllerSecurityTest {
     UserDto userDto = new UserDto(
         userId,
         null,
-        "user@example.com",
+        USER_EMAIL,
         "user",
         null,
         Role.USER,
