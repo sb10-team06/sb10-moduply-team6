@@ -71,6 +71,19 @@ public class FollowService {
     followRepository.delete(follow);
   }
 
+  /// 내가 상대를 팔로우 중인지 확인
+  @Transactional
+  public FollowDto isFollowedByMe(UUID followeeId, UUID followerId) {
+    // 나와 상대의 팔로우 관계가 있는지 확인
+    Follow follow = followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId)
+        .orElseThrow(() -> new FollowException(
+            FollowErrorCode.FOLLOW_NOT_FOUND,
+            Map.of("followerId", followerId, "followeeId", followeeId)
+        ));
+
+    return followMapper.toDto(follow);
+  }
+
 
   private void validate(UUID followerId, UUID followeeId) {
     /// 자기자신 팔로우 X
