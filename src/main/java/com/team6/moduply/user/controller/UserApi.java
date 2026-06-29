@@ -124,7 +124,6 @@ public interface UserApi {
   )
   @ApiResponses({
       @ApiResponse(responseCode = "204", description = "성공"),
-      @ApiResponse(responseCode = "200", description = "성공"),
       @ApiResponse(
           responseCode = "400",
           description = "잘못된 요청",
@@ -144,6 +143,14 @@ public interface UserApi {
       @ApiResponse(
           responseCode = "403",
           description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "해당 리소스 없음",
           content = @Content(
               mediaType = MediaType.ALL_VALUE,
               schema = @Schema(implementation = ErrorResponse.class)
@@ -178,7 +185,6 @@ public interface UserApi {
   )
   @ApiResponses({
       @ApiResponse(responseCode = "204", description = "성공"),
-      @ApiResponse(responseCode = "200", description = "성공"),
       @ApiResponse(
           responseCode = "400",
           description = "잘못된 요청",
@@ -198,6 +204,14 @@ public interface UserApi {
       @ApiResponse(
           responseCode = "403",
           description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "해당 리소스 없음",
           content = @Content(
               mediaType = MediaType.ALL_VALUE,
               schema = @Schema(implementation = ErrorResponse.class)

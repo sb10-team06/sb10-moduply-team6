@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.controller.UserController;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserLockUpdateRequest;
@@ -29,7 +30,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
@@ -76,7 +76,7 @@ class UserControllerMethodSecurityTest {
   private BinaryContentService binaryContentService;
 
   @MockitoBean
-  private ApplicationEventPublisher applicationEventPublisher;
+  private RedisUtil redisUtil;
 
   @Test
   @DisplayName("ADMIN 권한으로 사용자 권한 수정 요청 시 204를 반환한다")

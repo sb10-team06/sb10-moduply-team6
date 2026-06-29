@@ -10,7 +10,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class AsyncConfig {
   public static final String TEMP_PASSWORD_MAIL_TASK_EXECUTOR = "tempPasswordMailTaskExecutor";
-  public static final String USER_SECURITY_TASK_EXECUTOR = "userSecurityTaskExecutor";
 
   @Bean(TEMP_PASSWORD_MAIL_TASK_EXECUTOR)
   public TaskExecutor tempPasswordMailTaskExecutor() {
@@ -19,17 +18,6 @@ public class AsyncConfig {
     executor.setMaxPoolSize(4);
     executor.setQueueCapacity(100);
     executor.setThreadNamePrefix("temp-password-mail-");
-    executor.initialize();
-    return executor;
-  }
-
-  @Bean(USER_SECURITY_TASK_EXECUTOR)
-  public TaskExecutor userSecurityTaskExecutor() {
-    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(2);
-    executor.setMaxPoolSize(4);
-    executor.setQueueCapacity(100);
-    executor.setThreadNamePrefix("user-security-");
     executor.initialize();
     return executor;
   }
