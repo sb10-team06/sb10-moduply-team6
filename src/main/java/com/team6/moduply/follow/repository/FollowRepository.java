@@ -10,4 +10,7 @@ public interface FollowRepository extends JpaRepository<Follow, UUID> {
   boolean existsByFollowerIdAndFolloweeId(UUID followerId, UUID followeeId);
   // 나와 특정인의 팔로우 관계를 조회
   Optional<Follow> findByFollowerIdAndFolloweeId(UUID followerId, UUID followeeId);
+  // 특정인을 팔로우한 사람의 수.
+  // Follow 테이블에 (follower_id, followee_id) 있다고 치면 (?, followee_id)의 COUNT
+  long countByFolloweeId(UUID followeeId);
 }
