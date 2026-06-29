@@ -103,7 +103,7 @@ class ContentControllerMethodSecurityTest {
             .file(contentCreateRequestPart(request))
             .file(thumbnailPart())
             .with(user("admin@example.com").roles("ADMIN"))
-            .with(csrf())
+            .with(csrf().asHeader())
             .contentType(MediaType.MULTIPART_FORM_DATA))
         .andExpect(status().isCreated());
 
@@ -126,9 +126,31 @@ class ContentControllerMethodSecurityTest {
             .file(contentCreateRequestPart(request))
             .file(thumbnailPart())
             .with(user("user@example.com").roles("USER"))
-            .with(csrf())
+            .with(csrf().asHeader())
             .contentType(MediaType.MULTIPART_FORM_DATA))
         .andExpect(status().isForbidden());
+
+    verify(contentRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("인증 없이 콘텐츠 생성 요청 시 401을 반환한다.")
+  void create_fail_when_requester_is_anonymous() throws Exception {
+    // Given
+    ContentCreateRequest request = new ContentCreateRequest(
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        List.of("SF", "액션")
+    );
+
+    // When & Then
+    mockMvc.perform(multipart("/api/contents")
+            .file(contentCreateRequestPart(request))
+            .file(thumbnailPart())
+            .with(csrf().asHeader())
+            .contentType(MediaType.MULTIPART_FORM_DATA))
+        .andExpect(status().isUnauthorized());
 
     verify(contentRepository, never()).save(any());
   }
