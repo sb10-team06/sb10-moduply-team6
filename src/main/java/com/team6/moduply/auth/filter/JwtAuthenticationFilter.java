@@ -1,7 +1,7 @@
 package com.team6.moduply.auth.filter;
 
 import com.team6.moduply.auth.JwtTokenProvider;
-import com.team6.moduply.auth.JwtAuthenticationService;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import jakarta.servlet.FilterChain;
@@ -24,7 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private final JwtTokenProvider jwtTokenProvider;
-  private final JwtAuthenticationService jwtAuthenticationService;
+  private final AuthService authService;
   private final ModuPlyAuthenticationEntryPoint moduPlyAuthenticationEntryPoint;
 
   @Override
@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       }
       if(SecurityContextHolder.getContext().getAuthentication() == null){
         UUID userId = jwtTokenProvider.getUserId(token);
-        Authentication authentication = jwtAuthenticationService.getAuthentication(userId);
+        Authentication authentication = authService.getAuthentication(userId);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       }
 

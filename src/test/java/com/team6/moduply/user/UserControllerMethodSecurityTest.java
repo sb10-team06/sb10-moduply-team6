@@ -211,6 +211,74 @@ class UserControllerMethodSecurityTest {
     verify(userRepository, never()).findById(any(UUID.class));
   }
 
+  @Test
+  @DisplayName("본인의 비밀번호 변경 요청 시 204를 반환한다")
+  void update_user_password_success_when_requester_is_owner() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+    User user = new User("user@example.com", "old-encoded-password", "user", Role.USER);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(passwordEncoder.encode("newPassword1!")).willReturn("new-encoded-password");
+
+    // When & Then
+    mockMvc.perform(patch("/api/users/{userId}/password", userId)
+            .with(user(userDetails(userId)))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "newPassword": "newPassword1!"
+                }
+                """))
+        .andExpect(status().isNoContent());
+
+    verify(userRepository).findById(userId);
+    verify(passwordEncoder).encode("newPassword1!");
+  }
+
+  @Test
+  @DisplayName("다른 사용자의 비밀번호 변경 요청 시 403을 반환한다")
+  void update_user_password_fail_when_requester_is_not_owner() throws Exception {
+    // Given
+    UUID requesterId = UUID.randomUUID();
+    UUID targetUserId = UUID.randomUUID();
+
+    // When & Then
+    mockMvc.perform(patch("/api/users/{userId}/password", targetUserId)
+            .with(user(userDetails(requesterId)))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "newPassword": "newPassword1!"
+                }
+                """))
+        .andExpect(status().isForbidden());
+
+    verify(userRepository, never()).findById(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("CSRF 토큰 없이 비밀번호 변경 요청 시 403을 반환한다")
+  void update_user_password_fail_without_csrf_token() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+
+    // When & Then
+    mockMvc.perform(patch("/api/users/{userId}/password", userId)
+            .with(user(userDetails(userId)))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {
+                  "newPassword": "newPassword1!"
+                }
+                """))
+        .andExpect(status().isForbidden());
+
+    verify(userRepository, never()).findById(any(UUID.class));
+  }
+
   private MockMultipartFile userUpdateRequestPart(UserUpdateRequest request) throws Exception {
     return new MockMultipartFile(
         "request",

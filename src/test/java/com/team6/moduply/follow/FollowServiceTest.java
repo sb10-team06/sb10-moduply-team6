@@ -29,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class FollowServiceTest {
@@ -179,6 +180,114 @@ class FollowServiceTest {
 
     verify(followRepository, never()).existsByFollowerIdAndFolloweeId(any(UUID.class), any(UUID.class));
     verify(followRepository, never()).saveAndFlush(any(Follow.class));
+    verify(followMapper, never()).toDto(any(Follow.class));
+  }
+
+  @Test
+  @DisplayName("본인이 생성한 팔로우를 취소하면 팔로우 관계를 삭제한다.")
+  void cancelFollow_success_with_owner() {
+    // given
+    UUID followId = UUID.randomUUID();
+    UUID followerId = UUID.randomUUID();
+    User follower = new User("follower@example.com", "password", "follower", Role.USER);
+    User followee = new User("followee@example.com", "password", "followee", Role.USER);
+    ReflectionTestUtils.setField(follower, "id", followerId);
+    Follow follow = new Follow(follower, followee);
+
+    given(followRepository.findById(followId)).willReturn(Optional.of(follow));
+
+    // when
+    followService.cancelFollow(followId, followerId);
+
+    // then
+    verify(followRepository).delete(follow);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 팔로우를 취소하면 예외가 발생한다.")
+  void cancelFollow_fail_when_not_found() {
+    // given
+    UUID followId = UUID.randomUUID();
+    UUID followerId = UUID.randomUUID();
+
+    given(followRepository.findById(followId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> followService.cancelFollow(followId, followerId))
+        .isInstanceOfSatisfying(FollowException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(FollowErrorCode.FOLLOW_NOT_FOUND);
+          assertThat(exception.getDetails().get("followId")).isEqualTo(followId);
+        });
+
+    verify(followRepository, never()).delete(any(Follow.class));
+  }
+
+  @Test
+  @DisplayName("다른 사용자의 팔로우를 취소하면 예외가 발생한다.")
+  void cancelFollow_fail_with_invalid_owner() {
+    // given
+    UUID followId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID requesterId = UUID.randomUUID();
+    User follower = new User("follower@example.com", "password", "follower", Role.USER);
+    User followee = new User("followee@example.com", "password", "followee", Role.USER);
+    ReflectionTestUtils.setField(follower, "id", ownerId);
+    Follow follow = new Follow(follower, followee);
+
+    given(followRepository.findById(followId)).willReturn(Optional.of(follow));
+
+    // when & then
+    assertThatThrownBy(() -> followService.cancelFollow(followId, requesterId))
+        .isInstanceOfSatisfying(FollowException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(FollowErrorCode.FOLLOW_FORBIDDEN);
+          assertThat(exception.getDetails().get("followId")).isEqualTo(followId);
+          assertThat(exception.getDetails().get("followerId")).isEqualTo(requesterId);
+        });
+
+    verify(followRepository, never()).delete(any(Follow.class));
+  }
+
+  @Test
+  @DisplayName("특정 사용자를 내가 팔로우 중이면 팔로우 정보를 반환한다.")
+  void isFollowedByMe_success_when_follow_exists() {
+    // given
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+    User follower = new User("follower@example.com", "password", "follower", Role.USER);
+    User followee = new User("followee@example.com", "password", "followee", Role.USER);
+    Follow follow = new Follow(follower, followee);
+    FollowDto expected = new FollowDto(UUID.randomUUID(), followerId, followeeId);
+
+    given(followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId))
+        .willReturn(Optional.of(follow));
+    given(followMapper.toDto(follow)).willReturn(expected);
+
+    // when
+    FollowDto result = followService.isFollowedByMe(followeeId, followerId);
+
+    // then
+    assertThat(result).isEqualTo(expected);
+    verify(followMapper).toDto(follow);
+  }
+
+  @Test
+  @DisplayName("특정 사용자를 내가 팔로우하지 않으면 예외가 발생한다.")
+  void isFollowedByMe_fail_when_follow_not_found() {
+    // given
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+
+    given(followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> followService.isFollowedByMe(followeeId, followerId))
+        .isInstanceOfSatisfying(FollowException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(FollowErrorCode.FOLLOW_NOT_FOUND);
+          assertThat(exception.getDetails().get("followerId")).isEqualTo(followerId);
+          assertThat(exception.getDetails().get("followeeId")).isEqualTo(followeeId);
+        });
+
     verify(followMapper, never()).toDto(any(Follow.class));
   }
 }

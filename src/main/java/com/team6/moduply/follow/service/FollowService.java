@@ -11,7 +11,7 @@ import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class FollowService {
 
   private final FollowRepository followRepository;
@@ -49,6 +50,39 @@ public class FollowService {
     }
     // TODO: SSE용 팔로우 알림 이벤트를 발행한다.
 
+  }
+
+  /// 팔로우 취소 메서드.
+  @Transactional
+  public void cancelFollow(UUID followId, UUID followerId) {
+    Follow follow = followRepository.findById(followId)
+        .orElseThrow(() -> new FollowException(
+            FollowErrorCode.FOLLOW_NOT_FOUND,
+            Map.of("followId", followId)
+        ));
+
+    // 팔로우 취소하는 사람이 내가 아니라면
+    if (!followerId.equals(follow.getFollower().getId())) {
+      throw new FollowException(
+          FollowErrorCode.FOLLOW_FORBIDDEN,
+          Map.of("followId", followId, "followerId", followerId)
+      );
+    }
+
+    followRepository.delete(follow);
+  }
+
+  /// 내가 상대를 팔로우 중인지 확인
+  @Transactional(readOnly = true)
+  public FollowDto isFollowedByMe(UUID followeeId, UUID followerId) {
+    // 나와 상대의 팔로우 관계가 있는지 확인
+    Follow follow = followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId)
+        .orElseThrow(() -> new FollowException(
+            FollowErrorCode.FOLLOW_NOT_FOUND,
+            Map.of("followerId", followerId, "followeeId", followeeId)
+        ));
+
+    return followMapper.toDto(follow);
   }
 
 
