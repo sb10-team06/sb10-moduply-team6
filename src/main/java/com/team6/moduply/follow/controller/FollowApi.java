@@ -133,4 +133,57 @@ public interface FollowApi {
       @Parameter(hidden = true)
       UUID followerId
   );
+  @Operation(
+      summary = "특정 유저를 내가 팔로우하는지 여부 조회",
+      description = "팔로우 중이면 FollowDto(id 포함)를 반환합니다. 팔로우하지 않은 경우 404를 반환합니다.",
+      operationId = "isFollowedByMe"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "성공",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = FollowDto.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "해당 리소스 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<FollowDto> isFollowedByMe(
+      @Parameter(description = "팔로우 대상 사용자 ID", required = true)
+      UUID followeeId,
+      @Parameter(hidden = true)
+      UUID followerId
+  );
 }

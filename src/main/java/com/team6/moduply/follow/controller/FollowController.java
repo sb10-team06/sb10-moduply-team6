@@ -11,10 +11,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RequiredArgsConstructor
@@ -46,5 +48,16 @@ public class FollowController implements FollowApi {
     // followerId: 팔로우 취소하는 나의 사용자 id
     followService.cancelFollow(followId, followerId);
     return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/followed-by-me")
+  @Override
+  public ResponseEntity<FollowDto> isFollowedByMe(
+      // 내가 팔로우 중인지 확인할 대상 사용자ID
+      @RequestParam UUID followeeId,
+      @Parameter(hidden = true)
+      @AuthenticationPrincipal(expression = "userDto.id") UUID followerId
+  ) {
+    return ResponseEntity.ok(followService.isFollowedByMe(followeeId, followerId));
   }
 }

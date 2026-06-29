@@ -246,4 +246,48 @@ class FollowServiceTest {
 
     verify(followRepository, never()).delete(any(Follow.class));
   }
+
+  @Test
+  @DisplayName("특정 사용자를 내가 팔로우 중이면 팔로우 정보를 반환한다.")
+  void isFollowedByMe_success_when_follow_exists() {
+    // given
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+    User follower = new User("follower@example.com", "password", "follower", Role.USER);
+    User followee = new User("followee@example.com", "password", "followee", Role.USER);
+    Follow follow = new Follow(follower, followee);
+    FollowDto expected = new FollowDto(UUID.randomUUID(), followerId, followeeId);
+
+    given(followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId))
+        .willReturn(Optional.of(follow));
+    given(followMapper.toDto(follow)).willReturn(expected);
+
+    // when
+    FollowDto result = followService.isFollowedByMe(followeeId, followerId);
+
+    // then
+    assertThat(result).isEqualTo(expected);
+    verify(followMapper).toDto(follow);
+  }
+
+  @Test
+  @DisplayName("특정 사용자를 내가 팔로우하지 않으면 예외가 발생한다.")
+  void isFollowedByMe_fail_when_follow_not_found() {
+    // given
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+
+    given(followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> followService.isFollowedByMe(followeeId, followerId))
+        .isInstanceOfSatisfying(FollowException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(FollowErrorCode.FOLLOW_NOT_FOUND);
+          assertThat(exception.getDetails().get("followerId")).isEqualTo(followerId);
+          assertThat(exception.getDetails().get("followeeId")).isEqualTo(followeeId);
+        });
+
+    verify(followMapper, never()).toDto(any(Follow.class));
+  }
 }

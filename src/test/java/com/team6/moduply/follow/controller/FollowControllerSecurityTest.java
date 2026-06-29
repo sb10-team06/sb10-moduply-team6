@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -79,6 +80,44 @@ class FollowControllerSecurityTest {
 
   @MockitoBean
   private JwtLoginSuccessHandler jwtLoginSuccessHandler;
+
+  @Test
+  @DisplayName("인증 토큰 없이 팔로우 여부 조회 요청을 보내면 401을 반환한다.")
+  void isFollowedByMe_fail_without_authentication() throws Exception {
+    // given
+    UUID followeeId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(get("/api/follows/followed-by-me")
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isUnauthorized());
+
+    verify(followService, never()).isFollowedByMe(any(), any());
+  }
+
+  @Test
+  @DisplayName("유효한 JWT로 팔로우 여부 조회 요청을 보내면 인증 사용자 ID를 서비스에 전달한다.")
+  void isFollowedByMe_success_with_jwt_authentication() throws Exception {
+    // given
+    String token = "access-token";
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+    FollowDto response = new FollowDto(UUID.randomUUID(), followerId, followeeId);
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(authService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+    given(followService.isFollowedByMe(eq(followeeId), eq(followerId))).willReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/api/follows/followed-by-me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isOk());
+
+    verify(followService).isFollowedByMe(followeeId, followerId);
+  }
 
   @Test
   @DisplayName("인증 토큰 없이 팔로우 생성 요청을 보내면 401을 반환한다.")

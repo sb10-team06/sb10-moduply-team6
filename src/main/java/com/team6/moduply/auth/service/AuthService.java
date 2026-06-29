@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class AuthService {
   private final UserMapper userMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final TempPasswordUtil tempPasswordUtil;
+  private final RoleHierarchy roleHierarchy;
   private final BinaryContentService binaryContentService;
 
   @Transactional(readOnly = true)
@@ -51,7 +53,7 @@ public class AuthService {
     return new UsernamePasswordAuthenticationToken(
         userDetails,
         null,
-        userDetails.getAuthorities()
+        roleHierarchy.getReachableGrantedAuthorities(userDetails.getAuthorities())
     );
   }
 
