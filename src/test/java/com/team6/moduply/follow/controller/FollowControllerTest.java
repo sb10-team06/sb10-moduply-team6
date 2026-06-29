@@ -157,6 +157,29 @@ class FollowControllerTest {
     verify(followService).isFollowedByMe(followeeId, followerId);
   }
 
+  @Test
+  @DisplayName("자기 자신을 팔로우 여부 조회하면 404를 반환한다.")
+  void isFollowedByMe_fail_when_followee_is_self() throws Exception {
+    // given
+    UUID userId = UUID.randomUUID();
+
+    given(followService.isFollowedByMe(eq(userId), eq(userId)))
+        .willThrow(new FollowException(
+            FollowErrorCode.FOLLOW_NOT_FOUND,
+            Map.of("followerId", userId, "followeeId", userId)
+        ));
+
+    // when & then
+    mockMvc.perform(get("/api/follows/followed-by-me")
+            .with(user(userDetails(userId)))
+            .param("followeeId", userId.toString()))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value(FollowErrorCode.FOLLOW_NOT_FOUND.getCode()))
+        .andExpect(jsonPath("$.exceptionType").value("FollowException"));
+
+    verify(followService).isFollowedByMe(userId, userId);
+  }
+
   private ModuPlyUserDetails userDetails(UUID userId) {
     UserDto userDto = new UserDto(
         userId,
