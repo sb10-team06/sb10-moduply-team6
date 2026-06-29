@@ -78,7 +78,7 @@ public class UserService {
             "userId", userId
         )));
 
-    UserDto response = userMapper.toDto(user);
+    UserDto response = toDto(user);
     log.debug("사용자 단건 조회 처리 완료. userId={}", response.getId());
     return response;
   }
@@ -166,5 +166,10 @@ public class UserService {
     } else {
       applicationEventPublisher.publishEvent(new UserUnlockedEvent(user.getEmail()));
     }
+  }
+
+  private UserDto toDto(User user) {
+    String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+    return userMapper.toDto(user, profileImageUrl);
   }
 }

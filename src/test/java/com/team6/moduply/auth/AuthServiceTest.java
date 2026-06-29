@@ -12,6 +12,7 @@ import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
@@ -47,6 +48,9 @@ class AuthServiceTest {
   @Mock
   private TempPasswordUtil tempPasswordUtil;
 
+  @Mock
+  private BinaryContentService binaryContentService;
+
   @InjectMocks
   private AuthService authService;
 
@@ -67,7 +71,8 @@ class AuthServiceTest {
     );
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(userMapper.toDto(user)).willReturn(userDto);
+    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(userMapper.toDto(user, null)).willReturn(userDto);
 
     // When
     Authentication authentication = authService.getAuthentication(userId);
@@ -82,7 +87,8 @@ class AuthServiceTest {
         .containsExactly("ROLE_USER");
 
     verify(userRepository).findById(userId);
-    verify(userMapper).toDto(user);
+    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(userMapper).toDto(user, null);
   }
 
   @Test
@@ -119,7 +125,8 @@ class AuthServiceTest {
     );
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(userMapper.toDto(user)).willReturn(lockedUserDto);
+    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(userMapper.toDto(user, null)).willReturn(lockedUserDto);
 
     // When & Then
     assertThatThrownBy(() -> authService.getAuthentication(userId))
@@ -128,7 +135,8 @@ class AuthServiceTest {
         );
 
     verify(userRepository).findById(userId);
-    verify(userMapper).toDto(user);
+    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(userMapper).toDto(user, null);
   }
 
   @Test
