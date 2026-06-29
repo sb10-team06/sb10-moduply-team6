@@ -125,8 +125,7 @@ class ContentServiceTest {
     // When
     ContentDto response = contentService.create(
         request,
-        thumbnail,
-        Role.ADMIN
+        thumbnail
     );
 
     // Then
@@ -205,7 +204,7 @@ class ContentServiceTest {
         .willReturn(expected);
 
     // When
-    ContentDto response = contentService.create(request, thumbnail, Role.ADMIN);
+    ContentDto response = contentService.create(request, thumbnail);
 
     // Then
     assertThat(response).isEqualTo(expected);
@@ -261,8 +260,7 @@ class ContentServiceTest {
     // When
     ContentDto response = contentService.create(
         request,
-        thumbnail,
-        Role.ADMIN
+        thumbnail
     );
 
     // Then
@@ -298,46 +296,12 @@ class ContentServiceTest {
         .willThrow(new IOException("read failed"));
 
     // When & Then
-    assertThatThrownBy(() -> contentService.create(request, thumbnail, Role.ADMIN))
+    assertThatThrownBy(() -> contentService.create(request, thumbnail))
         .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
           assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.FILE_READ_FAILED);
           assertThat(exception.getDetails().get("fileName")).isEqualTo("thumbnail.png");
         });
 
-    verify(contentTagRepository, never()).saveAll(anyList());
-    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
-  }
-
-  @Test
-  @DisplayName("관리자가 아닌 사용자가 콘텐츠 생성 요청 시 예외를 던진다.")
-  void create_fail_when_requester_is_not_admin() throws Exception {
-    // Given
-    ContentCreateRequest request = new ContentCreateRequest(
-        ContentType.movie,
-        "Inception",
-        "꿈과 현실을 넘나드는 SF 영화",
-        List.of("SF")
-    );
-
-    // When & Then
-    MockMultipartFile thumbnail = new MockMultipartFile(
-        "thumbnail",
-        "thumbnail.png",
-        "image/png",
-        "thumbnail".getBytes()
-    );
-
-    assertThatThrownBy(() -> contentService.create(request, thumbnail, Role.USER))
-        .isInstanceOfSatisfying(ContentException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_CREATE_FORBIDDEN);
-          assertThat(exception.getDetails().get("requesterRole")).isEqualTo(Role.USER.name());
-        });
-
-    verify(binaryContentService, never()).createContentImage(any(), any(), any());
-    verify(binaryContentService, never()).generateUrl(any());
-    verify(contentRepository, never()).save(any(Content.class));
-    verify(tagRepository, never()).findAllByTagNameIn(anyList());
-    verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
     verify(contentTagRepository, never()).saveAll(anyList());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
