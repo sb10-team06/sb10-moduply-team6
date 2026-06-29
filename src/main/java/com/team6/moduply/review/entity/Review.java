@@ -1,6 +1,5 @@
 package com.team6.moduply.review.entity;
 
-import com.team6.moduply.common.baseentity.BaseEntity;
 import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
