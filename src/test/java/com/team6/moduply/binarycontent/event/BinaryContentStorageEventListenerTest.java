@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
@@ -148,11 +149,7 @@ class BinaryContentStorageEventListenerTest {
     listener.handleBinaryContentStorage(event);
 
     // then
-    verify(binaryContentStorage, never()).upload(
-        eq("contents/content-id/thumbnail/image.png"),
-        eq("image-bytes".getBytes()),
-        eq("image/png")
-    );
+    verifyNoInteractions(binaryContentStorage);
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
     verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
         eq(binaryContentId),
@@ -181,11 +178,7 @@ class BinaryContentStorageEventListenerTest {
     listener.handleBinaryContentStorage(event);
 
     // then
-    verify(binaryContentStorage, never()).upload(
-        eq("contents/content-id/thumbnail/image.png"),
-        eq("image-bytes".getBytes()),
-        eq("image/png")
-    );
+    verifyNoInteractions(binaryContentStorage);
     verify(binaryContentService).updatesStatusFail(binaryContentId);
     verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
         eq(binaryContentId),
