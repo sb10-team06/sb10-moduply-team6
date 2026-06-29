@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class S3ConfigTest {
 
@@ -31,11 +33,18 @@ class S3ConfigTest {
     assertThatCode(() -> config.getS3Presigner().close()).doesNotThrowAnyException();
   }
 
-  @Test
-  @DisplayName("S3 설정에 access key와 secret key 중 하나만 있으면 예외가 발생한다.")
-  void createS3Beans_fail_when_only_one_credential_exists() {
+  @ParameterizedTest
+  @CsvSource({
+      "access-key,",
+      ",secret-key"
+  })
+  @DisplayName("S3 설정에 access key와 secret key 중 하나만 있으면 S3Client 생성에 실패한다.")
+  void createS3Client_fail_when_only_one_credential_exists(
+      String accessKey,
+      String secretKey
+  ) {
     // given
-    S3Config config = new S3Config(createProperties("access-key", null));
+    S3Config config = new S3Config(createProperties(accessKey, secretKey));
 
     // when & then
     assertThatThrownBy(config::s3Client)
@@ -43,9 +52,28 @@ class S3ConfigTest {
         .hasMessage("S3 access key와 secret key는 함께 설정되어야 합니다.");
   }
 
+  @ParameterizedTest
+  @CsvSource({
+      "access-key,",
+      ",secret-key"
+  })
+  @DisplayName("S3 설정에 access key와 secret key 중 하나만 있으면 S3Presigner 생성에 실패한다.")
+  void createS3Presigner_fail_when_only_one_credential_exists(
+      String accessKey,
+      String secretKey
+  ) {
+    // given
+    S3Config config = new S3Config(createProperties(accessKey, secretKey));
+
+    // when & then
+    assertThatThrownBy(config::getS3Presigner)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("S3 access key와 secret key는 함께 설정되어야 합니다.");
+  }
+
   @Test
-  @DisplayName("S3 설정에 region이 없으면 예외가 발생한다.")
-  void createS3Beans_fail_when_region_is_blank() {
+  @DisplayName("S3 설정에 region이 없으면 S3Client 생성에 실패한다.")
+  void createS3Client_fail_when_region_is_blank() {
     // given
     S3Properties properties = createProperties("access-key", "secret-key");
     properties.setRegion(" ");
@@ -53,6 +81,20 @@ class S3ConfigTest {
 
     // when & then
     assertThatThrownBy(config::s3Client)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("AWS_S3_REGION 설정이 누락되었습니다.");
+  }
+
+  @Test
+  @DisplayName("S3 설정에 region이 없으면 S3Presigner 생성에 실패한다.")
+  void createS3Presigner_fail_when_region_is_blank() {
+    // given
+    S3Properties properties = createProperties("access-key", "secret-key");
+    properties.setRegion(" ");
+    S3Config config = new S3Config(properties);
+
+    // when & then
+    assertThatThrownBy(config::getS3Presigner)
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("AWS_S3_REGION 설정이 누락되었습니다.");
   }
