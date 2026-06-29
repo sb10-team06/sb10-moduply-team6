@@ -94,7 +94,9 @@ public class JwtTokenProvider {
       return email;
     } catch (ParseException e) {
       log.warn("유효하지 않은 JWT 토큰입니다.", e);
-      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
     }
   }
 

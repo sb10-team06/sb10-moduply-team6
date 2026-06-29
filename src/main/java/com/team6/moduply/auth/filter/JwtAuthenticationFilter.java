@@ -49,7 +49,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String email = jwtTokenProvider.getEmail(token);
         String blacklistKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(email);
         if (redisUtil.getData(blacklistKey) != null) {
-          log.warn("[보안 경고] 정지된 유저의 접근 시도입니다: {}", email);
+          log.warn("[보안 경고] 정지된 계정의 접근 시도입니다. userId={}", userId);
 
           throw new LockedException("정지된 계정입니다. 관리자에게 문의하세요.");
         }
