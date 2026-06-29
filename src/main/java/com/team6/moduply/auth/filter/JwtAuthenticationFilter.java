@@ -4,6 +4,8 @@ import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +15,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private final JwtTokenProvider jwtTokenProvider;
   private final AuthService authService;
   private final ModuPlyAuthenticationEntryPoint moduPlyAuthenticationEntryPoint;
+  private final RedisUtil redisUtil;
 
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -42,6 +46,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       }
       if(SecurityContextHolder.getContext().getAuthentication() == null){
         UUID userId = jwtTokenProvider.getUserId(token);
+        String email = jwtTokenProvider.getEmail(token);
+        String blacklistKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(email);
+        if (redisUtil.getData(blacklistKey) != null) {
+          log.warn("[보안 경고] 정지된 유저의 접근 시도입니다: {}", email);
+
+          throw new LockedException("정지된 계정입니다. 관리자에게 문의하세요.");
+        }
+
         Authentication authentication = authService.getAuthentication(userId);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       }

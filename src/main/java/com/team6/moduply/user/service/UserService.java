@@ -5,11 +5,14 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.event.PasswordChangeEvent;
+import com.team6.moduply.user.event.UserLockedEvent;
+import com.team6.moduply.user.event.UserUnlockedEvent;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
@@ -145,13 +148,23 @@ public class UserService {
   @Transactional
   @PreAuthorize("hasRole('ADMIN')")
   public void lockUser(UUID userId) {
+    updateUserLocked(userId, new UserLockUpdateRequest(true));
+  }
+
+  @Transactional
+  @PreAuthorize("hasRole('ADMIN')")
+  public void updateUserLocked(UUID userId, UserLockUpdateRequest request) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
             "userId", userId
         )));
 
-    user.updateBlocked(true);
+    user.updateBlocked(request.getLocked());
 
-
+    if (request.getLocked()) {
+      applicationEventPublisher.publishEvent(new UserLockedEvent(user.getEmail()));
+    } else {
+      applicationEventPublisher.publishEvent(new UserUnlockedEvent(user.getEmail()));
+    }
   }
 }

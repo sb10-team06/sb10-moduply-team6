@@ -23,7 +23,9 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum RedisKeyPolicy {
-  PASSWORD_RESET("reset:", Duration.ofMinutes(3));
+  PASSWORD_RESET("reset:", Duration.ofMinutes(3)),
+  REFRESH_TOKEN("refresh:", Duration.ofHours(7)),
+  BLACKLIST_LOCKED("blacklist:locked:", Duration.ofHours(1));
   // 추후에 목적에 맞는 레디스 키를 추가
 
 

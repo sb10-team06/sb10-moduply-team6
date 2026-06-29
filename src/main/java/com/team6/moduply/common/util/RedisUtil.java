@@ -31,7 +31,7 @@ public class RedisUtil {
       maxAttempts = 3,
       backoff = @Backoff(delay = 300, multiplier = 2)
   )
-  public void setDateExpire(String key, String value, Duration duration) {
+  public void setDataExpire(String key, String value, Duration duration) {
     ValueOperations<String, String> valueOperations = stringRedisTemplate.opsForValue();
     valueOperations.set(key, value, duration);
   }
