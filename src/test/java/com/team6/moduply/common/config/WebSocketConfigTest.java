@@ -191,8 +191,6 @@ class WebSocketConfigTest {
   @DisplayName("유효하지 않은 토큰으로 웹소켓 핸드쉐이크 및 STOMP 연결을 실패한다.")
   void connect_fail_websocket_with_invalid_access_token() throws Exception {
     // given
-    // 비동기 작업의 결과를 완료 처리하기 위한 객체 (테스트 쓰레드 대기용)
-    CompletableFuture<StompSession> completableFuture = new CompletableFuture<>();
 
     // 허용한 오리진(STOMP 혜더)
     StompHeaders stompHeaders = new StompHeaders();
@@ -225,8 +223,6 @@ class WebSocketConfigTest {
   @DisplayName("토큰없이 웹소켓 핸드쉐이크 및 STOMP 연결을 실패한다.")
   void connect_fail_websocket_without_access_token() throws Exception {
     // given
-    // 비동기 작업의 결과를 완료 처리하기 위한 객체 (테스트 쓰레드 대기용)
-    CompletableFuture<StompSession> completableFuture = new CompletableFuture<>();
 
     // 허용한 오리진(STOMP 혜더)
     StompHeaders stompHeaders = new StompHeaders();
