@@ -94,7 +94,7 @@ class WebSocketConfigTest {
     //admin
     userService.createUser(
         new UserCreateRequest("admin", "admin@test.com", "test1234!"));
-    User adminUser = userRepository.findByEmail("test@test.com").orElse(null);
+    User adminUser = userRepository.findByEmail("admin@test.com").orElse(null);
     assertThat(adminUser).isNotNull();
     adminUser.updateRole(Role.ADMIN);
     ModuPlyUserDetails adminDetails = moduPlyUserDetailsService.loadUserByUsername(
