@@ -296,6 +296,9 @@ class FollowServiceTest {
   void getFollowerCount_success() {
     // given
     UUID followeeId = UUID.randomUUID();
+    User followee = new User("followee@example.com", "password", "followee", Role.USER);
+
+    given(userRepository.findById(followeeId)).willReturn(Optional.of(followee));
     given(followRepository.countByFolloweeId(followeeId)).willReturn(3L);
 
     // when
@@ -304,5 +307,23 @@ class FollowServiceTest {
     // then
     assertThat(result).isEqualTo(3L);
     verify(followRepository).countByFolloweeId(followeeId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 사용자의 팔로워 수를 조회하면 예외가 발생한다.")
+  void getFollowerCount_fail_when_followee_not_found() {
+    // given
+    UUID followeeId = UUID.randomUUID();
+
+    given(userRepository.findById(followeeId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> followService.getFollowerCount(followeeId))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(followeeId);
+        });
+
+    verify(followRepository, never()).countByFolloweeId(any(UUID.class));
   }
 }
