@@ -87,6 +87,7 @@ public class FollowService {
 
   @Transactional(readOnly = true)
   public long getFollowerCount(UUID followeeId) {
+    findUser(followeeId);
     return followRepository.countByFolloweeId(followeeId);
   }
 
