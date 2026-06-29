@@ -32,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,15 +48,13 @@ public class ContentService {
   private final ContentMapper contentMapper;
   private final BinaryContentService binaryContentService;
 
+  @PreAuthorize("hasRole('ADMIN')")
   @Transactional
   public ContentDto create(
       ContentCreateRequest request,
-      MultipartFile thumbnail,
-      Role requesterRole
+      MultipartFile thumbnail
   ) {
     log.debug("콘텐츠 생성 처리 시작: type={}, title={}", request.type(), request.title());
-    // TODO: Spring Security 인가 구조 적용 시 create 메서드에 관리자 권한 검증 적용 예정
-    validateAdmin(requesterRole);
 
     Content content = new Content(
         null,
@@ -167,15 +166,6 @@ public class ContentService {
     log.debug("콘텐츠 단건 조회 처리 완료: contentId={}", contentId);
 
     return response;
-  }
-
-  private void validateAdmin(Role requesterRole) {
-    if (requesterRole != Role.ADMIN) {
-      log.warn("콘텐츠 생성 실패: 관리자 권한 없음. requesterRole={}", requesterRole);
-      throw new ContentException(ContentErrorCode.CONTENT_CREATE_FORBIDDEN, Map.of(
-          "requesterRole", requesterRole == null ? "null" : requesterRole.name()
-      ));
-    }
   }
 
   private BinaryContent createContentImage(Content content, MultipartFile thumbnail) {
