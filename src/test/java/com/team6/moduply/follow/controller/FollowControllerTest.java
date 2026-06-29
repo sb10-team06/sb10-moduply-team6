@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -101,6 +102,29 @@ class FollowControllerTest {
         .andExpect(status().isNoContent());
 
     verify(followService).cancelFollow(followId, followerId);
+  }
+
+  @Test
+  @DisplayName("특정 유저를 내가 팔로우하는지 조회하면 인증 사용자 ID를 서비스에 전달하고 200을 반환한다.")
+  void isFollowedByMe_success_with_authenticated_principal() throws Exception {
+    // given
+    UUID followId = UUID.randomUUID();
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+    FollowDto response = new FollowDto(followId, followerId, followeeId);
+
+    given(followService.isFollowedByMe(eq(followeeId), eq(followerId))).willReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/api/follows/followed-by-me")
+            .with(user(userDetails(followerId)))
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(followId.toString()))
+        .andExpect(jsonPath("$.followerId").value(followerId.toString()))
+        .andExpect(jsonPath("$.followeeId").value(followeeId.toString()));
+
+    verify(followService).isFollowedByMe(followeeId, followerId);
   }
 
   private ModuPlyUserDetails userDetails(UUID userId) {
