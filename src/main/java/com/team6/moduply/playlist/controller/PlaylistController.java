@@ -1,5 +1,6 @@
 package com.team6.moduply.playlist.controller;
 
+import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -33,29 +35,29 @@ public class PlaylistController {
   @PostMapping
   @Operation(summary = "플레이리스트 생성", description = "새로운 플레이리스트를 생성합니다.")
   public ResponseEntity<PlaylistDto> createPlaylist(
-      @RequestBody @Valid PlaylistCreateRequest request) {
-    // TODO: 인증 담당자 작업 완료 후 ownerId 교체 필요
-    UUID tempOwnerId = UUID.randomUUID();
-    return ResponseEntity.status(201).body(playlistService.create(request, tempOwnerId));
+      @RequestBody @Valid PlaylistCreateRequest request,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
+    UUID ownerId = userDetails.getUserDto().getId();
+    return ResponseEntity.status(201).body(playlistService.create(request, ownerId));
   }
 
   @PatchMapping("/{playlistId}")
   @Operation(summary = "플레이리스트 수정", description = "플레이리스트 제목, 설명을 수정합니다.")
   public ResponseEntity<PlaylistDto> updatePlaylist(
       @PathVariable UUID playlistId,
-      @RequestBody @Valid PlaylistUpdateRequest request) {
-    // TODO: 인증 담당자 작업 완료 후 @AuthenticationPrincipal로 ownerId 교체 필요
-    UUID tempOwnerId = UUID.randomUUID();
-    return ResponseEntity.ok(playlistService.update(playlistId, request, tempOwnerId));
+      @RequestBody @Valid PlaylistUpdateRequest request,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
+    UUID ownerId = userDetails.getUserDto().getId();
+    return ResponseEntity.ok(playlistService.update(playlistId, request, ownerId));
   }
 
   @DeleteMapping("/{playlistId}")
   @Operation(summary = "플레이리스트 삭제", description = "플레이리스트를 삭제합니다.")
   public ResponseEntity<Void> deletePlaylist(
-      @PathVariable UUID playlistId) {
-    // TODO: 인증 담당자 작업 완료 후 @AuthenticationPrincipal로 ownerId 교체 필요
-    UUID tempOwnerId = UUID.randomUUID();
-    playlistService.delete(playlistId, tempOwnerId);
+      @PathVariable UUID playlistId,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
+    UUID ownerId = userDetails.getUserDto().getId();
+    playlistService.delete(playlistId, ownerId);
     return ResponseEntity.noContent().build();
   }
 
@@ -77,21 +79,21 @@ public class PlaylistController {
   @Operation(summary = "플레이리스트 콘텐츠 추가", description = "플레이리스트에 콘텐츠를 추가합니다.")
   public ResponseEntity<Void> addContent(
       @PathVariable UUID playlistId,
-      @PathVariable UUID contentId) {
-    // TODO: 인증 담당자 작업 완료 후 @AuthenticationPrincipal로 ownerId 교체 필요
-    UUID tempOwnerId = UUID.randomUUID();
-    playlistService.addContent(playlistId, contentId, tempOwnerId);
-    return ResponseEntity.status(201).build();
+      @PathVariable UUID contentId,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
+  UUID ownerId = userDetails.getUserDto().getId();
+  playlistService.addContent(playlistId, contentId, ownerId);
+  return ResponseEntity.status(201).build();
   }
 
   @DeleteMapping("/{playlistId}/contents/{contentId}")
   @Operation(summary = "플레이리스트 콘텐츠 삭제", description = "플레이리스트에서 콘텐츠를 삭제합니다.")
   public ResponseEntity<Void> removeContent(
       @PathVariable UUID playlistId,
-      @PathVariable UUID contentId) {
-    // TODO: 인증 담당자 작업 완료 후 @AuthenticationPrincipal로 ownerId 교체 필요
-    UUID tempOwnerId = UUID.randomUUID();
-    playlistService.removeContent(playlistId, contentId, tempOwnerId);
+      @PathVariable UUID contentId,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails){
+    UUID ownerId = userDetails.getUserDto().getId();
+    playlistService.removeContent(playlistId, contentId, ownerId);
     return ResponseEntity.noContent().build();
   }
 
