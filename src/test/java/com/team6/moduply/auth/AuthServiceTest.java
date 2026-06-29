@@ -93,6 +93,7 @@ class AuthServiceTest {
         .extracting("authority")
         .containsExactly("ROLE_USER");
 
+    verify(roleHierarchy).getReachableGrantedAuthorities(anyCollection());
     verify(userRepository).findById(userId);
     verify(userMapper).toDto(user);
   }
