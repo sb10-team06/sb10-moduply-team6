@@ -156,6 +156,102 @@ class FollowControllerSecurityTest {
     verify(followService).cancelFollow(followId, followerId);
   }
 
+  /// CSRF가 아예 안오는 경우
+  /// Cookie: XSRF-TOKEN, 헤더: XSRF-TOKEN 둘다 없음.
+  @Test
+  @DisplayName("유효한 JWT라도 CSRF 토큰 없이 팔로우 생성 요청을 보내면 403을 반환한다.")
+  void createFollow_fail_without_csrf_token() throws Exception {
+    // given
+    String token = "access-token";
+    UUID followerId = UUID.randomUUID();
+    FollowRequest request = new FollowRequest(UUID.randomUUID());
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtAuthenticationService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+
+    // when & then
+    // CSRF 토큰 없이 요청을 보냄
+    mockMvc.perform(post("/api/follows")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            // 기대: 403반환
+        .andExpect(status().isForbidden());
+
+    verify(followService, never()).createFollow(any(), any());
+  }
+
+  @Test
+  @DisplayName("유효한 JWT라도 잘못된 CSRF 토큰으로 팔로우 생성 요청을 보내면 403을 반환한다.")
+  void createFollow_fail_with_invalid_csrf_token() throws Exception {
+    // given
+    String token = "access-token";
+    UUID followerId = UUID.randomUUID();
+    FollowRequest request = new FollowRequest(UUID.randomUUID());
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtAuthenticationService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+
+    // when & then
+    mockMvc.perform(post("/api/follows")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            // 일부러 불일치 하는 토큰을 보낸다.
+            // Cookie와 헤더가 서로 다르게 만들어진다.
+            .with(csrf().useInvalidToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden());
+
+    verify(followService, never()).createFollow(any(), any());
+  }
+
+  @Test
+  @DisplayName("유효한 JWT라도 CSRF 토큰 없이 팔로우 취소 요청을 보내면 403을 반환한다.")
+  void cancelFollow_fail_without_csrf_token() throws Exception {
+    // given
+    String token = "access-token";
+    UUID followId = UUID.randomUUID();
+    UUID followerId = UUID.randomUUID();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtAuthenticationService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+
+    // when & then
+    mockMvc.perform(delete("/api/follows/{followId}", followId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        .andExpect(status().isForbidden());
+
+    verify(followService, never()).cancelFollow(any(), any());
+  }
+
+  @Test
+  @DisplayName("유효한 JWT라도 잘못된 CSRF 토큰으로 팔로우 취소 요청을 보내면 403을 반환한다.")
+  void cancelFollow_fail_with_invalid_csrf_token() throws Exception {
+    // given
+    String token = "access-token";
+    UUID followId = UUID.randomUUID();
+    UUID followerId = UUID.randomUUID();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtAuthenticationService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+
+    // when & then
+    mockMvc.perform(delete("/api/follows/{followId}", followId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .with(csrf().useInvalidToken()))
+        .andExpect(status().isForbidden());
+
+    verify(followService, never()).cancelFollow(any(), any());
+  }
+
   private Authentication authentication(UUID userId) {
     ModuPlyUserDetails userDetails = userDetails(userId);
     return new UsernamePasswordAuthenticationToken(
