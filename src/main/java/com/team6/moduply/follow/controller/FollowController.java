@@ -1,5 +1,6 @@
 package com.team6.moduply.follow.controller;
 
+import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.follow.dto.FollowDto;
 import com.team6.moduply.follow.dto.FollowRequest;
 import com.team6.moduply.follow.service.FollowService;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,9 +27,9 @@ public class FollowController implements FollowApi {
   @Override
   public ResponseEntity<FollowDto> createFollow(
       @RequestBody @Valid FollowRequest request,
-      @RequestHeader("Monew-Request-User-Id") UUID followerId
+      @AuthenticationPrincipal(expression = "userDto.id") UUID followerId
   ) {
-    // TODO: 현재 임시 요청 헤더를 사용 중이므로, 추후 JWT에서 사용자 ID를 추출하도록 변경한다.
+
     return ResponseEntity.status(HttpStatus.CREATED).body(followService.createFollow(request, followerId));
   }
 }
