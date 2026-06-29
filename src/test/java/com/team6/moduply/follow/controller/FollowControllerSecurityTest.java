@@ -101,7 +101,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
     given(followService.isFollowedByMe(eq(followeeId), eq(followerId))).willReturn(response);
 
