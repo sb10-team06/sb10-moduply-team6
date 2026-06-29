@@ -23,7 +23,6 @@ import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.service.ContentService;
-import com.team6.moduply.user.enums.Role;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +95,7 @@ class ContentControllerTest {
         "thumbnail".getBytes()
     );
 
-    given(contentService.create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
+    given(contentService.create(any(ContentCreateRequest.class), any()))
         .willReturn(response);
 
     // When & Then
@@ -116,7 +115,7 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.reviewCount").value(0))
         .andExpect(jsonPath("$.watcherCount").value(0));
 
-    verify(contentService).create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
+    verify(contentService).create(any(ContentCreateRequest.class), any());
   }
 
   @Test
@@ -142,7 +141,7 @@ class ContentControllerTest {
         "thumbnail".getBytes()
     );
 
-    given(contentService.create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN)))
+    given(contentService.create(any(ContentCreateRequest.class), any()))
         .willThrow(new BinaryContentException(
             BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE,
             Map.of("contentType", MediaType.IMAGE_GIF_VALUE)
@@ -157,7 +156,7 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.exceptionType").value("BinaryContentException"))
         .andExpect(jsonPath("$.message").value(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE.getMessage()));
 
-    verify(contentService).create(any(ContentCreateRequest.class), any(), eq(Role.ADMIN));
+    verify(contentService).create(any(ContentCreateRequest.class), any());
   }
 
   @Test
@@ -192,7 +191,6 @@ class ContentControllerTest {
 
     verify(contentService, never()).create(
         any(ContentCreateRequest.class),
-        any(),
         any()
     );
   }
