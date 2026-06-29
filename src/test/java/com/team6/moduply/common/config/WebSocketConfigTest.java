@@ -8,6 +8,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetailsService;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
 import java.util.List;
@@ -49,8 +50,9 @@ class WebSocketConfigTest {
 
   private WebSocketStompClient stompClient;
   private String webSocketUrl;
-  private String accessToken;
-  private String refreshToken;
+  private String userAccessToken;
+  private String userRefreshToken;
+  private String adminAccessToken;
 
   @Autowired
   private UserService userService;
@@ -86,20 +88,74 @@ class WebSocketConfigTest {
     assertThat(moduPlyUserDetails).isNotNull();
     Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
         moduPlyUserDetails.getAuthorities());
-    accessToken = jwtTokenProvider.generateAccessToken(authentication);
-    refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+    adminAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+
+    //admin
+    userService.createUser(
+        new UserCreateRequest("admin", "admin@test.com", "test1234!"));
+    User adminUser = userRepository.findByEmail("test@test.com").orElse(null);
+    assertThat(adminUser).isNotNull();
+    adminUser.updateRole(Role.ADMIN);
+    ModuPlyUserDetails adminDetails = moduPlyUserDetailsService.loadUserByUsername(
+        adminUser.getEmail());
+    assertThat(adminDetails).isNotNull();
+    Authentication adminAuth = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
+        adminDetails.getAuthorities());
+    userAccessToken = jwtTokenProvider.generateAccessToken(adminAuth);
+    userRefreshToken = jwtTokenProvider.generateRefreshToken(adminAuth);
   }
 
   @Test
-  @DisplayName("유효한 토큰으로 웹소켓 핸드쉐이크 및 STOMP 연결을 성공한다.")
-  void connect_success_websocket_with_access_token() throws Exception {
+  @DisplayName("유효한 토큰으로 웹소켓 핸드쉐이크 및 STOMP 연결을 성공한다.(User 권한)")
+  void connect_success_websocket_with_access_token_user() throws Exception {
     // given
     // 비동기 작업의 결과를 완료 처리하기 위한 객체 (테스트 쓰레드 대기용)
     CompletableFuture<StompSession> completableFuture = new CompletableFuture<>();
 
     // 허용한 오리진(STOMP 혜더)
     StompHeaders stompHeaders = new StompHeaders();
-    stompHeaders.add("Authorization", "Bearer " + accessToken);
+    stompHeaders.add("Authorization", "Bearer " + userAccessToken);
+    stompHeaders.add("Origin", "http://localhost");
+    // HTTP 헤더
+    WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
+    webSocketHttpHeaders.add("Origin", "http://localhost");
+
+    // when
+    // 엔드포인트 연결 요청
+    stompClient.connectAsync(
+        webSocketUrl,
+        webSocketHttpHeaders,
+        stompHeaders,
+        new StompSessionHandlerAdapter() {
+          @Override
+          public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
+            // 연결 성공 시 세션 저장 후 완료
+            completableFuture.complete(session);
+          }
+        }
+    );
+
+    // then
+    // 3초 대기
+    StompSession stompSession = completableFuture.get(3, TimeUnit.SECONDS);
+
+    assertThat(stompSession).isNotNull();
+    assertThat(stompSession.isConnected()).isTrue();
+
+    // 커넥션 세션 종료
+    stompSession.disconnect();
+  }
+
+  @Test
+  @DisplayName("유효한 토큰으로 웹소켓 핸드쉐이크 및 STOMP 연결을 성공한다.(Admin 권한)")
+  void connect_success_websocket_with_access_token_admin() throws Exception {
+    // given
+    // 비동기 작업의 결과를 완료 처리하기 위한 객체 (테스트 쓰레드 대기용)
+    CompletableFuture<StompSession> completableFuture = new CompletableFuture<>();
+
+    // 허용한 오리진(STOMP 혜더)
+    StompHeaders stompHeaders = new StompHeaders();
+    stompHeaders.add("Authorization", "Bearer " + adminAccessToken);
     stompHeaders.add("Origin", "http://localhost");
     // HTTP 헤더
     WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
@@ -141,7 +197,7 @@ class WebSocketConfigTest {
     // 허용한 오리진(STOMP 혜더)
     StompHeaders stompHeaders = new StompHeaders();
     // 잘못된 토큰(리프레시토큰으로 접근)
-    stompHeaders.add("Authorization", "Bearer " + refreshToken);
+    stompHeaders.add("Authorization", "Bearer " + userRefreshToken);
     stompHeaders.add("Origin", "http://localhost");
     // HTTP 헤더
     WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
@@ -205,7 +261,7 @@ class WebSocketConfigTest {
 
     // 허용하지 않은 오리진(STOMP 혜더)
     StompHeaders stompHeaders = new StompHeaders();
-    stompHeaders.add("Authorization", "Bearer " + accessToken);
+    stompHeaders.add("Authorization", "Bearer " + userAccessToken);
     stompHeaders.add("Origin", "http://wronghost");
     // HTTP 헤더
     WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
