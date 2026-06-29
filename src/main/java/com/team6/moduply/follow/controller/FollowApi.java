@@ -103,6 +103,14 @@ public interface FollowApi {
           )
       ),
       @ApiResponse(
+          responseCode = "404",
+          description = "팔로우 정보를 찾을 수 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
           responseCode = "400",
           description = "잘못된 요청",
           content = @Content(
