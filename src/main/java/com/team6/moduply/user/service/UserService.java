@@ -123,4 +123,17 @@ public class UserService {
 
     return userMapper.toDto(user, presignedUrl);
   }
+
+  @Transactional
+  @PreAuthorize("hasRole('ADMIN')")
+  public void lockUser(UUID userId) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+            "userId", userId
+        )));
+
+    user.updateBlocked(true);
+
+
+  }
 }
