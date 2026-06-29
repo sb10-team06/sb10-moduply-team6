@@ -160,6 +160,26 @@ class PlaylistControllerTest {
   }
 
   @Test
+  @DisplayName("다른 사용자의 플레이리스트를 수정하면 403을 반환한다.")
+  void updatePlaylist_fail_with_forbidden() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+
+    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID)))
+        .willThrow(new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_FORBIDDEN,
+            Map.of("playlistId", playlistId)
+        ));
+
+    mockMvc.perform(patch("/api/playlists/" + playlistId)
+            .with(user(createUserDetails()))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                new PlaylistUpdateRequest("제목", "설명"))))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
   @DisplayName("플레이리스트를 삭제하면 204를 반환한다.")
   void deletePlaylist_success() throws Exception {
     // given
@@ -181,6 +201,22 @@ class PlaylistControllerTest {
     mockMvc.perform(delete("/api/playlists/" + playlistId)
             .with(csrf()))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("다른 사용자의 플레이리스트를 삭제하면 403을 반환한다.")
+  void deletePlaylist_fail_with_forbidden() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_FORBIDDEN,
+        Map.of("playlistId", playlistId)
+    )).when(playlistService).delete(eq(playlistId), eq(TEST_OWNER_ID));
+
+    mockMvc.perform(delete("/api/playlists/" + playlistId)
+            .with(user(createUserDetails()))
+            .with(csrf()))
+        .andExpect(status().isForbidden());
   }
 
   @Test
@@ -273,6 +309,23 @@ class PlaylistControllerTest {
   }
 
   @Test
+  @DisplayName("다른 사용자의 플레이리스트에 콘텐츠를 추가하면 403을 반환한다.")
+  void addContent_fail_with_forbidden() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_FORBIDDEN,
+        Map.of("playlistId", playlistId)
+    )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
+
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user(createUserDetails()))
+            .with(csrf()))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
   @DisplayName("플레이리스트에서 콘텐츠를 삭제하면 204를 반환한다.")
   void removeContent_success() throws Exception {
     // given
@@ -353,5 +406,22 @@ class PlaylistControllerTest {
             .with(user(createUserDetails()))
             .with(csrf()))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("다른 사용자의 플레이리스트에서 콘텐츠를 삭제하면 403을 반환한다.")
+  void removeContent_fail_with_forbidden() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_FORBIDDEN,
+        Map.of("playlistId", playlistId)
+    )).when(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
+
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
+            .with(user(createUserDetails()))
+            .with(csrf()))
+        .andExpect(status().isForbidden());
   }
 }
