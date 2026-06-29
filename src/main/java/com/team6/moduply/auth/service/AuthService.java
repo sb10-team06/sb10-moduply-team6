@@ -6,7 +6,6 @@ import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
-import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
@@ -14,13 +13,14 @@ import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,9 +30,7 @@ public class AuthService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
-  private final RedisUtil redisUtil;
   private final TempPasswordUtil tempPasswordUtil;
-  private final PasswordEncoder passwordEncoder;
 
   @Transactional(readOnly = true)
   public Authentication getAuthentication(UUID userId) {
@@ -66,13 +64,10 @@ public class AuthService {
 
     // 임시 비밀번호 생성
     String tempPassword = tempPasswordUtil.generate(8);
-    String encodedTempPassword = passwordEncoder.encode(tempPassword);
-
-    // redis에 인코딩된 임시 비밀번호를 만료시간과 함께 저장
-    String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(email);
-    redisUtil.setDateExpire(redisKey, encodedTempPassword, RedisKeyPolicy.PASSWORD_RESET.getTtl());
+    Duration ttl = RedisKeyPolicy.PASSWORD_RESET.getTtl();
+    Instant expiresAt = Instant.now().plus(ttl);
 
     // 이메일로 발송
-    applicationEventPublisher.publishEvent(new EmailEvent(email, tempPassword));
+    applicationEventPublisher.publishEvent(new EmailEvent(email, tempPassword, expiresAt));
   }
 }

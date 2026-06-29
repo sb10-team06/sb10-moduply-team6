@@ -1,15 +1,19 @@
 package com.team6.moduply.auth.event.listener;
 
 import com.team6.moduply.auth.event.EmailEvent;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import jakarta.mail.internet.MimeMessage;
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.slf4j.MDC;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -19,12 +23,15 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class EmailEventListener {
   private final JavaMailSender mailSender;
+  private final RedisUtil redisUtil;
+  private final PasswordEncoder passwordEncoder;
 
   @Async
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handlePasswordResetEvent(EmailEvent event) {
-    log.info("[비동기 메일 발송 시작] 수신자: {}", event.getEmail());
-
+    String email = event.getEmail();
+    log.info("[비동기 메일 발송 시작] 수신자: {}", email);
+    String requestId = MDC.get("requestId");
     try {
       // HTML 메일을 보내기 위해 MimeMessage를 생성
       MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -32,11 +39,18 @@ public class EmailEventListener {
       // MimeMessageHelper를 사용하면 멀티파트 및 인코딩 설정을 편하게 할 수 있음.
       MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
 
-      // 현재 시간 기준으로 정확히 3분 뒤의 만료 시간을 포맷에 맞게 계산
-      String expiredTime = LocalDateTime.now().plusMinutes(3)
-          .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+      // redis의 키값과 만료시각, 인코딩된 비밀번호
+      String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(email);
+      Duration ttl = RedisKeyPolicy.PASSWORD_RESET.getTtl();
+      String encodedTempPassword = passwordEncoder.encode(event.getTempPassword());
 
-      helper.setTo(event.getEmail());
+      // 발급 요청 시점 기준 만료 시간을 메일 표시 형식으로 변환한다.
+      String expiredTime = DateTimeFormatter
+          .ofPattern("yyyy-MM-dd HH:mm:ss")
+          .withZone(ZoneId.of("Asia/Seoul"))
+          .format(event.getExpiresAt());
+
+      helper.setTo(email);
       helper.setSubject("[모두의 플리] 요청하신 임시 비밀번호가 발급되었습니다.");
 
       // 🎨 보내주신 요구사항 디자인을 그대로 HTML/CSS로 재현한 템플릿입니다.
@@ -80,10 +94,14 @@ public class EmailEventListener {
       helper.setText(htmlContent, true);
 
       mailSender.send(mimeMessage);
-      log.info("[비동기 메일 발송 성공] 수신자: {}", event.getEmail());
+
+      // 이메일 발송 후 redis에 인코딩된 임시비밀번호, 만료시간 저장
+      redisUtil.setDateExpire(redisKey, encodedTempPassword, ttl);
+
+      log.info("[비동기 메일 발송 성공] 요청 Id = {}", requestId);
 
     } catch (Exception e) {
-      log.error("[비동기 메일 발송 실패] 수신자: {}, 원인: {}", event.getEmail(), e.getMessage());
+      log.error("[비동기 메일 발송 실패] 요청 Id = {}, 원인: {}", requestId, e.getMessage());
     }
   }
 

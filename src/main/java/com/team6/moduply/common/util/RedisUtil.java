@@ -49,7 +49,7 @@ public class RedisUtil {
   @Recover
   public String recoverGetData(DataAccessException e, String key) {
     log.warn("Redis 조회 재시도 실패. key={}", key, e);
-    throw e;
+    return null;
   }
 
   @Retryable(
