@@ -22,7 +22,8 @@ public class AsyncConfig {
     return executor;
   }
 
-  //TODO: 비동기 스레드에서도 requestId와 로그인 사용자 정보를 유지 설정 필요
+  // TODO: @Async 스레드에서도 MDC(requestId 등)와 로그인 사용자 정보가 유지되도록
+  //  TaskDecorator를 추가해 부모 스레드의 컨텍스트를 복사/정리하는 설정 필요
 
   //TODO: 스레드 풀 상태를 Actuator/Micrometer로 모니터링하는 설정 필요
 }

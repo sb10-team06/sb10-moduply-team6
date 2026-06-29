@@ -30,6 +30,8 @@ public class EmailEventListener {
   @Async(AsyncConfig.TEMP_PASSWORD_MAIL_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handlePasswordResetEvent(TempPasswordEvent event) {
+    // TODO: @Async + AFTER_COMMIT 이벤트는 재시작/배포 시 유실될 수 있으므로 실패 전파 정책과
+    //  outbox 또는 내구성 있는 큐 기반 처리로 전환하는 방안을 검토한다.
     String email = event.getEmail();
     log.info("[비동기 메일 발송 시작] 수신자: {}", email);
     String requestId = MDC.get("requestId");
