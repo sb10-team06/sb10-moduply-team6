@@ -2,12 +2,14 @@ package com.team6.moduply.user.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.event.PasswordChangeEvent;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,6 +36,7 @@ public class UserService {
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
   private final BinaryContentService binaryContentService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -122,6 +126,20 @@ public class UserService {
     }
 
     return userMapper.toDto(user, presignedUrl);
+  }
+
+  @Transactional
+  @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
+  public void updateUserPassword(UUID userId, ChangePasswordRequest request){
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+            "userId", userId
+        )));
+
+    String newEncodedPassword = passwordEncoder.encode(request.getNewPassword());
+    user.updateEncodedPassword(newEncodedPassword);
+
+    applicationEventPublisher.publishEvent(new PasswordChangeEvent(user.getEmail()));
   }
 
   @Transactional
