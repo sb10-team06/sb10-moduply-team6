@@ -6,7 +6,7 @@ import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
-import com.team6.moduply.binarycontent.s3.S3BinaryContentStorage;
+import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +45,7 @@ public class BinaryContentService {
       "image/webp"
   );
 
-  private final S3BinaryContentStorage s3BinaryContentStorage;
+  private final BinaryContentStorage binaryContentStorage;
   private final BinaryContentRepository binaryContentRepository;
 
   private final ApplicationEventPublisher eventPublisher;
@@ -248,7 +248,7 @@ public class BinaryContentService {
       return null;
     }
 
-    return s3BinaryContentStorage.generatePresignedUrl(
+    return binaryContentStorage.generateUrl(
             binaryContent.getStorageKey(),
             binaryContent.getContentType()
     );

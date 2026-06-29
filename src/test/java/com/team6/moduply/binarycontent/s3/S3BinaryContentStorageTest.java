@@ -95,4 +95,5 @@ class S3BinaryContentStorageTest {
     // 실패하더라도 S3 업로드 요청 자체는 한 번 시도되어야 한다.
     verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
   }
+
 }

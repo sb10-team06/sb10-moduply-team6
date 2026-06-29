@@ -1,6 +1,7 @@
 package com.team6.moduply.binarycontent.s3;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 /// S3Client: AWS와 통신하는 객체.
 @Configuration
 @EnableConfigurationProperties(S3Properties.class)
+@ConditionalOnProperty(name = "moduply.storage.type", havingValue = "s3", matchIfMissing = true)
 public class S3Config {
 
     /// application.yml에서 주입받은 AWS 값들

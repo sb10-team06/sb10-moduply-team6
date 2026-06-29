@@ -4,8 +4,8 @@ import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
-import com.team6.moduply.binarycontent.s3.S3BinaryContentStorage;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -22,7 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BinaryContentStorageEventListener {
 
-    private final S3BinaryContentStorage s3BinaryContentStorage;
+    private final BinaryContentStorage binaryContentStorage;
     private final BinaryContentService binaryContentService;
     private final BinaryContentRepository binaryContentRepository;
 
@@ -38,8 +38,8 @@ public class BinaryContentStorageEventListener {
                             BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
                             Map.of("binaryContentId", binaryContentId.toString())));
 
-            /// S3 업로드
-            s3BinaryContentStorage.upload(
+            /// 실제 파일 저장소 업로드
+            binaryContentStorage.upload(
                     binaryContent.getStorageKey(),
                     event.getBytes(),
                     binaryContent.getContentType()
@@ -49,7 +49,7 @@ public class BinaryContentStorageEventListener {
             binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, event.getOldBinaryContentId(), event.getOldStorageKey());
 
         } catch (Exception e) {
-            log.error("S3 업로드 실패. binaryContentId={}", binaryContentId, e);
+            log.error("BinaryContent 업로드 실패. binaryContentId={}", binaryContentId, e);
             try {
                 /// binaryContent 상태 FAIL로 업데이트
                 binaryContentService.updatesStatusFail(binaryContentId);
@@ -67,8 +67,7 @@ public class BinaryContentStorageEventListener {
         String storageKey = event.getStorageKey();
 
         try {
-            // S3에서 삭제
-            s3BinaryContentStorage.delete(event.getStorageKey());
+            binaryContentStorage.delete(event.getStorageKey());
         } catch (Exception e) {
             try {
                 binaryContentService.updatesStatusFail(event.getBinaryContentId());

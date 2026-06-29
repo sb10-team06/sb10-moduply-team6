@@ -2,8 +2,10 @@ package com.team6.moduply.binarycontent.s3;
 
 import com.team6.moduply.binarycontent.s3.exception.S3ErrorCode;
 import com.team6.moduply.binarycontent.s3.exception.S3StorageException;
+import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
@@ -23,7 +25,8 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class S3BinaryContentStorage {
+@ConditionalOnProperty(name = "moduply.storage.type", havingValue = "s3", matchIfMissing = true)
+public class S3BinaryContentStorage implements BinaryContentStorage {
     private final S3Client s3Client;
     private final S3Properties properties;
     private final S3Presigner s3Presigner;
@@ -47,6 +50,7 @@ public class S3BinaryContentStorage {
             /// 1차 실패후 1초대기, 2차 실패후 2초 대기.
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
+    @Override
     public String upload(String key, byte[] bytes, String contentType) {
         try {
             PutObjectRequest request = PutObjectRequest.builder()
@@ -83,7 +87,8 @@ public class S3BinaryContentStorage {
 
     /// 비공개 bucket의 경우 presigner 필요.
     /// Presigner를 이용해서 특정 S3 객체에 접근 가능한 임시 URL 생성
-    public String generatePresignedUrl(String key, String contentType) {
+    @Override
+    public String generateUrl(String key, String contentType) {
         // S3Presigner 생성
 
             // S3객체를 다운로드/조회하는 요청만들기
@@ -117,6 +122,7 @@ public class S3BinaryContentStorage {
             /// 1차 실패후 1초대기, 2차 실패후 2초 대기.
             backoff = @Backoff(delay = 1000, multiplier = 2)
     )
+    @Override
     public String delete(String key) {
         try {
             // bucket명과 key로 이미지 삭제.

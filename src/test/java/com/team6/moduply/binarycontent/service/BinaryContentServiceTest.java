@@ -16,7 +16,7 @@ import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
-import com.team6.moduply.binarycontent.s3.S3BinaryContentStorage;
+import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -37,7 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 class BinaryContentServiceTest {
 
   @Mock
-  private S3BinaryContentStorage s3BinaryContentStorage;
+  private BinaryContentStorage binaryContentStorage;
 
   @Mock
   private BinaryContentRepository binaryContentRepository;
@@ -358,18 +358,18 @@ class BinaryContentServiceTest {
   }
 
   @Test
-  @DisplayName("BinaryContent가 null이면 presigned URL을 생성하지 않고 null을 반환한다.")
+  @DisplayName("BinaryContent가 null이면 URL을 생성하지 않고 null을 반환한다.")
   void generateUrl_return_null_when_binary_content_is_null() {
     // when
     String result = binaryContentService.generateUrl(null);
 
     // then
     assertThat(result).isNull();
-    verify(s3BinaryContentStorage, never()).generatePresignedUrl(any(String.class), any(String.class));
+    verify(binaryContentStorage, never()).generateUrl(any(String.class), any(String.class));
   }
 
   @Test
-  @DisplayName("BinaryContent가 있으면 storageKey와 contentType으로 presigned URL을 생성한다.")
+  @DisplayName("BinaryContent가 있으면 storageKey와 contentType으로 URL을 생성한다.")
   void generateUrl_success() {
     // given
     BinaryContent binaryContent = BinaryContent.create(
@@ -378,7 +378,7 @@ class BinaryContentServiceTest {
         "image/png",
         "users/user-id/profile/profile.png"
     );
-    given(s3BinaryContentStorage.generatePresignedUrl(
+    given(binaryContentStorage.generateUrl(
         eq("users/user-id/profile/profile.png"),
         eq("image/png")
     )).willReturn("https://example.com/profile.png");
@@ -388,7 +388,7 @@ class BinaryContentServiceTest {
 
     // then
     assertThat(result).isEqualTo("https://example.com/profile.png");
-    verify(s3BinaryContentStorage).generatePresignedUrl(
+    verify(binaryContentStorage).generateUrl(
         "users/user-id/profile/profile.png",
         "image/png"
     );
