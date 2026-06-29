@@ -166,6 +166,38 @@ class WebSocketConfigTest {
     assertThat(throwable.getCause().getMessage()).contains("Connection closed");
   }
 
+  @Test
+  @DisplayName("토큰없이 웹소켓 핸드쉐이크 및 STOMP 연결을 실패한다.")
+  void connect_fail_websocket_without_access_token() throws Exception {
+    // given
+    // 비동기 작업의 결과를 완료 처리하기 위한 객체 (테스트 쓰레드 대기용)
+    CompletableFuture<StompSession> completableFuture = new CompletableFuture<>();
+
+    // 허용한 오리진(STOMP 혜더)
+    StompHeaders stompHeaders = new StompHeaders();
+    stompHeaders.add("Origin", "http://localhost");
+    // HTTP 헤더
+    WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
+    webSocketHttpHeaders.add("Origin", "http://localhost");
+
+    // when
+    // 엔드포인트 연결 요청
+    Future<StompSession> connectionFuture = stompClient.connectAsync(
+        webSocketUrl,
+        webSocketHttpHeaders,
+        stompHeaders,
+        new StompSessionHandlerAdapter() {
+        }
+    );
+
+    // then
+    // 3초 대기
+    Throwable throwable = assertThrows(
+        ExecutionException.class,
+        () -> connectionFuture.get(3, TimeUnit.SECONDS));
+    assertThat(throwable.getCause().getMessage()).contains("Connection closed");
+  }
+
 
   @Test
   @DisplayName("허용하지 않은 오리진으로 웹소켓 연결 요청이 금지된다.")
