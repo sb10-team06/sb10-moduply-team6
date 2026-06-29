@@ -2,7 +2,15 @@ package com.team6.moduply.watching.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.auth.userdetails.ModuPlyUserDetailsService;
 import com.team6.moduply.config.support.IntegrationTestSupport;
+import com.team6.moduply.user.dto.UserCreateRequest;
+import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.repository.UserRepository;
+import com.team6.moduply.user.service.UserService;
 import com.team6.moduply.watching.model.WatchingSession;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.lang.reflect.Type;
@@ -21,6 +29,8 @@ import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSession.Subscription;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
@@ -38,19 +48,44 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
 
   private WebSocketStompClient stompClient;
   private String webSocketUrl;
+  private String accessToken;
+  private UUID userId;
 
   @Autowired
   private WatchingSessionRepository watchingSessionRepository;
-
-  private final UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  @Autowired
+  private UserService userService;
+  @Autowired
+  private UserRepository userRepository;
+  @Autowired
+  private JwtTokenProvider jwtTokenProvider;
+  @Autowired
+  private ModuPlyUserDetailsService moduPlyUserDetailsService;
 
   @BeforeEach
   void setUp() {
+    userRepository.deleteAll();
+
+    // websocket 설정
     this.webSocketUrl = "http://localhost:" + port + "/ws";
     java.util.List<Transport> transports = java.util.List.of(
         new WebSocketTransport(new StandardWebSocketClient()));
     SockJsClient sockJsClient = new SockJsClient(transports);
     this.stompClient = new WebSocketStompClient(sockJsClient);
+
+    // user 설정
+    // user 인증 정보 설정
+    UserDto testUserDto = userService.createUser(
+        new UserCreateRequest("test", "test@test.com", "test1234!"));
+    User testUser = userRepository.findByEmail("test@test.com").orElse(null);
+    assertThat(testUser).isNotNull();
+    ModuPlyUserDetails moduPlyUserDetails = moduPlyUserDetailsService.loadUserByUsername(
+        testUser.getEmail());
+    assertThat(moduPlyUserDetails).isNotNull();
+    Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
+        moduPlyUserDetails.getAuthorities());
+    accessToken = jwtTokenProvider.generateAccessToken(authentication);
+    userId = testUser.getId();
   }
 
   @Test
@@ -147,7 +182,7 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     // Bearer 헤더를 주입
     StompHeaders stompHeaders = new StompHeaders();
     stompHeaders.add("Origin", "http://localhost");
-    stompHeaders.add("Authorization", "Bearer " + userId.toString());
+    stompHeaders.add("Authorization", "Bearer " + accessToken);
 
     WebSocketHttpHeaders webSocketHttpHeaders = new WebSocketHttpHeaders();
     webSocketHttpHeaders.add("Origin", "http://localhost");
