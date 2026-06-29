@@ -11,12 +11,14 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.event.PasswordChangeEvent;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
@@ -32,8 +34,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -50,6 +54,9 @@ public class UserServiceTest {
 
   @Mock
   private BinaryContentService binaryContentService;
+
+  @Mock
+  private ApplicationEventPublisher applicationEventPublisher;
 
   @InjectMocks
   private UserService userService;
@@ -339,6 +346,59 @@ public class UserServiceTest {
     verify(binaryContentService, never())
         .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
     verify(userMapper, never()).toDto(any(User.class), any());
+  }
+
+  @Test
+  @DisplayName("비밀번호 변경 성공 시 새 비밀번호를 인코딩하고 비밀번호 변경 이벤트를 발행한다")
+  public void update_user_password_success() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    ChangePasswordRequest request = changePasswordRequest("newPassword1!");
+    User user = new User("test@example.com", "old-encoded-password", "tester", Role.USER);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(passwordEncoder.encode(request.getNewPassword())).willReturn("new-encoded-password");
+
+    // When
+    userService.updateUserPassword(userId, request);
+
+    // Then
+    assertThat(user.getEncodedPassword()).isEqualTo("new-encoded-password");
+
+    verify(userRepository).findById(userId);
+    verify(passwordEncoder).encode(request.getNewPassword());
+
+    ArgumentCaptor<PasswordChangeEvent> eventCaptor =
+        ArgumentCaptor.forClass(PasswordChangeEvent.class);
+    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().getEmail()).isEqualTo(user.getEmail());
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 사용자이면 비밀번호 변경 실패")
+  public void update_user_password_fail_when_user_not_found() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    ChangePasswordRequest request = changePasswordRequest("newPassword1!");
+
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUserPassword(userId, request))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
+        });
+
+    verify(userRepository).findById(userId);
+    verify(passwordEncoder, never()).encode(anyString());
+    verify(applicationEventPublisher, never()).publishEvent(any());
+  }
+
+  private ChangePasswordRequest changePasswordRequest(String newPassword) {
+    ChangePasswordRequest request = new ChangePasswordRequest();
+    ReflectionTestUtils.setField(request, "newPassword", newPassword);
+    return request;
   }
 
 }

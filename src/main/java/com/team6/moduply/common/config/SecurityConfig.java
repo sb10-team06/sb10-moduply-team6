@@ -15,8 +15,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -43,6 +41,8 @@ public class SecurityConfig {
             .ignoringRequestMatchers(
                 new AntPathRequestMatcher("/api/users", "POST"),
                 new AntPathRequestMatcher("/api/auth/sign-in", "POST"),
+                // TODO: 비밀번호 재발급 API CSRF 검증 정책은 추후 논의 후 변경
+                new AntPathRequestMatcher("/api/auth/reset-password", "POST"),
                 // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
                 new AntPathRequestMatcher("/api/auth/refresh", "POST"),
                 new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
@@ -83,10 +83,4 @@ public class SecurityConfig {
 
     return http.build();
   }
-
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
-
 }
