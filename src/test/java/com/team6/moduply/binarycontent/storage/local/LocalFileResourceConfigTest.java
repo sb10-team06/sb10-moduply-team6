@@ -31,4 +31,25 @@ class LocalFileResourceConfigTest {
     verify(registry).addResourceHandler("/uploads/**");
     verify(registration).addResourceLocations("file:./uploads/");
   }
+
+  @Test
+  @DisplayName("로컬 파일 리소스 설정 시 슬래시가 없는 설정값을 그대로 매핑한다.")
+  void addResourceHandlers_success_without_trailing_slash() {
+    // given
+    LocalStorageProperties properties = new LocalStorageProperties();
+    properties.setRootPath("./uploads");
+    properties.setUrlPrefix("/uploads");
+
+    LocalFileResourceConfig config = new LocalFileResourceConfig(properties);
+    ResourceHandlerRegistry registry = mock(ResourceHandlerRegistry.class);
+    ResourceHandlerRegistration registration = mock(ResourceHandlerRegistration.class);
+    given(registry.addResourceHandler("/uploads/**")).willReturn(registration);
+
+    // when
+    config.addResourceHandlers(registry);
+
+    // then
+    verify(registry).addResourceHandler("/uploads/**");
+    verify(registration).addResourceLocations("file:./uploads/");
+  }
 }
