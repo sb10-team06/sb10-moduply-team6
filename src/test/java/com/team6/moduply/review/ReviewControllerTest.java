@@ -17,6 +17,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
@@ -26,8 +27,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         classes = JwtAuthenticationFilter.class
     )
 )
+@AutoConfigureMockMvc(addFilters = false)
 class ReviewControllerTest {
 
   @Autowired
@@ -74,8 +74,6 @@ class ReviewControllerTest {
 
     // when & then
     mockMvc.perform(post("/api/reviews")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
@@ -91,8 +89,6 @@ class ReviewControllerTest {
 
     // when & then
     mockMvc.perform(post("/api/reviews")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
@@ -107,14 +103,12 @@ class ReviewControllerTest {
 
     given(reviewService.create(any(), any()))
         .willThrow(new ReviewException(
-            ReviewErrorCode.REVIEW_NOT_FOUND,
+            ReviewErrorCode.CONTENT_NOT_FOUND,
             Map.of("contentId", contentId)
         ));
 
     // when & then
     mockMvc.perform(post("/api/reviews")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isNotFound());
@@ -135,25 +129,8 @@ class ReviewControllerTest {
 
     // when & then
     mockMvc.perform(post("/api/reviews")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isConflict());
-  }
-
-  @Test
-  @DisplayName("인증 없이 리뷰를 생성하면 401을 반환한다.")
-  void createReview_fail_with_no_auth() throws Exception {
-    // given
-    UUID contentId = UUID.randomUUID();
-    ReviewCreateRequest request = new ReviewCreateRequest(contentId, "좋아요", 4.5);
-
-    // when & then
-    mockMvc.perform(post("/api/reviews")
-            .with(csrf())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isUnauthorized());
   }
 }

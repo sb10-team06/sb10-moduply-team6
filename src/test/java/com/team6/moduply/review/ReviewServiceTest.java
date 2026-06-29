@@ -5,6 +5,7 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
 import com.team6.moduply.review.entity.Review;
+import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
@@ -95,7 +96,9 @@ class ReviewServiceTest {
 
     // when & then
     assertThatThrownBy(() -> reviewService.create(request, userDetails))
-        .isInstanceOf(ReviewException.class);
+        .isInstanceOf(ReviewException.class)
+        .satisfies(e -> assertThat(((ReviewException) e).getErrorCode())
+            .isEqualTo(ReviewErrorCode.CONTENT_NOT_FOUND));
   }
 
   @Test
@@ -112,6 +115,8 @@ class ReviewServiceTest {
 
     // when & then
     assertThatThrownBy(() -> reviewService.create(request, userDetails))
-        .isInstanceOf(ReviewException.class);
+        .isInstanceOf(ReviewException.class)
+        .satisfies(e -> assertThat(((ReviewException) e).getErrorCode())
+            .isEqualTo(ReviewErrorCode.REVIEW_ALREADY_EXISTS));
   }
 }

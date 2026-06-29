@@ -30,7 +30,7 @@ public class ReviewService {
 
     if (!contentRepository.existsById(contentId)) {
       throw new ReviewException(
-          ReviewErrorCode.REVIEW_NOT_FOUND,
+          ReviewErrorCode.CONTENT_NOT_FOUND,
           Map.of("contentId", contentId)
       );
     }
