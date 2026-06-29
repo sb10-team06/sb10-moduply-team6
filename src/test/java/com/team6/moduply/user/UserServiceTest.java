@@ -6,11 +6,14 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
@@ -19,9 +22,6 @@ import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
-import com.team6.moduply.user.event.PasswordChangeEvent;
-import com.team6.moduply.user.event.UserLockedEvent;
-import com.team6.moduply.user.event.UserUnlockedEvent;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
@@ -37,7 +37,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -59,7 +59,7 @@ public class UserServiceTest {
   private BinaryContentService binaryContentService;
 
   @Mock
-  private ApplicationEventPublisher applicationEventPublisher;
+  private RedisUtil redisUtil;
 
   @InjectMocks
   private UserService userService;
@@ -354,7 +354,7 @@ public class UserServiceTest {
   }
 
   @Test
-  @DisplayName("비밀번호 변경 성공 시 새 비밀번호를 인코딩하고 비밀번호 변경 이벤트를 발행한다")
+  @DisplayName("비밀번호 변경 성공 시 새 비밀번호를 인코딩하고 임시 비밀번호를 파기한다")
   public void update_user_password_success() {
     // Given
     UUID userId = UUID.randomUUID();
@@ -372,11 +372,7 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(passwordEncoder).encode(request.getNewPassword());
-
-    ArgumentCaptor<PasswordChangeEvent> eventCaptor =
-        ArgumentCaptor.forClass(PasswordChangeEvent.class);
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().getEmail()).isEqualTo(user.getEmail());
+    verify(redisUtil).deleteData(RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail()));
   }
 
   @Test
@@ -397,11 +393,32 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(passwordEncoder, never()).encode(anyString());
-    verify(applicationEventPublisher, never()).publishEvent(any());
+    verify(redisUtil, never()).deleteData(anyString());
   }
 
   @Test
-  @DisplayName("사용자 계정 잠금 성공 시 잠금 상태를 변경하고 잠금 이벤트를 발행한다")
+  @DisplayName("임시 비밀번호 파기 실패 시 비밀번호 변경 요청은 실패한다")
+  public void update_user_password_fail_when_temp_password_delete_fails() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    ChangePasswordRequest request = changePasswordRequest("newPassword1!");
+    User user = new User("test@example.com", "old-encoded-password", "tester", Role.USER);
+    String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail());
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(passwordEncoder.encode(request.getNewPassword())).willReturn("new-encoded-password");
+    doThrow(new DataAccessResourceFailureException("redis down"))
+        .when(redisUtil).deleteData(redisKey);
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUserPassword(userId, request))
+        .isInstanceOf(DataAccessResourceFailureException.class);
+
+    verify(redisUtil).deleteData(redisKey);
+  }
+
+  @Test
+  @DisplayName("사용자 계정 잠금 성공 시 잠금 상태를 변경하고 블랙리스트를 등록한다")
   public void update_user_locked_success_when_locked_true() {
     // Given
     UUID userId = UUID.randomUUID();
@@ -417,15 +434,15 @@ public class UserServiceTest {
     assertThat(user.isBlocked()).isTrue();
 
     verify(userRepository).findById(userId);
-
-    ArgumentCaptor<UserLockedEvent> eventCaptor =
-        ArgumentCaptor.forClass(UserLockedEvent.class);
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().getEmail()).isEqualTo(user.getEmail());
+    verify(redisUtil).setDataExpire(
+        RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()),
+        "locked",
+        RedisKeyPolicy.BLACKLIST_LOCKED.getTtl()
+    );
   }
 
   @Test
-  @DisplayName("사용자 계정 잠금 해제 성공 시 잠금 상태를 해제하고 잠금 해제 이벤트를 발행한다")
+  @DisplayName("사용자 계정 잠금 해제 성공 시 잠금 상태를 해제하고 블랙리스트를 삭제한다")
   public void update_user_locked_success_when_locked_false() {
     // Given
     UUID userId = UUID.randomUUID();
@@ -442,11 +459,49 @@ public class UserServiceTest {
     assertThat(user.isBlocked()).isFalse();
 
     verify(userRepository).findById(userId);
+    verify(redisUtil).deleteData(RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()));
+  }
 
-    ArgumentCaptor<UserUnlockedEvent> eventCaptor =
-        ArgumentCaptor.forClass(UserUnlockedEvent.class);
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getValue().getEmail()).isEqualTo(user.getEmail());
+  @Test
+  @DisplayName("계정 잠금 블랙리스트 등록 실패 시 계정 잠금 요청은 실패한다")
+  public void update_user_locked_fail_when_blacklist_register_fails() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    String redisKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail());
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    doThrow(new DataAccessResourceFailureException("redis down"))
+        .when(redisUtil)
+        .setDataExpire(redisKey, "locked", RedisKeyPolicy.BLACKLIST_LOCKED.getTtl());
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUserLocked(userId, request))
+        .isInstanceOf(DataAccessResourceFailureException.class);
+
+    verify(redisUtil).setDataExpire(redisKey, "locked", RedisKeyPolicy.BLACKLIST_LOCKED.getTtl());
+  }
+
+  @Test
+  @DisplayName("계정 잠금 해제 블랙리스트 삭제 실패 시 계정 잠금 해제 요청은 실패한다")
+  public void update_user_locked_fail_when_blacklist_delete_fails() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(false);
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    user.updateBlocked(true);
+    String redisKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail());
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    doThrow(new DataAccessResourceFailureException("redis down"))
+        .when(redisUtil).deleteData(redisKey);
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUserLocked(userId, request))
+        .isInstanceOf(DataAccessResourceFailureException.class);
+
+    verify(redisUtil).deleteData(redisKey);
   }
 
   @Test
@@ -466,7 +521,8 @@ public class UserServiceTest {
         });
 
     verify(userRepository).findById(userId);
-    verify(applicationEventPublisher, never()).publishEvent(any());
+    verify(redisUtil, never()).setDataExpire(anyString(), anyString(), any());
+    verify(redisUtil, never()).deleteData(anyString());
   }
 
   private ChangePasswordRequest changePasswordRequest(String newPassword) {
