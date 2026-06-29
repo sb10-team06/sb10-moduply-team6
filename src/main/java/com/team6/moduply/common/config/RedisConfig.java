@@ -1,4 +1,4 @@
-package com.team6.moduply.watching.config;
+package com.team6.moduply.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.watching.model.WatchingSession;
@@ -31,7 +31,8 @@ public class RedisConfig {
     return template;
   }
 
-  // 💡 RedisTemplate<String, String> 빈 등록 (세션아이디-사용자아이디)
+  // TODO: StringRedisTemplate으로 대체 가능하면 이 빈은 제거 검토
+  // 기존 RedisTemplate<String, String> 주입 코드가 있을 수 있어 현재는 유지한다.
   @Bean
   public RedisTemplate<String, String> sessionIdAndUserIdRedisTemplate(
       RedisConnectionFactory connectionFactory) {

@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.team6.moduply.auth.JwtAuthenticationService;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.handler.JwtLoginSuccessHandler;
@@ -20,6 +19,7 @@ import com.team6.moduply.auth.handler.JwtLogoutHandler;
 import com.team6.moduply.auth.handler.ModuPlyAccessDeniedHandler;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import com.team6.moduply.auth.handler.ModuPlyLoginFailureHandler;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.config.CsrfConfig;
 import com.team6.moduply.common.config.SecurityConfig;
@@ -28,7 +28,6 @@ import com.team6.moduply.follow.dto.FollowRequest;
 import com.team6.moduply.follow.service.FollowService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
-import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +64,7 @@ class FollowControllerSecurityTest {
   private JwtTokenProvider jwtTokenProvider;
 
   @MockitoBean
-  private JwtAuthenticationService jwtAuthenticationService;
+  private AuthService authService;
 
   @MockitoBean
   private ModuPlyLoginFailureHandler moduPlyLoginFailureHandler;
@@ -120,7 +119,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
     given(followService.createFollow(eq(request), eq(followerId))).willReturn(response);
 
@@ -145,7 +144,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
     // when & then
@@ -169,7 +168,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
     // when & then
@@ -194,7 +193,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
     // when & then
@@ -220,7 +219,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
     // when & then
@@ -241,7 +240,7 @@ class FollowControllerSecurityTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
-    given(jwtAuthenticationService.getAuthentication(followerId))
+    given(authService.getAuthentication(followerId))
         .willReturn(authentication(followerId));
 
     // when & then
