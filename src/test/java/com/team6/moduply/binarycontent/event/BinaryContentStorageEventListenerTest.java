@@ -91,12 +91,42 @@ class BinaryContentStorageEventListenerTest {
     listener.handleBinaryContentStorage(event);
 
     // then
+    verify(binaryContentStorage).delete("contents/content-id/thumbnail/image.png");
     verify(binaryContentService).updatesStatusFail(binaryContentId);
     verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
         eq(binaryContentId),
         eq(null),
         eq(null)
     );
+  }
+
+  @Test
+  @DisplayName("파일 저장 이벤트 처리 중 SUCCESS 상태 변경에 실패하면 업로드 파일 삭제를 요청한다.")
+  void handleBinaryContentStorage_fail_when_success_status_update_fails() {
+    // given
+    UUID binaryContentId = UUID.randomUUID();
+    byte[] bytes = "image-bytes".getBytes();
+    BinaryContent binaryContent = createBinaryContent(binaryContentId);
+    BinaryContentCreatedEvent event = new BinaryContentCreatedEvent(
+        binaryContentId,
+        bytes,
+        null,
+        UUID.randomUUID(),
+        null,
+        null
+    );
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+    willThrow(new RuntimeException("status update failed"))
+        .given(binaryContentService)
+        .updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, null, null);
+
+    // when
+    listener.handleBinaryContentStorage(event);
+
+    // then
+    verify(binaryContentStorage).upload("contents/content-id/thumbnail/image.png", bytes, "image/png");
+    verify(binaryContentStorage).delete("contents/content-id/thumbnail/image.png");
+    verify(binaryContentService).updatesStatusFail(binaryContentId);
   }
 
   @Test

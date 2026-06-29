@@ -31,13 +31,19 @@ public class BinaryContentStorageEventListener {
     @Async
     public void handleBinaryContentStorage(BinaryContentCreatedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
+        BinaryContent binaryContent;
 
         try {
-            BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
+            binaryContent = binaryContentRepository.findById(binaryContentId)
                     .orElseThrow(() -> new BinaryContentException(
                             BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
                             Map.of("binaryContentId", binaryContentId.toString())));
+        } catch (BinaryContentException e) {
+            log.error("BinaryContent 메타데이터 조회 실패. binaryContentId={}", binaryContentId, e);
+            return;
+        }
 
+        try {
             /// 실제 파일 저장소 업로드
             binaryContentStorage.upload(
                     binaryContent.getStorageKey(),
@@ -48,15 +54,16 @@ public class BinaryContentStorageEventListener {
             /// updatesStatusSuccess가 REQUIRES_NEW라서 바로 SUCCESS로 COMMIT
             binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, event.getOldBinaryContentId(), event.getOldStorageKey());
 
-        } catch (BinaryContentException e) {
-            if (e.getErrorCode() == BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND) {
-                log.error("BinaryContent 메타데이터 조회 실패. binaryContentId={}", binaryContentId, e);
-                return;
-            }
-
-            throw e;
         } catch (Exception e) {
             log.error("BinaryContent 업로드 실패. binaryContentId={}", binaryContentId, e);
+            try {
+                binaryContentStorage.delete(binaryContent.getStorageKey());
+            } catch (Exception deleteEx) {
+                log.error("업로드 실패 보상 삭제 실패. binaryContentId={}, storageKey={}",
+                        binaryContentId,
+                        binaryContent.getStorageKey(),
+                        deleteEx);
+            }
             try {
                 /// binaryContent 상태 FAIL로 업데이트
                 binaryContentService.updatesStatusFail(binaryContentId);
