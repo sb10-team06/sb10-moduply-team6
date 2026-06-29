@@ -37,8 +37,7 @@ public class ContentController implements ContentApi {
       @RequestPart("thumbnail") MultipartFile thumbnail
   ) {
     log.info("콘텐츠 생성 요청 수신: title={}", request.title());
-    // TODO: Spring Security 인가 구조 적용 시 인증 사용자 권한으로 교체한다.
-    ContentDto response = contentService.create(request, thumbnail, Role.ADMIN);
+    ContentDto response = contentService.create(request, thumbnail);
     log.info("콘텐츠 생성 요청 처리 완료: contentId={}", response.id());
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }

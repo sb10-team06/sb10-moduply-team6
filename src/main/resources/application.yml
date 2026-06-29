@@ -20,6 +20,10 @@ spring:
   batch:
     job:
       enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 logging:
   level:
@@ -42,3 +46,11 @@ jwt:
   key: ${JWT_SECRET_KEY}
   access-token-expiration-minutes: 30
   refresh-token-expiration-minutes: 420
+admin:
+  init:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
+
+watching:
+  storage:
+    type: redis

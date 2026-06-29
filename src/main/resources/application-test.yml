@@ -11,10 +11,6 @@ spring:
   batch:
     jdbc:
       initialize-schema: always
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
 
 logging:
   level:
@@ -43,3 +39,7 @@ jwt:
   key: bW9kdXBseS10ZWFtNi10ZXN0LWVudmlyb25tZW50LWp3dC1zZWNyZXQta2V5LTIwMjYtdmVyeS1zZWN1cmU=
   access-token-expiration-minutes: 30
   refresh-token-expiration-minutes: 420
+admin:
+  init:
+    email: admin@test.com
+    password: test1234

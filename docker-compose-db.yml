@@ -9,6 +9,8 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
     environment:
       POSTGRES_USER: ${POSTGRES_USER_NAME:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-0000}
@@ -17,6 +19,23 @@ services:
     env_file:
       - .env
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: moduply-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - backend
+
 # 볼륨 설정
 volumes:
   postgres-data:
+  redis-data:
+
+# network
+networks:
+  backend:
+    driver: bridge # default, 생략 가능
