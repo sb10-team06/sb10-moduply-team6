@@ -11,7 +11,7 @@ import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class FollowService {
 
   private final FollowRepository followRepository;
@@ -72,7 +73,7 @@ public class FollowService {
   }
 
   /// 내가 상대를 팔로우 중인지 확인
-  @Transactional
+  @Transactional(readOnly = true)
   public FollowDto isFollowedByMe(UUID followeeId, UUID followerId) {
     // 나와 상대의 팔로우 관계가 있는지 확인
     Follow follow = followRepository.findByFollowerIdAndFolloweeId(followerId, followeeId)
