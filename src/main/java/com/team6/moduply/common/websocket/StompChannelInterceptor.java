@@ -158,7 +158,7 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         sessionAttributes.put("userId", userId);
       }
     } catch (AuthenticationException e) {
-      throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.");
+      throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.", e);
     } catch (Exception e) {
       throw new MessageDeliveryException("웹소켓 연결 인증에 실패하였습니다.");
     }
