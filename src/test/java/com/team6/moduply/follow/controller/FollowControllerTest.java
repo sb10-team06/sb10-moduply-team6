@@ -16,9 +16,12 @@ import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.follow.dto.FollowDto;
 import com.team6.moduply.follow.dto.FollowRequest;
+import com.team6.moduply.follow.exception.FollowErrorCode;
+import com.team6.moduply.follow.exception.FollowException;
 import com.team6.moduply.follow.service.FollowService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -123,6 +126,33 @@ class FollowControllerTest {
         .andExpect(jsonPath("$.id").value(followId.toString()))
         .andExpect(jsonPath("$.followerId").value(followerId.toString()))
         .andExpect(jsonPath("$.followeeId").value(followeeId.toString()));
+
+    verify(followService).isFollowedByMe(followeeId, followerId);
+  }
+
+  @Test
+  @DisplayName("특정 유저를 내가 팔로우하지 않으면 404를 반환한다.")
+  void isFollowedByMe_fail_when_follow_not_found() throws Exception {
+    // given
+    // 내 ID
+    UUID followerId = UUID.randomUUID();
+    // 조회할 사용자 ID
+    UUID followeeId = UUID.randomUUID();
+    // followService.isFollowedByMe를 예외발생하도록 준비
+    given(followService.isFollowedByMe(eq(followeeId), eq(followerId)))
+        .willThrow(new FollowException(
+            FollowErrorCode.FOLLOW_NOT_FOUND,
+            Map.of("followerId", followerId, "followeeId", followeeId)
+        ));
+
+    // when & then
+    mockMvc.perform(get("/api/follows/followed-by-me")
+            .with(user(userDetails(followerId)))
+            .param("followeeId", followeeId.toString()))
+            // 기대: 404
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value(FollowErrorCode.FOLLOW_NOT_FOUND.getCode()))
+        .andExpect(jsonPath("$.exceptionType").value("FollowException"));
 
     verify(followService).isFollowedByMe(followeeId, followerId);
   }
