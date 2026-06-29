@@ -17,6 +17,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.user.controller.UserController;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
@@ -28,6 +29,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
@@ -72,6 +74,9 @@ class UserControllerMethodSecurityTest {
 
   @MockitoBean
   private BinaryContentService binaryContentService;
+
+  @MockitoBean
+  private ApplicationEventPublisher applicationEventPublisher;
 
   @Test
   @DisplayName("ADMIN 권한으로 사용자 권한 수정 요청 시 204를 반환한다")
@@ -125,6 +130,62 @@ class UserControllerMethodSecurityTest {
 
     // When & Then
     mockMvc.perform(patch("/api/users/{userId}/role", userId)
+            .with(user("admin@example.com").roles("ADMIN"))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden());
+
+    verify(userRepository, never()).findById(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("ADMIN 권한으로 사용자 계정 잠금 상태 변경 요청 시 204를 반환한다")
+  void update_user_locked_success_when_requester_is_admin() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+    User user = new User("user@example.com", "encoded-password", "user", Role.USER);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+    // When & Then
+    mockMvc.perform(patch("/api/users/{userId}/locked", userId)
+            .with(user("admin@example.com").roles("ADMIN"))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isNoContent());
+
+    verify(userRepository).findById(userId);
+  }
+
+  @Test
+  @DisplayName("USER 권한으로 사용자 계정 잠금 상태 변경 요청 시 403을 반환한다")
+  void update_user_locked_fail_when_requester_is_not_admin() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+
+    // When & Then
+    mockMvc.perform(patch("/api/users/{userId}/locked", userId)
+            .with(user("user@example.com").roles("USER"))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden());
+
+    verify(userRepository, never()).findById(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("CSRF 토큰 없이 사용자 계정 잠금 상태 변경 요청 시 403을 반환한다")
+  void update_user_locked_fail_without_csrf_token() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+
+    // When & Then
+    mockMvc.perform(patch("/api/users/{userId}/locked", userId)
             .with(user("admin@example.com").roles("ADMIN"))
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))

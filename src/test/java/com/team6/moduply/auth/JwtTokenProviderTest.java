@@ -25,6 +25,7 @@ class JwtTokenProviderTest {
 
   private JwtTokenProvider jwtTokenProvider;
   private UUID userId;
+  private String email;
   private Authentication authentication;
 
   @BeforeEach
@@ -36,10 +37,11 @@ class JwtTokenProviderTest {
     jwtTokenProvider.validateSecretKey();
 
     userId = UUID.randomUUID();
+    email = "tester@example.com";
     UserDto userDto = new UserDto(
         userId,
         Instant.now(),
-        "tester@example.com",
+        email,
         "tester",
         null,
         Role.USER,
@@ -65,7 +67,7 @@ class JwtTokenProviderTest {
     JWTClaimsSet claims = SignedJWT.parse(token).getJWTClaimsSet();
     assertThat(claims.getSubject()).isEqualTo(userId.toString());
     assertThat(claims.getStringClaim("type")).isEqualTo("access");
-    assertThat(claims.getStringClaim("email")).isNull();
+    assertThat(claims.getStringClaim("email")).isEqualTo(email);
     assertThat(claims.getStringClaim("role")).isNull();
     assertThat(claims.getBooleanClaim("locked")).isNull();
   }
@@ -82,6 +84,7 @@ class JwtTokenProviderTest {
     JWTClaimsSet claims = SignedJWT.parse(token).getJWTClaimsSet();
     assertThat(claims.getSubject()).isEqualTo(userId.toString());
     assertThat(claims.getStringClaim("type")).isEqualTo("refresh");
+    assertThat(claims.getStringClaim("email")).isEqualTo(email);
     assertThat(claims.getJWTID()).isNotBlank();
   }
 
@@ -120,10 +123,33 @@ class JwtTokenProviderTest {
   }
 
   @Test
+  @DisplayName("토큰에서 사용자 이메일을 추출한다")
+  void get_email_success() {
+    // Given
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+
+    // When
+    String result = jwtTokenProvider.getEmail(accessToken);
+
+    // Then
+    assertThat(result).isEqualTo(email);
+  }
+
+  @Test
   @DisplayName("잘못된 토큰에서 사용자 ID를 추출하면 예외가 발생한다")
   void get_user_id_fail_when_token_is_invalid() {
     // When & Then
     assertThatThrownBy(() -> jwtTokenProvider.getUserId("invalid-token"))
+        .isInstanceOfSatisfying(AuthException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_TOKEN_EXCEPTION)
+        );
+  }
+
+  @Test
+  @DisplayName("잘못된 토큰에서 사용자 이메일을 추출하면 예외가 발생한다")
+  void get_email_fail_when_token_is_invalid() {
+    // When & Then
+    assertThatThrownBy(() -> jwtTokenProvider.getEmail("invalid-token"))
         .isInstanceOfSatisfying(AuthException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_TOKEN_EXCEPTION)
         );

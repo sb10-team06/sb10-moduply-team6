@@ -28,4 +28,22 @@ class AsyncConfigTest {
 
     executor.shutdown();
   }
+
+  @Test
+  @DisplayName("사용자 보안 이벤트 전용 TaskExecutor를 생성한다")
+  void user_security_task_executor_success() {
+    // When
+    TaskExecutor taskExecutor = asyncConfig.userSecurityTaskExecutor();
+
+    // Then
+    assertThat(taskExecutor).isInstanceOf(ThreadPoolTaskExecutor.class);
+
+    ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) taskExecutor;
+    assertThat(executor.getCorePoolSize()).isEqualTo(2);
+    assertThat(executor.getMaxPoolSize()).isEqualTo(4);
+    assertThat(executor.getQueueCapacity()).isEqualTo(100);
+    assertThat(executor.getThreadNamePrefix()).isEqualTo("user-security-");
+
+    executor.shutdown();
+  }
 }

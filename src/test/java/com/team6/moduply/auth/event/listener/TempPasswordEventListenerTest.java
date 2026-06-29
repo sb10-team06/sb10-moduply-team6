@@ -56,7 +56,7 @@ class TempPasswordEventListenerTest {
 
     // Then
     verify(mailSender).send(mimeMessage);
-    verify(redisUtil).setDateExpire(
+    verify(redisUtil).setDataExpire(
         RedisKeyPolicy.PASSWORD_RESET.generateKey(email),
         encodedTempPassword,
         RedisKeyPolicy.PASSWORD_RESET.getTtl()

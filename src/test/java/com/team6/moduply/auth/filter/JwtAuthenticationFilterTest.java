@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
+import com.team6.moduply.common.util.RedisUtil;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,9 @@ class JwtAuthenticationFilterTest {
   @Mock
   private AuthService authService;
 
+  @Mock
+  private RedisUtil redisUtil;
+
   @AfterEach
   void tearDown() {
     SecurityContextHolder.clearContext();
@@ -48,7 +52,7 @@ class JwtAuthenticationFilterTest {
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
     JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint);
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint, redisUtil);
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
@@ -78,7 +82,7 @@ class JwtAuthenticationFilterTest {
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
     JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint);
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint, redisUtil);
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -103,7 +107,7 @@ class JwtAuthenticationFilterTest {
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
     JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint);
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint, redisUtil);
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);

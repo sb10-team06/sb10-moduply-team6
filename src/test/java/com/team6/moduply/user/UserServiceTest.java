@@ -14,11 +14,14 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.event.PasswordChangeEvent;
+import com.team6.moduply.user.event.UserLockedEvent;
+import com.team6.moduply.user.event.UserUnlockedEvent;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
@@ -392,6 +395,75 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(passwordEncoder, never()).encode(anyString());
+    verify(applicationEventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  @DisplayName("사용자 계정 잠금 성공 시 잠금 상태를 변경하고 잠금 이벤트를 발행한다")
+  public void update_user_locked_success_when_locked_true() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+    // When
+    userService.updateUserLocked(userId, request);
+
+    // Then
+    assertThat(user.isBlocked()).isTrue();
+
+    verify(userRepository).findById(userId);
+
+    ArgumentCaptor<UserLockedEvent> eventCaptor =
+        ArgumentCaptor.forClass(UserLockedEvent.class);
+    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().getEmail()).isEqualTo(user.getEmail());
+  }
+
+  @Test
+  @DisplayName("사용자 계정 잠금 해제 성공 시 잠금 상태를 해제하고 잠금 해제 이벤트를 발행한다")
+  public void update_user_locked_success_when_locked_false() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(false);
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    user.updateBlocked(true);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+    // When
+    userService.updateUserLocked(userId, request);
+
+    // Then
+    assertThat(user.isBlocked()).isFalse();
+
+    verify(userRepository).findById(userId);
+
+    ArgumentCaptor<UserUnlockedEvent> eventCaptor =
+        ArgumentCaptor.forClass(UserUnlockedEvent.class);
+    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().getEmail()).isEqualTo(user.getEmail());
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 사용자이면 계정 잠금 상태 변경 실패")
+  public void update_user_locked_fail_when_user_not_found() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserLockUpdateRequest request = new UserLockUpdateRequest(true);
+
+    given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> userService.updateUserLocked(userId, request))
+        .isInstanceOfSatisfying(UserException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
+        });
+
+    verify(userRepository).findById(userId);
     verify(applicationEventPublisher, never()).publishEvent(any());
   }
 
