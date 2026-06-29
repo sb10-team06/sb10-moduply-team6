@@ -48,6 +48,13 @@ public class BinaryContentStorageEventListener {
             /// updatesStatusSuccess가 REQUIRES_NEW라서 바로 SUCCESS로 COMMIT
             binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, event.getOldBinaryContentId(), event.getOldStorageKey());
 
+        } catch (BinaryContentException e) {
+            if (e.getErrorCode() == BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND) {
+                log.error("BinaryContent 메타데이터 조회 실패. binaryContentId={}", binaryContentId, e);
+                return;
+            }
+
+            throw e;
         } catch (Exception e) {
             log.error("BinaryContent 업로드 실패. binaryContentId={}", binaryContentId, e);
             try {

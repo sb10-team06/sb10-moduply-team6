@@ -100,7 +100,7 @@ class BinaryContentStorageEventListenerTest {
   }
 
   @Test
-  @DisplayName("파일 저장 이벤트 처리 중 메타데이터 조회에 실패하면 FAIL 상태 변경을 요청한다.")
+  @DisplayName("파일 저장 이벤트 처리 중 메타데이터 조회에 실패하면 상태 변경을 요청하지 않는다.")
   void handleBinaryContentStorage_fail_when_metadata_not_found() {
     // given
     UUID binaryContentId = UUID.randomUUID();
@@ -123,7 +123,7 @@ class BinaryContentStorageEventListenerTest {
         eq("image-bytes".getBytes()),
         eq("image/png")
     );
-    verify(binaryContentService).updatesStatusFail(binaryContentId);
+    verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
     verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
         eq(binaryContentId),
         eq(null),
