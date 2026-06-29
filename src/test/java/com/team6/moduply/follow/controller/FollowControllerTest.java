@@ -180,6 +180,23 @@ class FollowControllerTest {
     verify(followService).isFollowedByMe(userId, userId);
   }
 
+  @Test
+  @DisplayName("특정 유저의 팔로워 수를 조회하면 200과 팔로워 수를 반환한다.")
+  void getFollowerCount_success() throws Exception {
+    // given
+    UUID followeeId = UUID.randomUUID();
+    given(followService.getFollowerCount(followeeId)).willReturn(3L);
+
+    // when & then
+    mockMvc.perform(get("/api/follows/count")
+            .with(user(userDetails(UUID.randomUUID())))
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(3L));
+
+    verify(followService).getFollowerCount(followeeId);
+  }
+
   private ModuPlyUserDetails userDetails(UUID userId) {
     UserDto userDto = new UserDto(
         userId,

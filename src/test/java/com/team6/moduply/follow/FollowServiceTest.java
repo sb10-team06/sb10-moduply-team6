@@ -290,4 +290,19 @@ class FollowServiceTest {
 
     verify(followMapper, never()).toDto(any(Follow.class));
   }
+
+  @Test
+  @DisplayName("특정 사용자의 팔로워 수를 조회하면 팔로워 수를 반환한다.")
+  void getFollowerCount_success() {
+    // given
+    UUID followeeId = UUID.randomUUID();
+    given(followRepository.countByFolloweeId(followeeId)).willReturn(3L);
+
+    // when
+    long result = followService.getFollowerCount(followeeId);
+
+    // then
+    assertThat(result).isEqualTo(3L);
+    verify(followRepository).countByFolloweeId(followeeId);
+  }
 }
