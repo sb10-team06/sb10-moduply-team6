@@ -51,6 +51,26 @@ public class FollowService {
 
   }
 
+  /// 팔로우 취소 메서드.
+  @Transactional
+  public void cancelFollow(UUID followId, UUID followerId) {
+    Follow follow = followRepository.findById(followId)
+        .orElseThrow(() -> new FollowException(
+            FollowErrorCode.FOLLOW_NOT_FOUND,
+            Map.of("followId", followId)
+        ));
+
+    // 팔로우 취소하는 사람이 내가 아니라면
+    if (!followerId.equals(follow.getFollower().getId())) {
+      throw new FollowException(
+          FollowErrorCode.FOLLOW_FORBIDDEN,
+          Map.of("followId", followId, "followerId", followerId)
+      );
+    }
+
+    followRepository.delete(follow);
+  }
+
 
   private void validate(UUID followerId, UUID followeeId) {
     /// 자기자신 팔로우 X
