@@ -29,6 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -58,9 +59,11 @@ class PlaylistControllerTest {
   @MockitoBean
   private PlaylistService playlistService;
 
+  private static final UUID TEST_OWNER_ID = UUID.randomUUID();
+
   private ModuPlyUserDetails createUserDetails() {
     UserDto userDto = new UserDto(
-        UUID.randomUUID(), Instant.now(), "test@test.com",
+        TEST_OWNER_ID, Instant.now(), "test@test.com",
         "테스트", null, Role.USER, false
     );
     return new ModuPlyUserDetails(userDto, "password");
@@ -77,7 +80,7 @@ class PlaylistControllerTest {
         "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
     );
 
-    given(playlistService.create(any(), any())).willReturn(response);
+    given(playlistService.create(any(), eq(TEST_OWNER_ID))).willReturn(response);
 
     // when & then
     mockMvc.perform(post("/api/playlists")
@@ -103,6 +106,17 @@ class PlaylistControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("인증 없이 플레이리스트를 생성하면 401을 반환한다.")
+  void createPlaylist_fail_with_no_auth() throws Exception {
+    mockMvc.perform(post("/api/playlists")
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(
+                new PlaylistCreateRequest("제목", "설명"))))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

@@ -457,6 +457,27 @@ class PlaylistServiceTest {
   }
 
   @Test
+  @DisplayName("본인 소유가 아닌 플레이리스트에 콘텐츠를 추가하면 예외가 발생한다.")
+  void addContent_fail_with_no_permission() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(otherId).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.addContent(playlistId, contentId, ownerId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_FORBIDDEN));
+  }
+
+  @Test
   @DisplayName("소유자가 플레이리스트에서 콘텐츠를 삭제하면 레포지토리의 delete가 호출된다.")
   void removeContent_success_with_owner() {
     // given
@@ -499,5 +520,26 @@ class PlaylistServiceTest {
     // when & then
     assertThatThrownBy(() -> playlistService.removeContent(playlistId, contentId, ownerId))
         .isInstanceOf(PlaylistException.class);
+  }
+
+  @Test
+  @DisplayName("본인 소유가 아닌 플레이리스트에서 콘텐츠를 삭제하면 예외가 발생한다.")
+  void removeContent_fail_with_no_permission() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(otherId).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.removeContent(playlistId, contentId, ownerId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_FORBIDDEN));
   }
 }
