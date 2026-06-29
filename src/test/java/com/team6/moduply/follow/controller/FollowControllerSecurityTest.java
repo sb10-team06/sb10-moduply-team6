@@ -28,6 +28,7 @@ import com.team6.moduply.follow.dto.FollowRequest;
 import com.team6.moduply.follow.service.FollowService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
+import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -247,6 +248,63 @@ class FollowControllerSecurityTest {
     mockMvc.perform(delete("/api/follows/{followId}", followId)
             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
             .with(csrf().useInvalidToken()))
+        .andExpect(status().isForbidden());
+
+    verify(followService, never()).cancelFollow(any(), any());
+  }
+
+  /// 쿠키와 헤더의 X-XSRF-TOKEN값 직접 명시
+  @Test
+  @DisplayName("XSRF-TOKEN 쿠키와 X-XSRF-TOKEN 헤더가 일치하면 팔로우 생성 요청을 허용한다.")
+  void createFollow_success_with_xsrf_cookie_and_header() throws Exception {
+    // given
+    String token = "access-token";
+    String csrfToken = "csrf-token";
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+    FollowRequest request = new FollowRequest(followeeId);
+    FollowDto response = new FollowDto(UUID.randomUUID(), followerId, followeeId);
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtAuthenticationService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+    given(followService.createFollow(eq(request), eq(followerId))).willReturn(response);
+
+    // when & then
+    mockMvc.perform(post("/api/follows")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            // 쿠키와 헤더에 csrf-token값을 일치하게 넣는다.
+            .cookie(new Cookie("XSRF-TOKEN", csrfToken))
+            .header("X-XSRF-TOKEN", csrfToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+            // 기대: 201 Created
+        .andExpect(status().isCreated());
+
+    verify(followService).createFollow(request, followerId);
+  }
+
+  @Test
+  @DisplayName("XSRF-TOKEN 쿠키와 X-XSRF-TOKEN 헤더가 불일치하면 팔로우 취소 요청을 차단한다.")
+  void cancelFollow_fail_with_mismatched_xsrf_cookie_and_header() throws Exception {
+    // given
+    String token = "access-token";
+    UUID followId = UUID.randomUUID();
+    UUID followerId = UUID.randomUUID();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(followerId);
+    given(jwtAuthenticationService.getAuthentication(followerId))
+        .willReturn(authentication(followerId));
+
+    // when & then
+    mockMvc.perform(delete("/api/follows/{followId}", followId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            // 쿠키와 헤더에 CSRF값을 다르게 넣는다.
+            .cookie(new Cookie("XSRF-TOKEN", "cookie-token"))
+            .header("X-XSRF-TOKEN", "header-token"))
+            // 기대: 403
         .andExpect(status().isForbidden());
 
     verify(followService, never()).cancelFollow(any(), any());
