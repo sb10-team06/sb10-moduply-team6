@@ -9,8 +9,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.common.pagination.CursorResponse;
@@ -104,8 +102,6 @@ class ContentControllerTest {
     mockMvc.perform(multipart("/api/contents")
             .file(requestPart)
             .file(thumbnail)
-            .with(user("admin").roles("ADMIN"))
-            .with(csrf())
             .contentType(MediaType.MULTIPART_FORM_DATA))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(response.id().toString()))
@@ -155,8 +151,6 @@ class ContentControllerTest {
     mockMvc.perform(multipart("/api/contents")
             .file(requestPart)
             .file(thumbnail)
-            .with(user("admin").roles("ADMIN"))
-            .with(csrf())
             .contentType(MediaType.MULTIPART_FORM_DATA))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.exceptionType").value("BinaryContentException"))
@@ -192,8 +186,6 @@ class ContentControllerTest {
     mockMvc.perform(multipart("/api/contents")
             .file(requestPart)
             .file(thumbnail)
-            .with(user("admin").roles("ADMIN"))
-            .with(csrf())
             .contentType(MediaType.MULTIPART_FORM_DATA))
         .andExpect(status().isBadRequest());
 
