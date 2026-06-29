@@ -1,6 +1,7 @@
 package com.team6.moduply.user.controller;
 
 import com.team6.moduply.common.error.ErrorResponse;
+import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
@@ -225,4 +226,58 @@ public interface UserApi {
       @RequestPart(value = "image", required = false)
       MultipartFile image
   );
+
+  @Operation(
+      summary = "비밀번호 변경",
+      description = "본인의 비밀번호만 변경할 수 있습니다.",
+      operationId = "updateUser_Password"
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "성공"),
+      @ApiResponse(responseCode = "200", description = "성공"),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<Void> updateUserPassword(
+      @Parameter(description = "사용자 ID", required = true)
+      @PathVariable UUID userId,
+      @RequestBody(
+          required = true,
+          content = @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @Schema(implementation = ChangePasswordRequest.class)
+          )
+      )
+      ChangePasswordRequest request);
+
 }

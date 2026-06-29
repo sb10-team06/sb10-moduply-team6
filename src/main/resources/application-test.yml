@@ -11,6 +11,20 @@ spring:
   batch:
     jdbc:
       initialize-schema: always
+  mail:
+    host: localhost
+    port: 1025
+    username: test-smtp-user
+    password: test-smtp-password
+    properties:
+      mail:
+        smtp:
+          auth: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+          starttls:
+            enable: false
 
 logging:
   level:
