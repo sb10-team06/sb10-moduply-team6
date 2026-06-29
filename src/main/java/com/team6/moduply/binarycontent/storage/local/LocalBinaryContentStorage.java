@@ -45,7 +45,13 @@ public class LocalBinaryContentStorage implements BinaryContentStorage {
   }
 
   private Path resolvePath(String key) {
-    return Path.of(properties.getRootPath()).resolve(key).normalize();
+    Path rootPath = Path.of(properties.getRootPath()).toAbsolutePath().normalize();
+    Path resolvedPath = rootPath.resolve(key).normalize();
+    if (!resolvedPath.startsWith(rootPath)) {
+      throw new IllegalArgumentException("로컬 저장소 경로를 벗어날 수 없습니다. key=" + key);
+    }
+
+    return resolvedPath;
   }
 
   private String normalizeUrlPrefix() {

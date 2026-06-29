@@ -243,6 +243,7 @@ public class BinaryContentService {
 
   /// S3PresignedUrl 생성 메서드.
   /// userService에서 호출 or contentService에서 호출
+  @Transactional(readOnly = true)
   public String generateUrl(BinaryContent binaryContent) {
     if (binaryContent == null) {
       return null;
