@@ -3,7 +3,7 @@ package com.team6.moduply.auth.event.listener;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
-import com.team6.moduply.auth.event.EmailEvent;
+import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.mail.Session;
@@ -20,7 +20,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
-class EmailEventListenerTest {
+class TempPasswordEventListenerTest {
 
   @Mock
   private JavaMailSender mailSender;
@@ -41,7 +41,7 @@ class EmailEventListenerTest {
     String email = "tester@example.com";
     String tempPassword = "Temp1234!";
     String encodedTempPassword = "encoded-temp-password";
-    EmailEvent event = new EmailEvent(
+    TempPasswordEvent event = new TempPasswordEvent(
         email,
         tempPassword,
         Instant.parse("2026-06-29T02:00:00Z")

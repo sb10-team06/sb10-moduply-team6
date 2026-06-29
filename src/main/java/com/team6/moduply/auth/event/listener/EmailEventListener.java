@@ -1,6 +1,7 @@
 package com.team6.moduply.auth.event.listener;
 
-import com.team6.moduply.auth.event.EmailEvent;
+import com.team6.moduply.auth.event.TempPasswordEvent;
+import com.team6.moduply.common.config.AsyncConfig;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.mail.internet.MimeMessage;
@@ -26,9 +27,9 @@ public class EmailEventListener {
   private final RedisUtil redisUtil;
   private final PasswordEncoder passwordEncoder;
 
-  @Async
+  @Async(AsyncConfig.TEMP_PASSWORD_MAIL_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  public void handlePasswordResetEvent(EmailEvent event) {
+  public void handlePasswordResetEvent(TempPasswordEvent event) {
     String email = event.getEmail();
     log.info("[비동기 메일 발송 시작] 수신자: {}", email);
     String requestId = MDC.get("requestId");
@@ -54,6 +55,7 @@ public class EmailEventListener {
       helper.setSubject("[모두의 플리] 요청하신 임시 비밀번호가 발급되었습니다.");
 
       // 🎨 보내주신 요구사항 디자인을 그대로 HTML/CSS로 재현한 템플릿입니다.
+      // TODO: html/css 파일로 따로 작성하여 관리하는것 고려해보기
       String htmlContent = """
                 <div style="font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #E2E8F0; border-radius: 8px;">
                     

@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.dto.ResetPasswordRequest;
-import com.team6.moduply.auth.event.EmailEvent;
+import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.service.AuthService;
@@ -17,8 +17,6 @@ import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
-import com.team6.moduply.user.exception.UserErrorCode;
-import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.time.Instant;
@@ -151,10 +149,10 @@ class AuthServiceTest {
     verify(userRepository).existsByEmail(request.getEmail());
     verify(tempPasswordUtil).generate(8);
 
-    ArgumentCaptor<EmailEvent> eventCaptor = ArgumentCaptor.forClass(EmailEvent.class);
+    ArgumentCaptor<TempPasswordEvent> eventCaptor = ArgumentCaptor.forClass(TempPasswordEvent.class);
     verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
 
-    EmailEvent event = eventCaptor.getValue();
+    TempPasswordEvent event = eventCaptor.getValue();
     assertThat(event.getEmail()).isEqualTo(request.getEmail());
     assertThat(event.getTempPassword()).isEqualTo(tempPassword);
     assertThat(event.getExpiresAt())
@@ -165,20 +163,17 @@ class AuthServiceTest {
   }
 
   @Test
-  @DisplayName("비밀번호 재발급 요청 이메일이 존재하지 않으면 실패한다")
-  void reset_password_fail_when_user_not_found() {
+  @DisplayName("비밀번호 재발급 요청 이메일이 존재하지 않으면 아무 작업 없이 종료한다")
+  void reset_password_noop_when_user_not_found() {
     // Given
     ResetPasswordRequest request = resetPasswordRequest("unknown@example.com");
 
     given(userRepository.existsByEmail(request.getEmail())).willReturn(false);
 
-    // When & Then
-    assertThatThrownBy(() -> authService.resetPassword(request))
-        .isInstanceOfSatisfying(UserException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND_EXCEPTION);
-          assertThat(exception.getDetails().get("email")).isEqualTo(request.getEmail());
-        });
+    // When
+    authService.resetPassword(request);
 
+    // Then
     verify(userRepository).existsByEmail(request.getEmail());
     verify(tempPasswordUtil, never()).generate(8);
     verify(applicationEventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());

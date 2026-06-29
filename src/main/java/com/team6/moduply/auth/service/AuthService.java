@@ -1,7 +1,7 @@
 package com.team6.moduply.auth.service;
 
 import com.team6.moduply.auth.dto.ResetPasswordRequest;
-import com.team6.moduply.auth.event.EmailEvent;
+import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
@@ -9,8 +9,6 @@ import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
-import com.team6.moduply.user.exception.UserErrorCode;
-import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.time.Duration;
@@ -55,19 +53,20 @@ public class AuthService {
     );
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   public void resetPassword(ResetPasswordRequest request) {
     String email = request.getEmail();
-    if(!userRepository.existsByEmail(email)) {
-      throw new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of("email", request.getEmail()));
+    if (!userRepository.existsByEmail(email)) {
+      return;
     }
 
     // 임시 비밀번호 생성
     String tempPassword = tempPasswordUtil.generate(8);
+    // TODO: 추후 TTL 기준 시간 고려해볼것
     Duration ttl = RedisKeyPolicy.PASSWORD_RESET.getTtl();
     Instant expiresAt = Instant.now().plus(ttl);
 
     // 이메일로 발송
-    applicationEventPublisher.publishEvent(new EmailEvent(email, tempPassword, expiresAt));
+    applicationEventPublisher.publishEvent(new TempPasswordEvent(email, tempPassword, expiresAt));
   }
 }

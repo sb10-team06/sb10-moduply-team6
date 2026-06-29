@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class EmailEvent {
+public class TempPasswordEvent {
   private final String email;
   private final String tempPassword;
   private final Instant expiresAt;
