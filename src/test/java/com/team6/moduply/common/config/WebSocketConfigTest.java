@@ -88,7 +88,8 @@ class WebSocketConfigTest {
     assertThat(moduPlyUserDetails).isNotNull();
     Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
         moduPlyUserDetails.getAuthorities());
-    adminAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    userAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    userRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     //admin
     userService.createUser(
@@ -99,10 +100,9 @@ class WebSocketConfigTest {
     ModuPlyUserDetails adminDetails = moduPlyUserDetailsService.loadUserByUsername(
         adminUser.getEmail());
     assertThat(adminDetails).isNotNull();
-    Authentication adminAuth = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
+    Authentication adminAuth = new UsernamePasswordAuthenticationToken(adminDetails,
         adminDetails.getAuthorities());
-    userAccessToken = jwtTokenProvider.generateAccessToken(adminAuth);
-    userRefreshToken = jwtTokenProvider.generateRefreshToken(adminAuth);
+    adminAccessToken = jwtTokenProvider.generateAccessToken(adminAuth);
   }
 
   @Test
