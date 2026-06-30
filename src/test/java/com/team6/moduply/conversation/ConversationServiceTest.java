@@ -15,7 +15,6 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.conversation.service.ConversationService;
-import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -26,10 +25,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,16 +41,13 @@ class ConversationServiceTest {
   private ConversationRepository conversationRepository;
 
   @Mock
-  private DirectMessageRepository directMessageRepository;
-
-  @Mock
   private UserRepository userRepository;
 
   @Mock
   private ConversationMapper conversationMapper;
 
   @Test
-  @DisplayName("대화 상대가 존재하면 새 대화방을 생성하고 응답을 반환한다.")
+  @DisplayName("대화 상대가 존재하고 기존 대화방이 없으면 새 대화방을 생성한다.")
   void create_success_with_valid_users() {
     UUID currentUserId = UUID.randomUUID();
     UUID withUserId = UUID.randomUUID();
@@ -66,13 +62,7 @@ class ConversationServiceTest {
     given(conversationRepository.findByUser1IdAndUser2Id(conversation.getUser1Id(), conversation.getUser2Id()))
         .willReturn(Optional.empty());
     given(conversationRepository.saveAndFlush(any(Conversation.class))).willReturn(conversation);
-    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversation.getId()))
-        .willReturn(Optional.empty());
-    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
-        conversation.getId(),
-        currentUserId
-    )).willReturn(false);
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, false)).willReturn(expected);
+    given(conversationMapper.toCreateDto(conversation, currentUser, withUser)).willReturn(expected);
 
     ConversationDto result = conversationService.create(request, currentUserId);
 
@@ -81,62 +71,54 @@ class ConversationServiceTest {
   }
 
   @Test
-  @DisplayName("이미 같은 두 사용자 간 대화방이 있으면 기존 대화방 응답을 반환한다.")
-  void create_success_when_conversation_already_exists() {
+  @DisplayName("이미 같은 두 사용자 간 대화방이 있으면 충돌 예외가 발생한다.")
+  void create_fail_when_conversation_already_exists() {
     UUID currentUserId = UUID.randomUUID();
     UUID withUserId = UUID.randomUUID();
     ConversationCreateRequest request = new ConversationCreateRequest(withUserId);
     User currentUser = user(currentUserId, "current");
     User withUser = user(withUserId, "with");
     Conversation conversation = Conversation.create(currentUserId, withUserId);
-    ConversationDto expected = new ConversationDto(conversation.getId(), null, null, false);
 
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
     given(conversationRepository.findByUser1IdAndUser2Id(conversation.getUser1Id(), conversation.getUser2Id()))
         .willReturn(Optional.of(conversation));
-    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversation.getId()))
-        .willReturn(Optional.empty());
-    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
-        conversation.getId(),
-        currentUserId
-    )).willReturn(false);
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, false)).willReturn(expected);
 
-    ConversationDto result = conversationService.create(request, currentUserId);
+    assertThatThrownBy(() -> conversationService.create(request, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_ALREADY_EXISTS);
+          assertThat(exception.getDetails().get("user1Id")).isEqualTo(conversation.getUser1Id());
+          assertThat(exception.getDetails().get("user2Id")).isEqualTo(conversation.getUser2Id());
+        });
 
-    assertThat(result).isEqualTo(expected);
     verify(conversationRepository, never()).saveAndFlush(any(Conversation.class));
   }
 
   @Test
-  @DisplayName("동시에 같은 대화방이 생성되어 저장 충돌이 발생하면 기존 대화방을 다시 조회해 응답을 반환한다.")
-  void create_success_when_concurrent_create_conflicts() {
+  @DisplayName("동시에 같은 대화방이 생성되어 저장 충돌이 발생하면 충돌 예외가 발생한다.")
+  void create_fail_when_concurrent_create_conflicts() {
     UUID currentUserId = UUID.randomUUID();
     UUID withUserId = UUID.randomUUID();
     ConversationCreateRequest request = new ConversationCreateRequest(withUserId);
     User currentUser = user(currentUserId, "current");
     User withUser = user(withUserId, "with");
     Conversation conversation = Conversation.create(currentUserId, withUserId);
-    ConversationDto expected = new ConversationDto(conversation.getId(), null, null, false);
 
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
     given(conversationRepository.findByUser1IdAndUser2Id(conversation.getUser1Id(), conversation.getUser2Id()))
-        .willReturn(Optional.empty(), Optional.of(conversation));
+        .willReturn(Optional.empty());
     given(conversationRepository.saveAndFlush(any(Conversation.class)))
         .willThrow(new DataIntegrityViolationException("duplicated conversation"));
-    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversation.getId()))
-        .willReturn(Optional.empty());
-    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
-        conversation.getId(),
-        currentUserId
-    )).willReturn(false);
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, false)).willReturn(expected);
 
-    ConversationDto result = conversationService.create(request, currentUserId);
+    assertThatThrownBy(() -> conversationService.create(request, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_ALREADY_EXISTS);
+          assertThat(exception.getDetails().get("user1Id")).isEqualTo(conversation.getUser1Id());
+          assertThat(exception.getDetails().get("user2Id")).isEqualTo(conversation.getUser2Id());
+        });
 
-    assertThat(result).isEqualTo(expected);
     verify(conversationRepository).saveAndFlush(any(Conversation.class));
   }
 

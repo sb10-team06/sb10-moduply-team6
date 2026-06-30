@@ -48,18 +48,13 @@ class ConversationControllerTest {
   private ConversationService conversationService;
 
   @Test
-  @DisplayName("대화 생성 요청 시 인증 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
-  void createConversation_success_with_authenticated_principal() throws Exception {
+  @DisplayName("새 대화방을 생성하면 201 응답을 반환한다.")
+  void createConversation_success_when_created() throws Exception {
     UUID currentUserId = UUID.randomUUID();
     UUID withUserId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     ConversationCreateRequest request = new ConversationCreateRequest(withUserId);
-    UserSummaryDto withUser = new UserSummaryDto(
-        withUserId,
-        "with",
-        "https://example.com/profile.png"
-    );
-    ConversationDto response = new ConversationDto(conversationId, withUser, null, false);
+    ConversationDto response = conversationDto(conversationId, withUserId);
 
     given(conversationService.create(eq(request), eq(currentUserId))).willReturn(response);
 
@@ -68,7 +63,7 @@ class ConversationControllerTest {
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(conversationId.toString()))
         .andExpect(jsonPath("$.with.userId").value(withUserId.toString()))
         .andExpect(jsonPath("$.with.name").value("with"))
@@ -77,6 +72,15 @@ class ConversationControllerTest {
         .andExpect(jsonPath("$.hasUnread").value(false));
 
     verify(conversationService).create(request, currentUserId);
+  }
+
+  private ConversationDto conversationDto(UUID conversationId, UUID withUserId) {
+    UserSummaryDto withUser = new UserSummaryDto(
+        withUserId,
+        "with",
+        "https://example.com/profile.png"
+    );
+    return new ConversationDto(conversationId, withUser, null, false);
   }
 
   private ModuPlyUserDetails userDetails(UUID userId) {
