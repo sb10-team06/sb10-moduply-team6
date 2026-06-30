@@ -6,6 +6,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.review.controller.ReviewController;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.service.ReviewService;
@@ -27,6 +28,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -132,5 +136,110 @@ class ReviewControllerTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isConflict());
+  }
+
+  @Test
+  @DisplayName("리뷰를 수정하면 200을 반환한다.")
+  void updateReview_success() throws Exception {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    ReviewUpdateRequest request = new ReviewUpdateRequest("수정된 내용", 3.0);
+
+    ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(TEST_AUTHOR_ID, "테스트", null);
+    ReviewDto response = new ReviewDto(reviewId, contentId, authorDto, "수정된 내용", 3.0);
+
+    given(reviewService.update(any(), any(), any())).willReturn(response);
+
+    // when & then
+    mockMvc.perform(patch("/api/reviews/" + reviewId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.text").value("수정된 내용"))
+        .andExpect(jsonPath("$.rating").value(3.0));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 리뷰를 수정하면 404를 반환한다.")
+  void updateReview_fail_with_not_found() throws Exception {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    ReviewUpdateRequest request = new ReviewUpdateRequest("수정된 내용", 3.0);
+
+    given(reviewService.update(any(), any(), any()))
+        .willThrow(new ReviewException(
+            ReviewErrorCode.REVIEW_NOT_FOUND,
+            Map.of("reviewId", reviewId)
+        ));
+
+    // when & then
+    mockMvc.perform(patch("/api/reviews/" + reviewId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("본인 리뷰가 아닌 리뷰를 수정하면 403을 반환한다.")
+  void updateReview_fail_with_forbidden() throws Exception {
+    // given
+    UUID reviewId = UUID.randomUUID();
+    ReviewUpdateRequest request = new ReviewUpdateRequest("수정된 내용", 3.0);
+
+    given(reviewService.update(any(), any(), any()))
+        .willThrow(new ReviewException(
+            ReviewErrorCode.REVIEW_FORBIDDEN,
+            Map.of("reviewId", reviewId)
+        ));
+
+    // when & then
+    mockMvc.perform(patch("/api/reviews/" + reviewId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("리뷰를 삭제하면 204를 반환한다.")
+  void deleteReview_success() throws Exception {
+    // given
+    UUID reviewId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/reviews/" + reviewId))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 리뷰를 삭제하면 404를 반환한다.")
+  void deleteReview_fail_with_not_found() throws Exception {
+    // given
+    UUID reviewId = UUID.randomUUID();
+
+    doThrow(new ReviewException(
+        ReviewErrorCode.REVIEW_NOT_FOUND,
+        Map.of("reviewId", reviewId)
+    )).when(reviewService).delete(any(), any());
+
+    // when & then
+    mockMvc.perform(delete("/api/reviews/" + reviewId))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("본인 리뷰가 아닌 리뷰를 삭제하면 403을 반환한다.")
+  void deleteReview_fail_with_forbidden() throws Exception {
+    // given
+    UUID reviewId = UUID.randomUUID();
+
+    doThrow(new ReviewException(
+        ReviewErrorCode.REVIEW_FORBIDDEN,
+        Map.of("reviewId", reviewId)
+    )).when(reviewService).delete(any(), any());
+
+    // when & then
+    mockMvc.perform(delete("/api/reviews/" + reviewId))
+        .andExpect(status().isForbidden());
   }
 }
