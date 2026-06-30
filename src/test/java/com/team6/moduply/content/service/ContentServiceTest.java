@@ -508,6 +508,8 @@ class ContentServiceTest {
 
     // Then
     assertThat(response).isEqualTo(expected);
+    assertThat(content.getTitle()).isEqualTo("Updated Title");
+    assertThat(content.getDescription()).isEqualTo("Old Description");
     assertThat(content.getContentImg()).isEqualTo(contentImg);
     verify(binaryContentService, never()).createContentImage(any(), any(), any());
     verify(binaryContentService).generateUrl(contentImg);
