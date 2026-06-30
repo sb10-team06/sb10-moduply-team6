@@ -46,9 +46,7 @@ public class SecurityConfig {
                 // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
                 new AntPathRequestMatcher("/api/auth/refresh", "POST"),
                 new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
-                new AntPathRequestMatcher("/ws/**"),
-                new AntPathRequestMatcher("/api/contents", "POST"),
-                new AntPathRequestMatcher("/api/contents/*", "PATCH")
+                new AntPathRequestMatcher("/ws/**")
             )
         )
         .sessionManagement(session ->
