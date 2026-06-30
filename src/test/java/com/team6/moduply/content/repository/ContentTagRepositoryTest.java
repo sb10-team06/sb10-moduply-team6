@@ -110,11 +110,20 @@ class ContentTagRepositoryTest extends RepositoryTestSupport {
         "Inception",
         "꿈과 현실을 넘나드는 SF 영화"
     ));
+    Content otherContent = contentRepository.save(new Content(
+        null,
+        null,
+        ContentType.sport,
+        "World Cup",
+        "스포츠 콘텐츠"
+    ));
     Tag sf = tagRepository.save(new Tag("SF"));
     Tag action = tagRepository.save(new Tag("액션"));
+    Tag sports = tagRepository.save(new Tag("스포츠"));
     contentTagRepository.saveAll(List.of(
         new ContentTag(content, sf),
-        new ContentTag(content, action)
+        new ContentTag(content, action),
+        new ContentTag(otherContent, sports)
     ));
 
     // When
@@ -122,6 +131,8 @@ class ContentTagRepositoryTest extends RepositoryTestSupport {
 
     // Then
     assertThat(contentTagRepository.findTagNamesByContentId(content.getId())).isEmpty();
-    assertThat(tagRepository.findAll()).contains(sf, action);
+    assertThat(contentTagRepository.findTagNamesByContentId(otherContent.getId()))
+        .containsExactly("스포츠");
+    assertThat(tagRepository.findAll()).contains(sf, action, sports);
   }
 }

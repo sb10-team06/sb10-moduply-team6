@@ -135,6 +135,25 @@ class ContentUpdateRequestTest {
   }
 
   @Test
+  @DisplayName("제목이 공백만 있으면 콘텐츠 수정 요청 검증에 실패한다.")
+  void validate_fail_when_title_is_blank() {
+    // Given
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "   ",
+        "꿈과 현실을 넘나드는 SF 영화",
+        List.of()
+    );
+
+    // When
+    Set<ConstraintViolation<ContentUpdateRequest>> violations = validator.validate(request);
+
+    // Then
+    assertThat(violations)
+        .extracting(violation -> violation.getPropertyPath().toString())
+        .contains("title");
+  }
+
+  @Test
   @DisplayName("태그 이름이 비어 있거나 100자를 초과하면 콘텐츠 수정 요청 검증에 실패한다.")
   void validate_fail_when_tag_is_invalid() {
     // Given

@@ -2,6 +2,7 @@ package com.team6.moduply.content.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -374,6 +375,54 @@ class ContentControllerTest {
         .andExpect(jsonPath("$.watcherCount").value(0));
 
     verify(contentService).update(eq(contentId), any(ContentUpdateRequest.class), any());
+  }
+
+  @Test
+  @DisplayName("썸네일 없이 콘텐츠 수정 API 요청 시 응답을 반환한다.")
+  void update_success_without_thumbnail() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "Updated Inception",
+        "수정된 콘텐츠 설명",
+        List.of("SF", "명작")
+    );
+    ContentDto response = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Updated Inception",
+        "수정된 콘텐츠 설명",
+        null,
+        List.of("SF", "명작"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+    MockMultipartFile requestPart = new MockMultipartFile(
+        "request",
+        "",
+        MediaType.APPLICATION_JSON_VALUE,
+        objectMapper.writeValueAsBytes(request)
+    );
+
+    given(contentService.update(eq(contentId), any(ContentUpdateRequest.class), isNull()))
+        .willReturn(response);
+
+    // When & Then
+    mockMvc.perform(multipart("/api/contents/{contentId}", contentId)
+            .file(requestPart)
+            .with(httpRequest -> {
+              httpRequest.setMethod("PATCH");
+              return httpRequest;
+            })
+            .contentType(MediaType.MULTIPART_FORM_DATA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(response.id().toString()))
+        .andExpect(jsonPath("$.thumbnailUrl").doesNotExist())
+        .andExpect(jsonPath("$.title").value(response.title()))
+        .andExpect(jsonPath("$.description").value(response.description()));
+
+    verify(contentService).update(eq(contentId), any(ContentUpdateRequest.class), isNull());
   }
 
   @Test

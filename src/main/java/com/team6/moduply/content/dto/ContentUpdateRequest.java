@@ -2,12 +2,14 @@ package com.team6.moduply.content.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
 @Schema(description = "콘텐츠 수정 요청")
 public record ContentUpdateRequest(
     @Schema(description = "콘텐츠 제목", example = "Inception")
+    @Pattern(regexp = ".*\\S.*", message = "콘텐츠 제목은 공백만으로 구성될 수 없습니다.")
     @Size(max = 255, message = "콘텐츠 제목은 255자 이하여야 합니다.")
     String title,
 
