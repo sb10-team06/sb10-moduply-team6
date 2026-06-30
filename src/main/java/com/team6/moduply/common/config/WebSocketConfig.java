@@ -74,6 +74,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   }
 
   private AuthorizationChannelInterceptor authorizationChannelInterceptor() {
+    // TODO: WebSocket 인가에도 RoleHierarchy를 직접 연결할지, 인증 객체에 확장 권한을 넣을지
+    //  리팩토링 단계에서 다시 논의한다.
     return new AuthorizationChannelInterceptor(
         MessageMatcherDelegatingAuthorizationManager.builder()
             .anyMessage().hasRole(Role.USER.name())

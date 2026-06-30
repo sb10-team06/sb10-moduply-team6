@@ -2,6 +2,7 @@ package com.team6.moduply.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -21,6 +22,8 @@ import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -31,7 +34,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +57,9 @@ class AuthServiceTest {
   @Mock
   private BinaryContentService binaryContentService;
 
+  @Mock
+  private RoleHierarchy roleHierarchy;
+
   @InjectMocks
   private AuthService authService;
 
@@ -70,9 +78,12 @@ class AuthServiceTest {
         Role.USER,
         false
     );
+    List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
+    given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
+        .willReturn((Collection) mockAuthorities);
 
     // When
     Authentication authentication = authService.getAuthentication(userId);
@@ -89,6 +100,7 @@ class AuthServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService).generateUrl(user.getProfileImg());
     verify(userMapper).toDto(user, null);
+    verify(roleHierarchy).getReachableGrantedAuthorities(anyCollection());
   }
 
   @Test

@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class AuthService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final TempPasswordUtil tempPasswordUtil;
   private final BinaryContentService binaryContentService;
+  private final RoleHierarchy roleHierarchy;
 
   @Transactional(readOnly = true)
   public Authentication getAuthentication(UUID userId) {
@@ -51,7 +53,9 @@ public class AuthService {
     return new UsernamePasswordAuthenticationToken(
         userDetails,
         null,
-        userDetails.getAuthorities()
+        // TODO: RoleHierarchy 적용 위치를 인증 객체와 인가 설정 중 어디에 둘지
+        //  WebSocket/HTTP 전체 흐름을 보고 리팩토링 단계에서 다시 정리한다.
+        roleHierarchy.getReachableGrantedAuthorities(userDetails.getAuthorities())
     );
   }
 
