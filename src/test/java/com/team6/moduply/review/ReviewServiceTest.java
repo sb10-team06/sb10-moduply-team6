@@ -10,6 +10,7 @@ import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
@@ -43,6 +44,10 @@ class ReviewServiceTest {
 
   @Mock
   private ContentRepository contentRepository;
+
+  @Mock
+  private ReviewQDSLRepository reviewQDSLRepository;
+
 
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(

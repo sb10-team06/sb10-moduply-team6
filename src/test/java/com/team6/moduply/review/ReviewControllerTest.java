@@ -3,6 +3,8 @@ package com.team6.moduply.review;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.review.controller.ReviewController;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
@@ -13,6 +15,7 @@ import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +36,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -247,5 +251,26 @@ class ReviewControllerTest {
     // when & then
     mockMvc.perform(delete("/api/reviews/" + reviewId))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("리뷰 목록을 조회하면 200을 반환한다.")
+  void getReviews_success() throws Exception {
+    // given
+    CursorResponse<ReviewDto> response = new CursorResponse<>(
+        List.of(), null, null, false, 0L, "createdAt", SortDirection.DESCENDING
+    );
+
+    given(reviewService.findAll(any())).willReturn(response);
+
+    // when & then
+    mockMvc.perform(get("/api/reviews")
+            .param("contentIdEqual", UUID.randomUUID().toString())
+            .param("limit", "10")
+            .param("sortDirection", "DESCENDING")
+            .param("sortBy", "createdAt"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(0));
   }
 }
