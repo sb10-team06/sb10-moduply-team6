@@ -47,8 +47,7 @@ public class AuthController implements AuthApi {
   @PostMapping("/refresh")
   @Override
   public ResponseEntity<JwtDto> refreshAccessToken(
-      @CookieValue(value = "REFRESH_TOKEN", required = false) String refreshToken,
-      HttpServletResponse response
+      @CookieValue(value = "REFRESH_TOKEN", required = false) String refreshToken
   ) {
     if (refreshToken == null || refreshToken.isBlank()) {
       throw new AuthException(AuthErrorCode.MISSING_TOKEN_EXCEPTION, Map.of(

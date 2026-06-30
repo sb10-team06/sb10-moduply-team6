@@ -15,10 +15,10 @@ import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.TempPasswordUtil;
-import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
@@ -67,7 +67,7 @@ class AuthServiceTest {
   private TempPasswordUtil tempPasswordUtil;
 
   @Mock
-  private RedisUtil redisUtil;
+  private RefreshTokenRedisUtil refreshTokenRedisUtil;
 
   @Mock
   private BinaryContentService binaryContentService;
@@ -249,12 +249,7 @@ class AuthServiceTest {
         .willReturn(newAccessToken);
     given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
         .willReturn(newRefreshToken);
-    given(redisUtil.rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        newRefreshToken,
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    )).willReturn("OK");
+    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("OK");
 
     // When
     TokenRefreshDto result = authService.refreshTokens(refreshToken);
@@ -262,12 +257,7 @@ class AuthServiceTest {
     // Then
     assertThat(result.getJwtDto().getAccessToken()).isEqualTo(newAccessToken);
     assertThat(result.getRefreshToken()).isEqualTo(newRefreshToken);
-    verify(redisUtil).rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        newRefreshToken,
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    );
+    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
   }
 
   @Test
@@ -303,12 +293,7 @@ class AuthServiceTest {
         .willReturn("new-access-token");
     given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
         .willReturn(newRefreshToken);
-    given(redisUtil.rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        newRefreshToken,
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    )).willReturn("MISMATCH");
+    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("MISMATCH");
 
     // When & Then
     assertThatThrownBy(() -> authService.refreshTokens(refreshToken))
@@ -316,12 +301,7 @@ class AuthServiceTest {
             assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION)
         );
 
-    verify(redisUtil).rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        newRefreshToken,
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    );
+    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
   }
 
   @Test
@@ -356,12 +336,9 @@ class AuthServiceTest {
         .willReturn("new-access-token");
     given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
         .willReturn("new-refresh-token");
-    given(redisUtil.rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        "new-refresh-token",
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    )).willReturn("OK").willReturn("MISMATCH");
+    given(refreshTokenRedisUtil.rotate(email, refreshToken, "new-refresh-token"))
+        .willReturn("OK")
+        .willReturn("MISMATCH");
 
     CountDownLatch startLatch = new CountDownLatch(1);
     ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -395,12 +372,7 @@ class AuthServiceTest {
 
     assertThat(successCount).isEqualTo(1);
     assertThat(failureCount).isEqualTo(1);
-    verify(redisUtil, times(2)).rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        "new-refresh-token",
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    );
+    verify(refreshTokenRedisUtil, times(2)).rotate(email, refreshToken, "new-refresh-token");
   }
 
   private ResetPasswordRequest resetPasswordRequest(String email) {

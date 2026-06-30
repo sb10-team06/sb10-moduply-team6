@@ -8,9 +8,9 @@ import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
-import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
@@ -40,7 +40,7 @@ public class AuthService {
   private final TempPasswordUtil tempPasswordUtil;
   private final BinaryContentService binaryContentService;
   private final RoleHierarchy roleHierarchy;
-  private final RedisUtil redisUtil;
+  private final RefreshTokenRedisUtil refreshTokenRedisUtil;
   private final JwtTokenProvider jwtTokenProvider;
 
   @Transactional(readOnly = true)
@@ -94,18 +94,12 @@ public class AuthService {
     }
 
     String email = jwtTokenProvider.getEmail(refreshToken);
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
     Authentication authentication = getAuthentication(jwtTokenProvider.getUserId(refreshToken));
 
     String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
     String newRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
-    String result = redisUtil.rotateRefreshToken(
-        redisKey,
-        refreshToken,
-        newRefreshToken,
-        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
-    );
+    String result = refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken);
     if(!"OK".equals(result)){
       log.error("[보안 비상] refresh token 갱신 실패. result={}, 요청 Id={}", result, MDC.get("requestId"));
       throw new AuthException(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION, Map.of(

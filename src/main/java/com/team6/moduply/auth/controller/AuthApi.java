@@ -96,8 +96,7 @@ public interface AuthApi {
           required = true,
           in = ParameterIn.COOKIE
       )
-      String refreshToken,
-      HttpServletResponse response
+      String refreshToken
   );
 
   @Operation(
