@@ -13,4 +13,6 @@ public interface WatchingSessionRepository {
   Optional<WatchingSession> findBySessionId(String sessionId);
 
   Optional<WatchingSession> deleteBySessionId(String sessionId);
+
+  long countByContentId(UUID contentId);
 }

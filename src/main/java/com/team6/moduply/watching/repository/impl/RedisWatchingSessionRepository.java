@@ -31,6 +31,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
 
   private static final String WATCHER_KEY_PREFIX = "watcher:watcher:";
   private static final String SESSION_KEY_PREFIX = "watcher:session:";
+  private static final String CONTENT_KEY_PREFIX = "watcher:content:";
 
   public RedisWatchingSessionRepository(
       @Qualifier("watchingSessionRedisTemplate") RedisTemplate<String, WatchingSession> watchingSessionRedisTemplate,
@@ -44,16 +45,22 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     UUID watcherId = watchingSession.getWatcherId();
     String watcherKey = WATCHER_KEY_PREFIX + watcherId.toString();
     String sessionKey = SESSION_KEY_PREFIX + watchingSession.getSessionId();
+    String contentKey = CONTENT_KEY_PREFIX + watchingSession.getContentId().toString();
 
     WatchingSession previous = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
     if (previous != null && !previous.getSessionId().equals(watchingSession.getSessionId())) {
       sessionIdAndUserIdRedisTemplate.delete(SESSION_KEY_PREFIX + previous.getSessionId());
+      sessionIdAndUserIdRedisTemplate.opsForSet()
+          .remove(CONTENT_KEY_PREFIX + previous.getContentId(), watcherId.toString());
     }
 
     watchingSessionRedisTemplate.opsForValue()
         .set(watcherKey, watchingSession, EXPIRED_HOURS, TimeUnit.HOURS);
     sessionIdAndUserIdRedisTemplate.opsForValue()
         .set(sessionKey, watcherId.toString(), EXPIRED_HOURS, TimeUnit.HOURS);
+    sessionIdAndUserIdRedisTemplate.opsForSet()
+        .add(contentKey, watchingSession.getWatcherId().toString());
+    sessionIdAndUserIdRedisTemplate.expire(contentKey, EXPIRED_HOURS, TimeUnit.HOURS);
 
     return watchingSession;
   }
@@ -89,12 +96,28 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     WatchingSession session = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
 
     if (session != null && session.getSessionId().equals(sessionId)) {
+      String contentKey = CONTENT_KEY_PREFIX + session.getContentId();
       sessionIdAndUserIdRedisTemplate.delete(sessionKey);
       watchingSessionRedisTemplate.delete(watcherKey);
+      sessionIdAndUserIdRedisTemplate.opsForSet()
+          .remove(contentKey, session.getWatcherId().toString());
       return Optional.of(session);
     }
-    
+
+    if (session != null) {
+      String contentKey = CONTENT_KEY_PREFIX + session.getContentId();
+      sessionIdAndUserIdRedisTemplate.opsForSet()
+          .remove(contentKey, session.getWatcherId().toString());
+    }
+
     sessionIdAndUserIdRedisTemplate.delete(sessionKey);
     return Optional.empty();
+  }
+
+  @Override
+  public long countByContentId(UUID contentId) {
+    String contentKey = CONTENT_KEY_PREFIX + contentId.toString();
+    Long count = sessionIdAndUserIdRedisTemplate.opsForSet().size(contentKey);
+    return count == null ? 0 : count;
   }
 }

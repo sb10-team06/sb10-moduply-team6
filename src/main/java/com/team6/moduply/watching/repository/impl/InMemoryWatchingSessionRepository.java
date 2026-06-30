@@ -75,6 +75,13 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
     return Optional.ofNullable(removed);
   }
 
+  @Override
+  public long countByContentId(UUID contentId) {
+    return watchingSessionStorage.values().stream()
+        .filter(s -> contentId.equals(s.getContentId()))
+        .count();
+  }
+
   @Scheduled(fixedRate = SCHEDULED_MINUTES, timeUnit = TimeUnit.MINUTES)
   private void deleteExpiredSessions() {
     Instant expiredTime = Instant.now().minusSeconds(EXPIRED_HOURS * 3600);

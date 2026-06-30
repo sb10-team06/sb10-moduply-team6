@@ -1,4 +1,4 @@
-package com.team6.moduply.content.event;
+package com.team6.moduply.watching.event;
 
 import com.team6.moduply.watching.enums.ChangeType;
 import com.team6.moduply.watching.model.WatchingSession;
