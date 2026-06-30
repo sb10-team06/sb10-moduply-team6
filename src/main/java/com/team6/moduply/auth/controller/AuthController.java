@@ -56,11 +56,6 @@ public class AuthController implements AuthApi {
       ));
     }
 
-    if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
-      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
-          "tokenType", "refresh"
-      ));
-    }
     TokenRefreshDto tokenRefreshDto = authService.refreshTokens(refreshToken);
 
     ResponseCookie newRefreshTokenCookie = ResponseCookie.from("REFRESH_TOKEN",
