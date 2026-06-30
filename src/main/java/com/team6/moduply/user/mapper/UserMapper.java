@@ -1,6 +1,7 @@
 package com.team6.moduply.user.mapper;
 
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.entity.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -16,4 +17,8 @@ public interface UserMapper {
   default UserDto toDto(User user) {
     return toDto(user, null);
   }
+
+  @Mapping(target = "userId", source = "user.id")
+  @Mapping(target = "profileImageUrl", source = "profileImgUrl")
+  UserSummaryDto toSummaryDto(User user, String profileImgUrl);
 }
