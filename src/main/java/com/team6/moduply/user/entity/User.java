@@ -85,4 +85,8 @@ public class User extends BaseUpdatableEntity {
   public void updateProfileImg(BinaryContent profileImg) {
     this.profileImg = profileImg;
   }
+
+  public void updateBlocked(boolean isBlocked) {
+    this.isBlocked = isBlocked;
+  }
 }

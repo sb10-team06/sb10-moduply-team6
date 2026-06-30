@@ -2,14 +2,16 @@ package com.team6.moduply.user.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
-import com.team6.moduply.user.event.PasswordChangeEvent;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
@@ -19,7 +21,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,7 +37,7 @@ public class UserService {
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
   private final BinaryContentService binaryContentService;
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private final RedisUtil redisUtil;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -75,7 +76,7 @@ public class UserService {
             "userId", userId
         )));
 
-    UserDto response = userMapper.toDto(user);
+    UserDto response = toDto(user);
     log.debug("사용자 단건 조회 처리 완료. userId={}", response.getId());
     return response;
   }
@@ -139,6 +140,38 @@ public class UserService {
     String newEncodedPassword = passwordEncoder.encode(request.getNewPassword());
     user.updateEncodedPassword(newEncodedPassword);
 
-    applicationEventPublisher.publishEvent(new PasswordChangeEvent(user.getEmail()));
+    redisUtil.deleteData(RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail()));
+  }
+
+  @Transactional
+  @PreAuthorize("hasRole('ADMIN')")
+  public void lockUser(UUID userId) {
+    updateUserLocked(userId, new UserLockUpdateRequest(true));
+  }
+
+  @Transactional
+  @PreAuthorize("hasRole('ADMIN')")
+  public void updateUserLocked(UUID userId, UserLockUpdateRequest request) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+            "userId", userId
+        )));
+
+    user.updateBlocked(request.getLocked());
+
+    if (request.getLocked()) {
+      redisUtil.setDataExpire(
+          RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()),
+          "locked",
+          RedisKeyPolicy.BLACKLIST_LOCKED.getTtl()
+      );
+    } else {
+      redisUtil.deleteData(RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()));
+    }
+  }
+
+  private UserDto toDto(User user) {
+    String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+    return userMapper.toDto(user, profileImageUrl);
   }
 }

@@ -31,9 +31,20 @@ public class RedisUtil {
       maxAttempts = 3,
       backoff = @Backoff(delay = 300, multiplier = 2)
   )
-  public void setDateExpire(String key, String value, Duration duration) {
+  public void setDataExpire(String key, String value, Duration duration) {
     ValueOperations<String, String> valueOperations = stringRedisTemplate.opsForValue();
     valueOperations.set(key, value, duration);
+  }
+
+  @Recover
+  public void recoverSetDataExpire(
+      DataAccessException e,
+      String key,
+      String value,
+      Duration duration
+  ) {
+    log.error("Redis 저장 재시도 실패. key={}", key, e);
+    throw e;
   }
 
   @Retryable(
@@ -49,7 +60,7 @@ public class RedisUtil {
   @Recover
   public String recoverGetData(DataAccessException e, String key) {
     log.warn("Redis 조회 재시도 실패. key={}", key, e);
-    return null;
+    throw e;
   }
 
   @Retryable(

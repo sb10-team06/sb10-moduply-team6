@@ -100,7 +100,7 @@ public class EmailEventListener {
       mailSender.send(mimeMessage);
 
       // 이메일 발송 후 redis에 인코딩된 임시비밀번호, 만료시간 저장
-      redisUtil.setDateExpire(redisKey, encodedTempPassword, ttl);
+      redisUtil.setDataExpire(redisKey, encodedTempPassword, ttl);
 
       log.info("[비동기 메일 발송 성공] 요청 Id = {}", requestId);
 

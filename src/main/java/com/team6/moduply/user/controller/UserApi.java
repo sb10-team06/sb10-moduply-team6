@@ -4,6 +4,7 @@ import com.team6.moduply.common.error.ErrorResponse;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -123,7 +124,6 @@ public interface UserApi {
   )
   @ApiResponses({
       @ApiResponse(responseCode = "204", description = "성공"),
-      @ApiResponse(responseCode = "200", description = "성공"),
       @ApiResponse(
           responseCode = "400",
           description = "잘못된 요청",
@@ -149,6 +149,14 @@ public interface UserApi {
           )
       ),
       @ApiResponse(
+          responseCode = "404",
+          description = "해당 리소스 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
           responseCode = "500",
           description = "서버 오류",
           content = @Content(
@@ -168,6 +176,67 @@ public interface UserApi {
           )
       )
       UserRoleUpdateRequest request
+  );
+
+  @Operation(
+      summary = "[어드민] 계정 잠금 상태 변경",
+      description = "[어드민 기능] 계정 잠금 상태를 변경합니다.",
+      operationId = "updateUser_Locked"
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "204", description = "성공"),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "해당 리소스 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<Void> updateUserLocked(
+      @Parameter(description = "사용자 ID", required = true)
+      UUID userId,
+      @RequestBody(
+          required = true,
+          content = @Content(
+              mediaType = MediaType.APPLICATION_JSON_VALUE,
+              schema = @Schema(implementation = UserLockUpdateRequest.class)
+          )
+      )
+      UserLockUpdateRequest request
   );
 
   @Operation(

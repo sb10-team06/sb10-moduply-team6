@@ -30,6 +30,7 @@ public class JwtTokenProvider {
   private static final int HS256_MIN_SECRET_KEY_BYTES = 32;
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
+  private static final String EMAIL_CLAIM = "email";
 
   @Value("${jwt.key}")
   private String secretKey;
@@ -82,6 +83,23 @@ public class JwtTokenProvider {
     }
   }
 
+  public String getEmail(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+      String email = claimsSet.getStringClaim(EMAIL_CLAIM);
+      if (email == null || email.isBlank()) {
+        throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      }
+      return email;
+    } catch (ParseException e) {
+      log.warn("유효하지 않은 JWT 토큰입니다.", e);
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
+    }
+  }
+
   // 토큰 생성
   private String generateToken(
       Authentication authentication,
@@ -103,6 +121,7 @@ public class JwtTokenProvider {
       JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder()
           .subject(userDto.getId().toString())
           .claim("type", tokenType)
+          .claim(EMAIL_CLAIM, userDto.getEmail())
           .issueTime(issuedAt)
           .expirationTime(expiresAt);
 

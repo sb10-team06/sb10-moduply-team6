@@ -5,6 +5,7 @@ import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
@@ -30,6 +31,7 @@ public class AuthService {
   private final UserMapper userMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final TempPasswordUtil tempPasswordUtil;
+  private final BinaryContentService binaryContentService;
   private final RoleHierarchy roleHierarchy;
 
   @Transactional(readOnly = true)
@@ -39,7 +41,7 @@ public class AuthService {
             "userId", userId
         )));
 
-    UserDto userDto = userMapper.toDto(user);
+    UserDto userDto = toDto(user);
     ModuPlyUserDetails userDetails = new ModuPlyUserDetails(userDto, user.getEncodedPassword());
 
     if (!userDetails.isAccountNonLocked()) {
@@ -51,6 +53,8 @@ public class AuthService {
     return new UsernamePasswordAuthenticationToken(
         userDetails,
         null,
+        // TODO: RoleHierarchy 적용 위치를 인증 객체와 인가 설정 중 어디에 둘지
+        //  WebSocket/HTTP 전체 흐름을 보고 리팩토링 단계에서 다시 정리한다.
         roleHierarchy.getReachableGrantedAuthorities(userDetails.getAuthorities())
     );
   }
@@ -70,5 +74,11 @@ public class AuthService {
 
     // 이메일로 발송
     applicationEventPublisher.publishEvent(new TempPasswordEvent(email, tempPassword, expiresAt));
+  }
+
+  private UserDto toDto(User user) {
+    // TODO: 인증 객체 생성과 응답용 프로필 URL 생성 책임이 섞여 있으므로 추후 분리 리팩토링 필요
+    String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+    return userMapper.toDto(user, profileImageUrl);
   }
 }

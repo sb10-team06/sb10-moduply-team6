@@ -3,6 +3,7 @@ package com.team6.moduply.user.controller;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.service.UserService;
@@ -57,6 +58,18 @@ public class UserController implements UserApi {
     log.info("사용자 권한 변경 요청 수신. userId={}, role={}", userId, request.getRole());
     userService.updateUserRole(userId, request);
     log.info("사용자 권한 변경 요청 처리 완료. userId={}", userId);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PatchMapping("/{userId}/locked")
+  @Override
+  public ResponseEntity<Void> updateUserLocked(
+      @PathVariable UUID userId,
+      @Valid @RequestBody UserLockUpdateRequest request
+  ) {
+    log.info("사용자 계정 잠금 상태 변경 요청 수신. userId={}, locked={}", userId, request.getLocked());
+    userService.updateUserLocked(userId, request);
+    log.info("사용자 계정 잠금 상태 변경 요청 처리 완료. userId={}", userId);
     return ResponseEntity.noContent().build();
   }
 
