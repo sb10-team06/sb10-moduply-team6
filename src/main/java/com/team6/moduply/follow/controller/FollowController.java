@@ -60,4 +60,10 @@ public class FollowController implements FollowApi {
   ) {
     return ResponseEntity.ok(followService.isFollowedByMe(followeeId, followerId));
   }
+
+  @GetMapping("/count")
+  @Override
+  public ResponseEntity<Long> getFollowerCount(@RequestParam UUID followeeId) {
+    return ResponseEntity.ok(followService.getFollowerCount(followeeId));
+  }
 }
