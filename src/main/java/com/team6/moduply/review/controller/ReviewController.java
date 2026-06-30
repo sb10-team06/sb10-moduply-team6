@@ -3,13 +3,18 @@ package com.team6.moduply.review.controller;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,5 +34,23 @@ public class ReviewController {
       @RequestBody @Valid ReviewCreateRequest request,
       @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
     return ResponseEntity.status(201).body(reviewService.create(request, userDetails));
+  }
+
+  @PatchMapping("/{reviewId}")
+  @Operation(summary = "리뷰 수정", description = "리뷰를 수정합니다.")
+  public ResponseEntity<ReviewDto> updateReview(
+      @PathVariable UUID reviewId,
+      @RequestBody @Valid ReviewUpdateRequest request,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
+    return ResponseEntity.ok(reviewService.update(reviewId, request, userDetails));
+  }
+
+  @DeleteMapping("/{reviewId}")
+  @Operation(summary = "리뷰 삭제", description = "리뷰를 삭제합니다.")
+  public ResponseEntity<Void> deleteReview(
+      @PathVariable UUID reviewId,
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
+    reviewService.delete(reviewId, userDetails);
+    return ResponseEntity.noContent().build();
   }
 }

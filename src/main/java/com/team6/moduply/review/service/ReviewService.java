@@ -4,6 +4,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.entity.Review;
 import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
@@ -22,6 +23,15 @@ public class ReviewService {
   private final ReviewRepository reviewRepository;
   private final ReviewMapper reviewMapper;
   private final ContentRepository contentRepository;
+
+  private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
+    if (!review.getAuthorId().equals(authorId)) {
+      throw new ReviewException(
+          ReviewErrorCode.REVIEW_FORBIDDEN,
+          Map.of("reviewId", reviewId)
+      );
+    }
+  }
 
   @Transactional
   public ReviewDto create(ReviewCreateRequest request, ModuPlyUserDetails userDetails) {
@@ -59,5 +69,43 @@ public class ReviewService {
     );
 
     return reviewMapper.toDto(saved, author);
+  }
+
+  @Transactional
+  public ReviewDto update(UUID reviewId, ReviewUpdateRequest request, ModuPlyUserDetails userDetails) {
+    UUID authorId = userDetails.getUserDto().getId();
+
+    Review review = reviewRepository.findById(reviewId)
+        .orElseThrow(() -> new ReviewException(
+            ReviewErrorCode.REVIEW_NOT_FOUND,
+            Map.of("reviewId", reviewId)
+        ));
+
+    validateAuthor(review, authorId, reviewId);
+
+    review.update(request.text(), request.rating());
+
+    ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
+        authorId,
+        userDetails.getUserDto().getName(),
+        userDetails.getUserDto().getProfileImageUrl()
+    );
+
+    return reviewMapper.toDto(review, author);
+  }
+
+  @Transactional
+  public void delete(UUID reviewId, ModuPlyUserDetails userDetails) {
+    UUID authorId = userDetails.getUserDto().getId();
+
+    Review review = reviewRepository.findById(reviewId)
+        .orElseThrow(() -> new ReviewException(
+            ReviewErrorCode.REVIEW_NOT_FOUND,
+            Map.of("reviewId", reviewId)
+        ));
+
+    validateAuthor(review, authorId, reviewId);
+
+    reviewRepository.delete(review);
   }
 }
