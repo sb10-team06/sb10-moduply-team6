@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -89,6 +90,26 @@ class ConversationControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(conversationService, never()).create(any(), eq(currentUserId));
+  }
+
+  @Test
+  @DisplayName("대화방 단건 조회 요청 시 인증 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
+  void findConversationById_success_with_authenticated_principal() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    ConversationDto response = conversationDto(conversationId, withUserId);
+
+    given(conversationService.findById(eq(conversationId), eq(currentUserId))).willReturn(response);
+
+    mockMvc.perform(get("/api/conversations/{conversationId}", conversationId)
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(conversationId.toString()))
+        .andExpect(jsonPath("$.with.userId").value(withUserId.toString()))
+        .andExpect(jsonPath("$.hasUnread").value(false));
+
+    verify(conversationService).findById(conversationId, currentUserId);
   }
 
   private ConversationDto conversationDto(UUID conversationId, UUID withUserId) {

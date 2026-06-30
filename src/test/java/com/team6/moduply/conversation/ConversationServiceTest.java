@@ -15,6 +15,7 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.conversation.service.ConversationService;
+import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -39,6 +40,9 @@ class ConversationServiceTest {
 
   @Mock
   private ConversationRepository conversationRepository;
+
+  @Mock
+  private DirectMessageRepository directMessageRepository;
 
   @Mock
   private UserRepository userRepository;
@@ -156,6 +160,73 @@ class ConversationServiceTest {
         });
 
     verify(conversationRepository, never()).saveAndFlush(any(Conversation.class));
+  }
+
+  @Test
+  @DisplayName("대화방 참여자가 대화방을 조회하면 대화방 정보를 반환한다.")
+  void findById_success_with_participant() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    ConversationDto expected = new ConversationDto(conversationId, null, null, true);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId))
+        .willReturn(Optional.empty());
+    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
+        conversationId,
+        currentUserId
+    )).willReturn(true);
+    given(conversationMapper.toDto(conversation, currentUser, withUser, null, true)).willReturn(expected);
+
+    ConversationDto result = conversationService.findById(conversationId, currentUserId);
+
+    assertThat(result).isEqualTo(expected);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 대화방을 조회하면 예외가 발생한다.")
+  void findById_fail_when_conversation_not_found() {
+    UUID conversationId = UUID.randomUUID();
+    UUID currentUserId = UUID.randomUUID();
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> conversationService.findById(conversationId, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_NOT_FOUND);
+          assertThat(exception.getDetails().get("conversationId")).isEqualTo(conversationId);
+        });
+
+    verify(userRepository, never()).findById(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("대화방 참여자가 아닌 사용자가 대화방을 조회하면 예외가 발생한다.")
+  void findById_fail_when_not_participant() {
+    UUID user1Id = UUID.randomUUID();
+    UUID user2Id = UUID.randomUUID();
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    Conversation conversation = Conversation.create(user1Id, user2Id);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+
+    assertThatThrownBy(() -> conversationService.findById(conversationId, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_FORBIDDEN);
+          assertThat(exception.getDetails().get("conversationId")).isEqualTo(conversationId);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(currentUserId);
+        });
+
+    verify(userRepository, never()).findById(any(UUID.class));
   }
 
   private User user(UUID userId, String name) {
