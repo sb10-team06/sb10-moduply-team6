@@ -76,17 +76,25 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
   }
 
   @Override
-  public void deleteBySessionId(String sessionId) {
+  public Optional<WatchingSession> deleteBySessionId(String sessionId) {
     String sessionKey = SESSION_KEY_PREFIX + sessionId;
     String watcherId = sessionIdAndUserIdRedisTemplate.opsForValue().get(sessionKey);
 
-    if (watcherId != null) {
-      String watcherKey = WATCHER_KEY_PREFIX + watcherId;
-      sessionIdAndUserIdRedisTemplate.delete(sessionKey);
-      WatchingSession session = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
-      if (session != null && session.getSessionId().equals(sessionId)) {
-        watchingSessionRedisTemplate.delete(watcherKey);
-      }
+    if (watcherId == null) {
+      return Optional.empty();
     }
+
+    String watcherKey = WATCHER_KEY_PREFIX + watcherId;
+
+    WatchingSession session = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
+
+    if (session != null && session.getSessionId().equals(sessionId)) {
+      sessionIdAndUserIdRedisTemplate.delete(sessionKey);
+      watchingSessionRedisTemplate.delete(watcherKey);
+      return Optional.of(session);
+    }
+    
+    sessionIdAndUserIdRedisTemplate.delete(sessionKey);
+    return Optional.empty();
   }
 }

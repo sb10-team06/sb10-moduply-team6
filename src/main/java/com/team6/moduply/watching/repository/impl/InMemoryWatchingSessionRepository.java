@@ -59,18 +59,20 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
   }
 
   @Override
-  public void deleteBySessionId(String sessionId) {
+  public Optional<WatchingSession> deleteBySessionId(String sessionId) {
 
     UUID watcherId = sessionIdAndUserIdMap.remove(sessionId);
 
-    if (watcherId != null) {
-      watchingSessionStorage.computeIfPresent(watcherId, (k, session) -> {
-        if (session.getSessionId().equals(sessionId)) {
-          return null;
-        }
-        return session;
-      });
+    if (watcherId == null) {
+      return Optional.empty();
     }
+    WatchingSession removed = watchingSessionStorage.computeIfPresent(watcherId, (k, session) -> {
+      if (session.getSessionId().equals(sessionId)) {
+        return null;
+      }
+      return session;
+    });
+    return Optional.ofNullable(removed);
   }
 
   @Scheduled(fixedRate = SCHEDULED_MINUTES, timeUnit = TimeUnit.MINUTES)

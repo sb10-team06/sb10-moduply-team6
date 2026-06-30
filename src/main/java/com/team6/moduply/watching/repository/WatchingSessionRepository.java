@@ -12,5 +12,5 @@ public interface WatchingSessionRepository {
 
   Optional<WatchingSession> findBySessionId(String sessionId);
 
-  void deleteBySessionId(String sessionId);
+  Optional<WatchingSession> deleteBySessionId(String sessionId);
 }
