@@ -578,14 +578,13 @@ class ContentServiceTest {
         List.of("액션", "SF", "SF ")
     );
     List<String> existingTagNames = List.of("SF", "액션");
-    List<String> normalizedTagNames = List.of("액션", "SF");
     ContentDto expected = new ContentDto(
         contentId,
         ContentType.movie,
         "Old Title",
         "Old Description",
         null,
-        normalizedTagNames,
+        existingTagNames,
         BigDecimal.ZERO,
         0,
         0L
@@ -593,7 +592,7 @@ class ContentServiceTest {
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
-    given(contentMapper.toDto(content, null, normalizedTagNames)).willReturn(expected);
+    given(contentMapper.toDto(content, null, existingTagNames)).willReturn(expected);
 
     // When
     ContentDto response = contentService.update(contentId, request, null);

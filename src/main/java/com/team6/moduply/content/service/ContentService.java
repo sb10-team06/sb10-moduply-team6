@@ -265,7 +265,7 @@ public class ContentService {
 
     if (!tagNames.isEmpty()
         && new LinkedHashSet<>(existingTagNames).equals(new LinkedHashSet<>(tagNames))) {
-      return tagNames;
+      return existingTagNames;
     }
 
     contentTagRepository.deleteAllByContentId(content.getId());
