@@ -5,6 +5,7 @@ import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
+import com.team6.moduply.content.dto.ContentUpdateRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -161,4 +162,65 @@ public interface ContentApi {
       )
   })
   ResponseEntity<ContentDto> find(UUID contentId);
+
+  @Operation(
+      summary = "[어드민] 콘텐츠 수정",
+      description = "기존 콘텐츠 정보를 수정합니다.",
+      operationId = "updateContent"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "성공",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ContentDto.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "콘텐츠 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<ContentDto> update(
+      UUID contentId,
+      ContentUpdateRequest request,
+      MultipartFile thumbnail
+  );
 }
