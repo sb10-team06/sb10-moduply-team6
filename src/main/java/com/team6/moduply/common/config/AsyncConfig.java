@@ -46,12 +46,11 @@ public class AsyncConfig implements AsyncConfigurer {
 
     executor.setCorePoolSize(coreSize);
     executor.setMaxPoolSize(Math.max(processors, coreSize));
-    executor.setQueueCapacity(100);
+    executor.setQueueCapacity(5000);
     executor.setThreadNamePrefix("watching-event-task-");
     executor.setWaitForTasksToCompleteOnShutdown(true); // 진행 중인 작업 완료 후 종료
     executor.setAwaitTerminationSeconds(100);           // 최대 대기 시간 설정
-    executor.setRejectedExecutionHandler(
-        new ThreadPoolExecutor.CallerRunsPolicy());//큐가 가득찾을 때 메인 스레드 사용
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
     executor.initialize();
     return executor;
   }
