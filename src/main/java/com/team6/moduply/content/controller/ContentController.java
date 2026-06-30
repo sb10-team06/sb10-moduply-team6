@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,5 +79,14 @@ public class ContentController implements ContentApi {
     ContentDto response = contentService.update(contentId, request, thumbnail);
     log.info("콘텐츠 수정 요청 처리 완료: contentId={}", response.id());
     return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/{contentId}")
+  @Override
+  public ResponseEntity<Void> delete(@PathVariable UUID contentId) {
+    log.info("콘텐츠 삭제 요청 수신: contentId={}", contentId);
+    contentService.delete(contentId);
+    log.info("콘텐츠 삭제 요청 처리 완료: contentId={}", contentId);
+    return ResponseEntity.noContent().build();
   }
 }
