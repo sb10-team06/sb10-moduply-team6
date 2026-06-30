@@ -1,10 +1,14 @@
 package com.team6.moduply.auth.service;
 
+import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.dto.JwtDto;
 import com.team6.moduply.auth.dto.ResetPasswordRequest;
+import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.TempPasswordUtil;
@@ -17,6 +21,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
@@ -33,6 +40,8 @@ public class AuthService {
   private final TempPasswordUtil tempPasswordUtil;
   private final BinaryContentService binaryContentService;
   private final RoleHierarchy roleHierarchy;
+  private final RefreshTokenRedisUtil refreshTokenRedisUtil;
+  private final JwtTokenProvider jwtTokenProvider;
 
   @Transactional(readOnly = true)
   public Authentication getAuthentication(UUID userId) {
@@ -74,6 +83,32 @@ public class AuthService {
 
     // 이메일로 발송
     applicationEventPublisher.publishEvent(new TempPasswordEvent(email, tempPassword, expiresAt));
+  }
+
+  @Transactional
+  public TokenRefreshDto refreshTokens(String refreshToken){
+    if(!jwtTokenProvider.validateRefreshToken(refreshToken)){
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "tokenType", "refresh"
+      ));
+    }
+
+    String email = jwtTokenProvider.getEmail(refreshToken);
+    Authentication authentication = getAuthentication(jwtTokenProvider.getUserId(refreshToken));
+
+    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    String newRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+
+    String result = refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken);
+    if(!"OK".equals(result)){
+      log.error("[보안 비상] refresh token 갱신 실패. result={}, 요청 Id={}", result, MDC.get("requestId"));
+      throw new AuthException(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION, Map.of(
+          "tokenType", "refresh"
+      ));
+    }
+
+    ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
+    return new TokenRefreshDto(new JwtDto(userDetails.getUserDto(), newAccessToken), newRefreshToken);
   }
 
   private UserDto toDto(User user) {

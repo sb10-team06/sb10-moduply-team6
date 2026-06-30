@@ -2,11 +2,14 @@ package com.team6.moduply.auth.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import jakarta.servlet.http.Cookie;
@@ -29,6 +32,9 @@ class JwtLoginSuccessHandlerTest {
   @Mock
   private JwtTokenProvider jwtTokenProvider;
 
+  @Mock
+  private RedisUtil redisUtil;
+
   @Test
   @DisplayName("로그인 성공 시 Access Token은 헤더와 응답 바디에, Refresh Token은 쿠키에 담는다")
   void login_success() throws Exception {
@@ -37,7 +43,8 @@ class JwtLoginSuccessHandlerTest {
     JwtLoginSuccessHandler handler = new JwtLoginSuccessHandler(
         jwtTokenProvider,
         objectMapper,
-        CookieCsrfTokenRepository.withHttpOnlyFalse()
+        CookieCsrfTokenRepository.withHttpOnlyFalse(),
+        redisUtil
     );
 
     UserDto userDto = new UserDto(
@@ -58,6 +65,7 @@ class JwtLoginSuccessHandlerTest {
 
     given(jwtTokenProvider.generateAccessToken(authentication)).willReturn("access-token");
     given(jwtTokenProvider.generateRefreshToken(authentication)).willReturn("refresh-token");
+    given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
 
     MockHttpServletRequest request = new MockHttpServletRequest();
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -81,5 +89,10 @@ class JwtLoginSuccessHandlerTest {
     assertThat(csrfTokenCookie.getPath()).isEqualTo("/");
     assertThat(responseBody.get("accessToken").asText()).isEqualTo("access-token");
     assertThat(responseBody.get("userDto").get("email").asText()).isEqualTo("tester@example.com");
+    verify(redisUtil).setDataExpire(
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"),
+        "refresh-token",
+        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
+    );
   }
 }
