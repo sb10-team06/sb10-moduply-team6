@@ -85,6 +85,12 @@ public class FollowService {
     return followMapper.toDto(follow);
   }
 
+  @Transactional(readOnly = true)
+  public long getFollowerCount(UUID followeeId) {
+    findUser(followeeId);
+    return followRepository.countByFolloweeId(followeeId);
+  }
+
 
   private void validate(UUID followerId, UUID followeeId) {
     /// 자기자신 팔로우 X

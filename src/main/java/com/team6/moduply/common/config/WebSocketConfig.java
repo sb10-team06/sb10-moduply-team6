@@ -2,6 +2,7 @@ package com.team6.moduply.common.config;
 
 import com.team6.moduply.common.websocket.CorsProperties;
 import com.team6.moduply.common.websocket.StompChannelInterceptor;
+import com.team6.moduply.user.enums.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +10,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.security.messaging.access.intercept.AuthorizationChannelInterceptor;
+import org.springframework.security.messaging.access.intercept.MessageMatcherDelegatingAuthorizationManager;
+import org.springframework.security.messaging.context.SecurityContextChannelInterceptor;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -60,11 +64,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         .withSockJS();
   }
 
-  // TODO: [김민형] 인가 추가(jwt 로직 개발 이후)
   @Override
   public void configureClientInboundChannel(ChannelRegistration registration) {
     registration.interceptors(
-        stompChannelInterceptor
+        stompChannelInterceptor,
+        new SecurityContextChannelInterceptor(),
+        authorizationChannelInterceptor()
+    );
+  }
+
+  private AuthorizationChannelInterceptor authorizationChannelInterceptor() {
+    return new AuthorizationChannelInterceptor(
+        MessageMatcherDelegatingAuthorizationManager.builder()
+            .anyMessage().hasRole(Role.USER.name())
+            .build()
     );
   }
 }

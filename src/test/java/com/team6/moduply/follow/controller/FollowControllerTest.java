@@ -1,7 +1,9 @@
 package com.team6.moduply.follow.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -21,6 +23,8 @@ import com.team6.moduply.follow.exception.FollowException;
 import com.team6.moduply.follow.service.FollowService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.exception.UserErrorCode;
+import com.team6.moduply.user.exception.UserException;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -178,6 +182,59 @@ class FollowControllerTest {
         .andExpect(jsonPath("$.exceptionType").value("FollowException"));
 
     verify(followService).isFollowedByMe(userId, userId);
+  }
+
+  @Test
+  @DisplayName("특정 유저의 팔로워 수를 조회하면 200과 팔로워 수를 반환한다.")
+  void getFollowerCount_success() throws Exception {
+    // given
+    UUID followeeId = UUID.randomUUID();
+    given(followService.getFollowerCount(followeeId)).willReturn(3L);
+
+    // when & then
+    mockMvc.perform(get("/api/follows/count")
+            .with(user(userDetails(UUID.randomUUID())))
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").value(3L));
+
+    verify(followService).getFollowerCount(followeeId);
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 유저의 팔로워 수를 조회하면 404를 반환한다.")
+  void getFollowerCount_fail_when_followee_not_found() throws Exception {
+    // given
+    UUID followeeId = UUID.randomUUID();
+    // 존재하지 않은 유저 팔로워 수 조회 USER_NOT_FOUND 셋팅
+    given(followService.getFollowerCount(followeeId))
+        .willThrow(new UserException(
+            UserErrorCode.USER_NOT_FOUND_EXCEPTION,
+            Map.of("userId", followeeId)
+        ));
+
+    // when & then
+    mockMvc.perform(get("/api/follows/count")
+            .with(user(userDetails(UUID.randomUUID())))
+            .param("followeeId", followeeId.toString()))
+            // 기대: 404
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value(UserErrorCode.USER_NOT_FOUND_EXCEPTION.getCode()))
+        .andExpect(jsonPath("$.exceptionType").value("UserException"));
+
+    verify(followService).getFollowerCount(followeeId);
+  }
+
+  @Test
+  @DisplayName("잘못된 UUID 형식으로 팔로워 수를 조회하면 400을 반환한다.")
+  void getFollowerCount_fail_with_invalid_followee_id_format() throws Exception {
+    // when & then
+    mockMvc.perform(get("/api/follows/count")
+            .with(user(userDetails(UUID.randomUUID())))
+            .param("followeeId", "invalid-uuid"))
+        .andExpect(status().isBadRequest());
+
+    verify(followService, never()).getFollowerCount(any(UUID.class));
   }
 
   private ModuPlyUserDetails userDetails(UUID userId) {

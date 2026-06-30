@@ -77,6 +77,43 @@ class FollowControllerSecurityTest {
   private JwtLoginSuccessHandler jwtLoginSuccessHandler;
 
   @Test
+  @DisplayName("인증 토큰 없이 팔로워 수 조회 요청을 보내면 401을 반환한다.")
+  void getFollowerCount_fail_without_authentication() throws Exception {
+    // given
+    UUID followeeId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(get("/api/follows/count")
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isUnauthorized());
+
+    verify(followService, never()).getFollowerCount(any());
+  }
+
+  @Test
+  @DisplayName("유효한 JWT로 팔로워 수 조회 요청을 보내면 팔로워 수를 반환한다.")
+  void getFollowerCount_success_with_jwt_authentication() throws Exception {
+    // given
+    String token = "access-token";
+    UUID userId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(userId);
+    given(authService.getAuthentication(userId))
+        .willReturn(authentication(userId));
+    given(followService.getFollowerCount(followeeId)).willReturn(3L);
+
+    // when & then
+    mockMvc.perform(get("/api/follows/count")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .param("followeeId", followeeId.toString()))
+        .andExpect(status().isOk());
+
+    verify(followService).getFollowerCount(followeeId);
+  }
+
+  @Test
   @DisplayName("인증 토큰 없이 팔로우 여부 조회 요청을 보내면 401을 반환한다.")
   void isFollowedByMe_fail_without_authentication() throws Exception {
     // given
