@@ -95,23 +95,25 @@ public class AuthService {
 
     String email = jwtTokenProvider.getEmail(refreshToken);
     String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
-    String savedRefreshToken = redisUtil.getData(redisKey);
+    Authentication authentication = getAuthentication(jwtTokenProvider.getUserId(refreshToken));
 
-    if(savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)){
-      redisUtil.deleteData(redisKey);
+    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    String newRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
-      log.error("[보안 비상] 요청 Id {} 의 만료된 RT 재사용 시도 감지! 화이트리스트를 전면 파기합니다.", MDC.get("requestId"));
+    String result = redisUtil.rotateRefreshToken(
+        redisKey,
+        refreshToken,
+        newRefreshToken,
+        RedisKeyPolicy.REFRESH_TOKEN.getTtl()
+    );
+    if(!"OK".equals(result)){
+      log.error("[보안 비상] refresh token 갱신 실패. key={}, result={}", redisKey, result);
       throw new AuthException(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION, Map.of(
           "tokenType", "refresh"
       ));
     }
-    Authentication authentication = getAuthentication(jwtTokenProvider.getUserId(refreshToken));
-    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
-    String newRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
-
-    redisUtil.setDataExpire(redisKey, newRefreshToken, RedisKeyPolicy.REFRESH_TOKEN.getTtl());
     return new TokenRefreshDto(new JwtDto(userDetails.getUserDto(), newAccessToken), newRefreshToken);
   }
 
