@@ -33,6 +33,16 @@ public abstract class ConversationMapper {
       boolean hasUnread
   );
 
+  @Mapping(target = "id", source = "conversation.id")
+  @Mapping(target = "withUser", expression = "java(toUserSummaryDto(withUser))")
+  @Mapping(target = "lastestMessage", ignore = true)
+  @Mapping(target = "hasUnread", constant = "false")
+  public abstract ConversationDto toCreateDto(
+      Conversation conversation,
+      User currentUser,
+      User withUser
+  );
+
   protected ConversationDto.DirectMessageDto toDirectMessageDto(
       DirectMessage message,
       Conversation conversation,

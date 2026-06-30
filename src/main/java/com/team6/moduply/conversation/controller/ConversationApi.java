@@ -23,8 +23,8 @@ public interface ConversationApi {
   )
   @ApiResponses({
       @ApiResponse(
-          responseCode = "200",
-          description = "성공",
+          responseCode = "201",
+          description = "대화방 생성 성공",
           content = @Content(
               mediaType = MediaType.ALL_VALUE,
               schema = @Schema(implementation = ConversationDto.class)
@@ -56,7 +56,7 @@ public interface ConversationApi {
       ),
       @ApiResponse(
           responseCode = "409",
-          description = "대화방 생성 충돌",
+          description = "이미 존재하는 대화방",
           content = @Content(
               mediaType = MediaType.ALL_VALUE,
               schema = @Schema(implementation = ErrorResponse.class)

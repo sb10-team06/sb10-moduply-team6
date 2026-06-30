@@ -26,6 +26,6 @@ public class ConversationController implements ConversationApi {
       @RequestBody @Valid ConversationCreateRequest request,
       @AuthenticationPrincipal(expression = "userDto.id") UUID currentUserId
   ) {
-    return ResponseEntity.ok(conversationService.create(request, currentUserId));
+    return ResponseEntity.status(201).body(conversationService.create(request, currentUserId));
   }
 }
