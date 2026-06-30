@@ -1,6 +1,8 @@
 package com.team6.moduply.auth.handler;
 
 import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.exception.AuthException;
+import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.servlet.http.Cookie;
@@ -34,15 +36,33 @@ public class JwtLogoutHandler implements LogoutHandler {
 
     SecurityContextHolder.clearContext();
 
-    String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
-    if(refreshToken != null){
-      String email = jwtTokenProvider.getEmail(refreshToken);
+    String email = resolveEmail(authentication, request);
+    if(email != null){
       String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
       redisUtil.deleteData(redisKey);
       log.info("[로그아웃] Refresh Token 파기 완료, 요청 Id={}", MDC.get("requestId"));
     }
 
     log.info("로그아웃 성공: 요청 Id={}", MDC.get("requestId"));
+  }
+
+  private String resolveEmail(Authentication authentication, HttpServletRequest request) {
+    if (authentication != null
+        && authentication.getPrincipal() instanceof ModuPlyUserDetails userDetails) {
+      return userDetails.getUserDto().getEmail();
+    }
+
+    String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
+    if (refreshToken == null || refreshToken.isBlank()) {
+      return null;
+    }
+
+    try {
+      return jwtTokenProvider.getEmail(refreshToken);
+    } catch (AuthException e) {
+      log.warn("[로그아웃] Refresh Token 파싱 실패, 요청 Id={}", MDC.get("requestId"));
+      return null;
+    }
   }
 
   private String getCookieValue(HttpServletRequest request, String cookieName){
