@@ -456,6 +456,65 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("빈 썸네일 파일이 전달되면 기존 이미지를 유지한다.")
+  void update_success_with_empty_thumbnail() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/thumbnail/thumbnail.png"
+    );
+    Content content = new Content(
+        contentImg,
+        null,
+        ContentType.movie,
+        "Old Title",
+        "Old Description"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "Updated Title",
+        null,
+        null
+    );
+    MockMultipartFile emptyThumbnail = new MockMultipartFile(
+        "thumbnail",
+        "thumbnail.png",
+        "image/png",
+        new byte[0]
+    );
+    List<String> existingTagNames = List.of("SF", "액션");
+    ContentDto expected = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Updated Title",
+        "Old Description",
+        null,
+        existingTagNames,
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
+    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
+    given(contentMapper.toDto(content, null, existingTagNames)).willReturn(expected);
+
+    // When
+    ContentDto response = contentService.update(contentId, request, emptyThumbnail);
+
+    // Then
+    assertThat(response).isEqualTo(expected);
+    assertThat(content.getContentImg()).isEqualTo(contentImg);
+    verify(binaryContentService, never()).createContentImage(any(), any(), any());
+    verify(binaryContentService).generateUrl(contentImg);
+    verify(contentTagRepository).findTagNamesByContentId(contentId);
+  }
+
+  @Test
   @DisplayName("태그 목록이 비어 있으면 콘텐츠 태그를 모두 제거한다.")
   void update_success_with_empty_tags() {
     // Given
