@@ -2,6 +2,7 @@ package com.team6.moduply.playlist;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
+import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.playlist.controller.PlaylistController;
@@ -11,9 +12,13 @@ import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.service.PlaylistService;
+import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.enums.Role;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +27,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -58,6 +65,22 @@ class PlaylistControllerTest {
 
   private static final UUID TEST_OWNER_ID = UUID.randomUUID();
 
+  @BeforeEach
+  void setUp() {
+    ModuPlyUserDetails userDetails = createUserDetails();
+    UsernamePasswordAuthenticationToken auth =
+        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+    SecurityContextHolder.getContext().setAuthentication(auth);
+  }
+
+  private ModuPlyUserDetails createUserDetails() {
+    UserDto userDto = new UserDto(
+        TEST_OWNER_ID, Instant.now(), "test@test.com",
+        "테스트", null, Role.USER, false
+    );
+    return new ModuPlyUserDetails(userDto, "password");
+  }
+
   @Test
   @DisplayName("플레이리스트를 생성하면 201을 반환한다.")
   void createPlaylist_success() throws Exception {
@@ -69,7 +92,7 @@ class PlaylistControllerTest {
         "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
     );
 
-    given(playlistService.create(any(), any())).willReturn(response);
+    given(playlistService.create(any(), eq(TEST_OWNER_ID))).willReturn(response);
 
     // when & then
     mockMvc.perform(post("/api/playlists")
@@ -105,7 +128,8 @@ class PlaylistControllerTest {
         "수정된 설명", null, 0L, false, List.of()
     );
 
-    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), any())).willReturn(response);
+    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID)))
+        .willReturn(response);
 
     // when & then
     mockMvc.perform(patch("/api/playlists/" + playlistId)
@@ -115,7 +139,7 @@ class PlaylistControllerTest {
         .andExpect(jsonPath("$.title").value("수정된 제목"))
         .andExpect(jsonPath("$.description").value("수정된 설명"));
 
-    verify(playlistService).update(eq(playlistId), any(PlaylistUpdateRequest.class), any());
+    verify(playlistService).update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID));
   }
 
   @Test
@@ -123,7 +147,7 @@ class PlaylistControllerTest {
   void updatePlaylist_fail_with_forbidden() throws Exception {
     UUID playlistId = UUID.randomUUID();
 
-    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), any()))
+    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID)))
         .willThrow(new PlaylistException(
             PlaylistErrorCode.PLAYLIST_FORBIDDEN,
             Map.of("playlistId", playlistId)
@@ -146,7 +170,7 @@ class PlaylistControllerTest {
     mockMvc.perform(delete("/api/playlists/" + playlistId))
         .andExpect(status().isNoContent());
 
-    verify(playlistService).delete(eq(playlistId), any());
+    verify(playlistService).delete(eq(playlistId), eq(TEST_OWNER_ID));
   }
 
   @Test
@@ -157,7 +181,7 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_FORBIDDEN,
         Map.of("playlistId", playlistId)
-    )).when(playlistService).delete(eq(playlistId), any());
+    )).when(playlistService).delete(eq(playlistId), eq(TEST_OWNER_ID));
 
     mockMvc.perform(delete("/api/playlists/" + playlistId))
         .andExpect(status().isForbidden());
@@ -231,7 +255,7 @@ class PlaylistControllerTest {
     mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isCreated());
 
-    verify(playlistService).addContent(eq(playlistId), eq(contentId), any());
+    verify(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
   }
 
   @Test
@@ -243,7 +267,7 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_FORBIDDEN,
         Map.of("playlistId", playlistId)
-    )).when(playlistService).addContent(eq(playlistId), eq(contentId), any());
+    )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isForbidden());
@@ -260,7 +284,7 @@ class PlaylistControllerTest {
     mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isNoContent());
 
-    verify(playlistService).removeContent(eq(playlistId), eq(contentId), any());
+    verify(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
   }
 
   @Test
@@ -273,7 +297,7 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_CONTENT_ALREADY_EXISTS,
         Map.of("playlistId", playlistId, "contentId", contentId)
-    )).when(playlistService).addContent(any(), any(), any());
+    )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     // when & then
     mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
@@ -290,7 +314,7 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_NOT_FOUND,
         Map.of("playlistId", playlistId)
-    )).when(playlistService).addContent(any(), any(), any());
+    )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     // when & then
     mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
@@ -307,7 +331,7 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_CONTENT_NOT_FOUND,
         Map.of("playlistId", playlistId, "contentId", contentId)
-    )).when(playlistService).removeContent(any(), any(), any());
+    )).when(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     // when & then
     mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId))
@@ -323,7 +347,7 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_FORBIDDEN,
         Map.of("playlistId", playlistId)
-    )).when(playlistService).removeContent(eq(playlistId), eq(contentId), any());
+    )).when(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isForbidden());
