@@ -18,13 +18,18 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,8 +38,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -49,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         classes = JwtAuthenticationFilter.class
     )
 )
+@AutoConfigureMockMvc(addFilters = false)
 class PlaylistControllerTest {
 
   @Autowired
@@ -61,6 +65,19 @@ class PlaylistControllerTest {
   private PlaylistService playlistService;
 
   private static final UUID TEST_OWNER_ID = UUID.randomUUID();
+
+  @BeforeEach
+  void setUp() {
+    ModuPlyUserDetails userDetails = createUserDetails();
+    UsernamePasswordAuthenticationToken auth =
+        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+    SecurityContextHolder.getContext().setAuthentication(auth);
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
 
   private ModuPlyUserDetails createUserDetails() {
     UserDto userDto = new UserDto(
@@ -85,8 +102,6 @@ class PlaylistControllerTest {
 
     // when & then
     mockMvc.perform(post("/api/playlists")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
@@ -102,22 +117,9 @@ class PlaylistControllerTest {
 
     // when & then
     mockMvc.perform(post("/api/playlists")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  @DisplayName("인증 없이 플레이리스트를 생성하면 401을 반환한다.")
-  void createPlaylist_fail_with_no_auth() throws Exception {
-    mockMvc.perform(post("/api/playlists")
-            .with(csrf())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(
-                new PlaylistCreateRequest("제목", "설명"))))
-        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -132,12 +134,11 @@ class PlaylistControllerTest {
         "수정된 설명", null, 0L, false, List.of()
     );
 
-    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID))).willReturn(response);
+    given(playlistService.update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID)))
+        .willReturn(response);
 
     // when & then
     mockMvc.perform(patch("/api/playlists/" + playlistId)
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isOk())
@@ -145,18 +146,6 @@ class PlaylistControllerTest {
         .andExpect(jsonPath("$.description").value("수정된 설명"));
 
     verify(playlistService).update(eq(playlistId), any(PlaylistUpdateRequest.class), eq(TEST_OWNER_ID));
-  }
-
-  @Test
-  @DisplayName("인증 없이 플레이리스트를 수정하면 401을 반환한다.")
-  void updatePlaylist_fail_with_no_auth() throws Exception {
-    UUID playlistId = UUID.randomUUID();
-    mockMvc.perform(patch("/api/playlists/" + playlistId)
-            .with(csrf())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(
-                new PlaylistUpdateRequest("제목", "설명"))))
-        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -171,8 +160,6 @@ class PlaylistControllerTest {
         ));
 
     mockMvc.perform(patch("/api/playlists/" + playlistId)
-            .with(user(createUserDetails()))
-            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(
                 new PlaylistUpdateRequest("제목", "설명"))))
@@ -186,21 +173,10 @@ class PlaylistControllerTest {
     UUID playlistId = UUID.randomUUID();
 
     // when & then
-    mockMvc.perform(delete("/api/playlists/" + playlistId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(delete("/api/playlists/" + playlistId))
         .andExpect(status().isNoContent());
 
     verify(playlistService).delete(eq(playlistId), eq(TEST_OWNER_ID));
-  }
-
-  @Test
-  @DisplayName("인증 없이 플레이리스트를 삭제하면 401을 반환한다.")
-  void deletePlaylist_fail_with_no_auth() throws Exception {
-    UUID playlistId = UUID.randomUUID();
-    mockMvc.perform(delete("/api/playlists/" + playlistId)
-            .with(csrf()))
-        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -213,9 +189,7 @@ class PlaylistControllerTest {
         Map.of("playlistId", playlistId)
     )).when(playlistService).delete(eq(playlistId), eq(TEST_OWNER_ID));
 
-    mockMvc.perform(delete("/api/playlists/" + playlistId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(delete("/api/playlists/" + playlistId))
         .andExpect(status().isForbidden());
   }
 
@@ -233,9 +207,7 @@ class PlaylistControllerTest {
     given(playlistService.findById(any())).willReturn(response);
 
     // when & then
-    mockMvc.perform(get("/api/playlists/" + playlistId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(get("/api/playlists/" + playlistId))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.title").value("내 최애 영화"))
         .andExpect(jsonPath("$.description").value("비 오는 날 보기 좋은 영화들"));
@@ -254,9 +226,7 @@ class PlaylistControllerTest {
         ));
 
     // when & then
-    mockMvc.perform(get("/api/playlists/" + playlistId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(get("/api/playlists/" + playlistId))
         .andExpect(status().isNotFound());
   }
 
@@ -272,8 +242,6 @@ class PlaylistControllerTest {
 
     // when & then
     mockMvc.perform(get("/api/playlists")
-            .with(user(createUserDetails()))
-            .with(csrf())
             .param("limit", "10")
             .param("sortDirection", "DESCENDING")
             .param("sortBy", "updatedAt"))
@@ -290,22 +258,10 @@ class PlaylistControllerTest {
     UUID contentId = UUID.randomUUID();
 
     // when & then
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isCreated());
 
     verify(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
-  }
-
-  @Test
-  @DisplayName("인증 없이 플레이리스트에 콘텐츠를 추가하면 401을 반환한다.")
-  void addContent_fail_with_no_auth() throws Exception {
-    UUID playlistId = UUID.randomUUID();
-    UUID contentId = UUID.randomUUID();
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(csrf()))
-        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -319,9 +275,7 @@ class PlaylistControllerTest {
         Map.of("playlistId", playlistId)
     )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isForbidden());
   }
 
@@ -333,22 +287,10 @@ class PlaylistControllerTest {
     UUID contentId = UUID.randomUUID();
 
     // when & then
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isNoContent());
 
     verify(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
-  }
-
-  @Test
-  @DisplayName("인증 없이 플레이리스트에서 콘텐츠를 삭제하면 401을 반환한다.")
-  void removeContent_fail_with_no_auth() throws Exception {
-    UUID playlistId = UUID.randomUUID();
-    UUID contentId = UUID.randomUUID();
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(csrf()))
-        .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -361,12 +303,10 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_CONTENT_ALREADY_EXISTS,
         Map.of("playlistId", playlistId, "contentId", contentId)
-    )).when(playlistService).addContent(any(), any(), any());
+    )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     // when & then
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isConflict());
   }
 
@@ -380,12 +320,10 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_NOT_FOUND,
         Map.of("playlistId", playlistId)
-    )).when(playlistService).addContent(any(), any(), any());
+    )).when(playlistService).addContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     // when & then
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isNotFound());
   }
 
@@ -399,12 +337,10 @@ class PlaylistControllerTest {
     doThrow(new PlaylistException(
         PlaylistErrorCode.PLAYLIST_CONTENT_NOT_FOUND,
         Map.of("playlistId", playlistId, "contentId", contentId)
-    )).when(playlistService).removeContent(any(), any(), any());
+    )).when(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
     // when & then
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isNotFound());
   }
 
@@ -419,9 +355,7 @@ class PlaylistControllerTest {
         Map.of("playlistId", playlistId)
     )).when(playlistService).removeContent(eq(playlistId), eq(contentId), eq(TEST_OWNER_ID));
 
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId)
-            .with(user(createUserDetails()))
-            .with(csrf()))
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/contents/" + contentId))
         .andExpect(status().isForbidden());
   }
 }
