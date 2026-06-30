@@ -261,6 +261,13 @@ public class ContentService {
     }
 
     List<String> tagNames = normalizeTags(tags);
+    List<String> existingTagNames = contentTagRepository.findTagNamesByContentId(content.getId());
+
+    if (!tagNames.isEmpty()
+        && new LinkedHashSet<>(existingTagNames).equals(new LinkedHashSet<>(tagNames))) {
+      return tagNames;
+    }
+
     contentTagRepository.deleteAllByContentId(content.getId());
 
     List<ContentTag> contentTags = getOrCreateTags(tagNames).stream()

@@ -560,6 +560,53 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("요청 태그가 기존 태그와 동일하면 태그 매핑을 변경하지 않는다.")
+  void update_success_without_tag_mapping_changes_when_tags_are_same() {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Old Title",
+        "Old Description"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        null,
+        null,
+        List.of("액션", "SF", "SF ")
+    );
+    List<String> existingTagNames = List.of("SF", "액션");
+    List<String> normalizedTagNames = List.of("액션", "SF");
+    ContentDto expected = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Old Title",
+        "Old Description",
+        null,
+        normalizedTagNames,
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
+    given(contentMapper.toDto(content, null, normalizedTagNames)).willReturn(expected);
+
+    // When
+    ContentDto response = contentService.update(contentId, request, null);
+
+    // Then
+    assertThat(response).isEqualTo(expected);
+    verify(contentTagRepository).findTagNamesByContentId(contentId);
+    verify(contentTagRepository, never()).deleteAllByContentId(any(UUID.class));
+    verify(contentTagRepository, never()).saveAll(anyList());
+    verify(tagRepository, never()).findAllByTagNameIn(anyList());
+  }
+
+  @Test
   @DisplayName("존재하지 않는 콘텐츠 수정 요청 시 예외를 던진다.")
   void update_fail_when_content_not_found() throws Exception {
     // Given
