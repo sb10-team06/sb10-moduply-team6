@@ -678,6 +678,89 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("콘텐츠 삭제 요청 시 콘텐츠와 태그 매핑을 삭제하고 썸네일 삭제 이벤트를 발행한다.")
+  void delete_success_with_existing_content_and_thumbnail() {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/thumbnail/thumbnail.png"
+    );
+    UUID contentImgId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
+    ReflectionTestUtils.setField(contentImg, "id", contentImgId);
+    Content content = new Content(
+        contentImg,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+
+    // When
+    contentService.delete(contentId);
+
+    // Then
+    assertThat(content.getContentImg()).isNull();
+    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(contentTagRepository).deleteAllByContentId(contentId);
+    verify(contentRepository).flush();
+    verify(contentRepository).delete(content);
+    verify(binaryContentService).delete(contentImgId);
+  }
+
+  @Test
+  @DisplayName("썸네일이 없는 콘텐츠 삭제 요청 시 콘텐츠와 태그 매핑만 삭제한다.")
+  void delete_success_without_thumbnail() {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+
+    // When
+    contentService.delete(contentId);
+
+    // Then
+    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(contentTagRepository).deleteAllByContentId(contentId);
+    verify(contentRepository, never()).flush();
+    verify(contentRepository).delete(content);
+    verify(binaryContentService, never()).delete(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 콘텐츠 삭제 요청 시 예외를 던진다.")
+  void delete_fail_when_content_not_found() {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.delete(contentId))
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
+        });
+
+    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(contentTagRepository, never()).deleteAllByContentId(any(UUID.class));
+    verify(contentRepository, never()).delete(any(Content.class));
+    verify(binaryContentService, never()).delete(any(UUID.class));
+  }
+
+  @Test
   @DisplayName("콘텐츠 목록이 존재하면 목록 조회 응답을 반환한다.")
   void find_all_success_with_existing_contents() {
     // Given
