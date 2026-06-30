@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -300,6 +301,75 @@ class ContentControllerMethodSecurityTest {
             })
             .with(user("admin@example.com").roles("ADMIN"))
             .contentType(MediaType.MULTIPART_FORM_DATA))
+        .andExpect(status().isForbidden());
+
+    verify(contentRepository, never()).findByIdWithContentImg(any());
+  }
+
+  @Test
+  @DisplayName("ADMIN 권한으로 콘텐츠 삭제 요청 시 204를 반환한다.")
+  void delete_success_when_requester_is_admin() throws Exception {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+
+    // When & Then
+    mockMvc.perform(delete("/api/contents/{contentId}", contentId)
+            .with(user("admin@example.com").roles("ADMIN"))
+            .with(csrf().asHeader()))
+        .andExpect(status().isNoContent());
+
+    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(contentRepository).delete(content);
+  }
+
+  @Test
+  @DisplayName("USER 권한으로 콘텐츠 삭제 요청 시 403을 반환한다.")
+  void delete_fail_when_requester_is_not_admin() throws Exception {
+    // Given
+    UUID contentId = UUID.randomUUID();
+
+    // When & Then
+    mockMvc.perform(delete("/api/contents/{contentId}", contentId)
+            .with(user("user@example.com").roles("USER"))
+            .with(csrf().asHeader()))
+        .andExpect(status().isForbidden());
+
+    verify(contentRepository, never()).findByIdWithContentImg(any());
+  }
+
+  @Test
+  @DisplayName("인증 없이 콘텐츠 삭제 요청 시 401을 반환한다.")
+  void delete_fail_when_requester_is_anonymous() throws Exception {
+    // Given
+    UUID contentId = UUID.randomUUID();
+
+    // When & Then
+    mockMvc.perform(delete("/api/contents/{contentId}", contentId)
+            .with(csrf().asHeader()))
+        .andExpect(status().isUnauthorized());
+
+    verify(contentRepository, never()).findByIdWithContentImg(any());
+  }
+
+  @Test
+  @DisplayName("CSRF 토큰 없이 콘텐츠 삭제 요청 시 403을 반환한다.")
+  void delete_fail_without_csrf_token() throws Exception {
+    // Given
+    UUID contentId = UUID.randomUUID();
+
+    // When & Then
+    mockMvc.perform(delete("/api/contents/{contentId}", contentId)
+            .with(user("admin@example.com").roles("ADMIN")))
         .andExpect(status().isForbidden());
 
     verify(contentRepository, never()).findByIdWithContentImg(any());
