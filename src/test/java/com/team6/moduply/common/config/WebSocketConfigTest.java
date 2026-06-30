@@ -2,6 +2,8 @@ package com.team6.moduply.common.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
@@ -31,12 +33,14 @@ import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.Transport;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
+import com.team6.moduply.common.util.RedisUtil;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -63,10 +67,14 @@ class WebSocketConfigTest {
   @Autowired
   private ModuPlyUserDetailsService moduPlyUserDetailsService;
 
+  @MockitoBean
+  private RedisUtil redisUtil;
+
   // 가상 브라우저 설정
   @BeforeEach
   void setUp() {
     userRepository.deleteAll();
+    given(redisUtil.getData(anyString())).willReturn(null);
     // URL 생성
     this.webSocketUrl = "http://localhost:" + port + "/ws";
     // 웹소켓 통신 장치
