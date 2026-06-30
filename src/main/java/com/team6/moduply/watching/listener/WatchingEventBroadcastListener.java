@@ -50,7 +50,7 @@ public class WatchingEventBroadcastListener {
       watcher = userQueryService.findById(watcherId);
     } else {
       log.debug("시청 세션 LEAVE: contentId={}, watcherId={}", contentId, watcherId);
-      watcher = new UserSummary(contentId, "", null);
+      watcher = new UserSummary(watcherId, "", null);
     }
 
     WatchingSessionDto sessionDto = watchingSessionMapper.toDto(event.watchingSession(), watcher,
