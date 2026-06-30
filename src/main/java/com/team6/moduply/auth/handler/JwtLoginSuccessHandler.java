@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.dto.JwtDto;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.UserDto;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -27,6 +29,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
   private final JwtTokenProvider jwtTokenProvider;
   private final ObjectMapper objectMapper;
   private final CsrfTokenRepository csrfTokenRepository;
+  private final RedisUtil redisUtil;
   @Value("${jwt.refresh-token-expiration-minutes}")
   private int refreshTokenExpirationMinutes;
 
@@ -39,6 +42,11 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
 
     ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
     UserDto userDto = userDetails.getUserDto();
+
+    // redis에 refreshToken 저장
+    String email = jwtTokenProvider.getEmail(refreshToken);
+    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    redisUtil.setDataExpire(redisKey, refreshToken, RedisKeyPolicy.REFRESH_TOKEN.getTtl());
 
     // http 헤더 설정
     response.setStatus(HttpServletResponse.SC_OK);

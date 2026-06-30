@@ -1,12 +1,16 @@
 package com.team6.moduply.auth.service;
 
+import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.dto.JwtDto;
 import com.team6.moduply.auth.dto.ResetPasswordRequest;
+import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
@@ -17,6 +21,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
@@ -33,6 +40,8 @@ public class AuthService {
   private final TempPasswordUtil tempPasswordUtil;
   private final BinaryContentService binaryContentService;
   private final RoleHierarchy roleHierarchy;
+  private final RedisUtil redisUtil;
+  private final JwtTokenProvider jwtTokenProvider;
 
   @Transactional(readOnly = true)
   public Authentication getAuthentication(UUID userId) {
@@ -74,6 +83,36 @@ public class AuthService {
 
     // 이메일로 발송
     applicationEventPublisher.publishEvent(new TempPasswordEvent(email, tempPassword, expiresAt));
+  }
+
+  @Transactional
+  public TokenRefreshDto refreshTokens(String refreshToken){
+    if(!jwtTokenProvider.validateRefreshToken(refreshToken)){
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "tokenType", "refresh"
+      ));
+    }
+
+    String email = jwtTokenProvider.getEmail(refreshToken);
+    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String savedRefreshToken = redisUtil.getData(redisKey);
+
+    if(savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)){
+      redisUtil.deleteData(redisKey);
+
+      log.error("[보안 비상] 요청 Id {} 의 만료된 RT 재사용 시도 감지! 화이트리스트를 전면 파기합니다.", MDC.get("requestId"));
+      throw new AuthException(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION, Map.of(
+          "tokenType", "refresh"
+      ));
+    }
+    Authentication authentication = getAuthentication(jwtTokenProvider.getUserId(refreshToken));
+    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    String newRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+
+    ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
+
+    redisUtil.setDataExpire(redisKey, newRefreshToken, RedisKeyPolicy.REFRESH_TOKEN.getTtl());
+    return new TokenRefreshDto(new JwtDto(userDetails.getUserDto(), newAccessToken), newRefreshToken);
   }
 
   private UserDto toDto(User user) {
