@@ -1,16 +1,25 @@
 package com.team6.moduply.auth.controller;
 
+import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.dto.JwtDto;
 import com.team6.moduply.auth.dto.ResetPasswordRequest;
+import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.service.AuthService;
+import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.enums.Role;
+import java.time.Instant;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import jakarta.servlet.http.Cookie;
 
 @WebMvcTest(
     controllers = AuthController.class,
@@ -88,6 +98,38 @@ class AuthControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(authService, never()).resetPassword(any(ResetPasswordRequest.class));
+  }
+
+  @Test
+  @DisplayName("refresh token 쿠키가 유효하면 access token과 새로운 refresh token을 반환한다")
+  void refresh_access_token_success() throws Exception {
+    // Given
+    String refreshToken = "refresh-token";
+    String newAccessToken = "new-access-token";
+    String newRefreshToken = "new-refresh-token";
+    UserDto userDto = new UserDto(
+        UUID.randomUUID(),
+        Instant.now(),
+        "tester@example.com",
+        "tester",
+        null,
+        Role.USER,
+        false
+    );
+    TokenRefreshDto tokenRefreshDto = new TokenRefreshDto(new JwtDto(userDto, newAccessToken), newRefreshToken);
+
+    given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
+    given(authService.refreshTokens(refreshToken)).willReturn(tokenRefreshDto);
+
+    // When & Then
+    mockMvc.perform(post("/api/auth/refresh")
+            .cookie(new Cookie("REFRESH_TOKEN", refreshToken)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.accessToken").value(newAccessToken))
+        .andExpect(jsonPath("$.userDto.email").value("tester@example.com"))
+        .andExpect(cookie().value("REFRESH_TOKEN", newRefreshToken));
+
+    verify(authService).refreshTokens(refreshToken);
   }
 
   private ResetPasswordRequest resetPasswordRequest(String email) {
