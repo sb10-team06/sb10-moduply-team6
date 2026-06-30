@@ -61,11 +61,6 @@ public class RedisUtil {
     return script;
   }
 
-  @Retryable(
-      retryFor = DataAccessException.class,
-      maxAttempts = 3,
-      backoff = @Backoff(delay = 300, multiplier = 2)
-  )
   public String rotateRefreshToken(
       String key,
       String presentedRefreshToken,
@@ -81,17 +76,6 @@ public class RedisUtil {
     );
   }
 
-  @Recover
-  public String recoverRotateRefreshToken(
-      DataAccessException e,
-      String key,
-      String presentedRefreshToken,
-      String newRefreshToken,
-      Duration ttl
-  ) {
-    log.error("Redis refresh token 원자 갱신 재시도 실패. key={}", key, e);
-    throw e;
-  }
 
   @Retryable(
       retryFor = DataAccessException.class,

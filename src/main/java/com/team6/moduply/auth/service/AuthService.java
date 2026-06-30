@@ -107,7 +107,7 @@ public class AuthService {
         RedisKeyPolicy.REFRESH_TOKEN.getTtl()
     );
     if(!"OK".equals(result)){
-      log.error("[보안 비상] refresh token 갱신 실패. key={}, result={}", redisKey, result);
+      log.error("[보안 비상] refresh token 갱신 실패. result={}, 요청 Id={}", result, MDC.get("requestId"));
       throw new AuthException(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION, Map.of(
           "tokenType", "refresh"
       ));
