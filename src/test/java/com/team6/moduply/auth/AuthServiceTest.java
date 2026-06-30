@@ -6,13 +6,16 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 import com.team6.moduply.auth.dto.ResetPasswordRequest;
+import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.TempPasswordUtil;
@@ -26,6 +29,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,10 +58,16 @@ class AuthServiceTest {
   private UserMapper userMapper;
 
   @Mock
+  private JwtTokenProvider jwtTokenProvider;
+
+  @Mock
   private ApplicationEventPublisher applicationEventPublisher;
 
   @Mock
   private TempPasswordUtil tempPasswordUtil;
+
+  @Mock
+  private RefreshTokenRedisUtil refreshTokenRedisUtil;
 
   @Mock
   private BinaryContentService binaryContentService;
@@ -198,6 +213,166 @@ class AuthServiceTest {
     verify(userRepository).existsByEmail(request.getEmail());
     verify(tempPasswordUtil, never()).generate(8);
     verify(applicationEventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  @DisplayName("유효한 refresh token이면 새 access token과 refresh token을 재발급하고 Redis를 갱신한다")
+  void refresh_tokens_success() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    String email = "tester@example.com";
+    String refreshToken = "refresh-token";
+    String newAccessToken = "new-access-token";
+    String newRefreshToken = "new-refresh-token";
+    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    User user = new User(email, "encoded-password", "tester", Role.USER);
+    UserDto userDto = new UserDto(
+        userId,
+        Instant.now(),
+        email,
+        "tester",
+        null,
+        Role.USER,
+        false
+    );
+    List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+
+    given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
+    given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(userMapper.toDto(user, null)).willReturn(userDto);
+    given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
+        .willReturn((Collection) mockAuthorities);
+    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+        .willReturn(newAccessToken);
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+        .willReturn(newRefreshToken);
+    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("OK");
+
+    // When
+    TokenRefreshDto result = authService.refreshTokens(refreshToken);
+
+    // Then
+    assertThat(result.getJwtDto().getAccessToken()).isEqualTo(newAccessToken);
+    assertThat(result.getRefreshToken()).isEqualTo(newRefreshToken);
+    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
+  }
+
+  @Test
+  @DisplayName("Redis whitelist에 저장된 refresh token이 다르면 화이트리스트를 삭제하고 재사용 예외를 던진다")
+  void refresh_tokens_fail_when_saved_token_is_mismatched() {
+    // Given
+    UUID userId = UUID.randomUUID();
+    User user = new User("tester@example.com", "encoded-password", "tester", Role.USER);
+    UserDto userDto = new UserDto(
+        userId,
+        Instant.now(),
+        user.getEmail(),
+        user.getName(),
+        null,
+        Role.USER,
+        false
+    );
+    String refreshToken = "refresh-token";
+    String newRefreshToken = "new-refresh-token";
+    String email = user.getEmail();
+    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+
+    given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
+    given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(userMapper.toDto(user, null)).willReturn(userDto);
+    given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
+        .willReturn((Collection) mockAuthorities);
+    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+        .willReturn("new-access-token");
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+        .willReturn(newRefreshToken);
+    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("MISMATCH");
+
+    // When & Then
+    assertThatThrownBy(() -> authService.refreshTokens(refreshToken))
+        .isInstanceOfSatisfying(AuthException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION)
+        );
+
+    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
+  }
+
+  @Test
+  @DisplayName("동일 refresh token의 동시 재발급 요청은 한 번만 성공하고 나머지는 재사용 예외가 발생한다")
+  void refresh_tokens_concurrent_only_one_success() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+    User user = new User("tester@example.com", "encoded-password", "tester", Role.USER);
+    UserDto userDto = new UserDto(
+        userId,
+        Instant.now(),
+        user.getEmail(),
+        user.getName(),
+        null,
+        Role.USER,
+        false
+    );
+    String refreshToken = "refresh-token";
+    String email = user.getEmail();
+    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+
+    given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
+    given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(userMapper.toDto(user, null)).willReturn(userDto);
+    given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
+        .willReturn((Collection) mockAuthorities);
+    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+        .willReturn("new-access-token");
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+        .willReturn("new-refresh-token");
+    given(refreshTokenRedisUtil.rotate(email, refreshToken, "new-refresh-token"))
+        .willReturn("OK")
+        .willReturn("MISMATCH");
+
+    CountDownLatch startLatch = new CountDownLatch(1);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+
+    Callable<TokenRefreshDto> task = () -> {
+      startLatch.await();
+      return authService.refreshTokens(refreshToken);
+    };
+
+    Future<TokenRefreshDto> first = executor.submit(task);
+    Future<TokenRefreshDto> second = executor.submit(task);
+    startLatch.countDown();
+
+    int successCount = 0;
+    int failureCount = 0;
+
+    try {
+      for (Future<TokenRefreshDto> future : List.of(first, second)) {
+        try {
+          TokenRefreshDto result = future.get();
+          assertThat(result.getRefreshToken()).isEqualTo("new-refresh-token");
+          successCount++;
+        } catch (ExecutionException e) {
+          assertThat(e.getCause()).isInstanceOf(AuthException.class);
+          failureCount++;
+        }
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+
+    assertThat(successCount).isEqualTo(1);
+    assertThat(failureCount).isEqualTo(1);
+    verify(refreshTokenRedisUtil, times(2)).rotate(email, refreshToken, "new-refresh-token");
   }
 
   private ResetPasswordRequest resetPasswordRequest(String email) {
