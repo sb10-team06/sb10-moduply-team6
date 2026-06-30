@@ -279,7 +279,9 @@ CREATE TABLE conversations (
     CONSTRAINT uk_conversations_user_pair            UNIQUE (user1_id, user2_id),
 
     -- 자기 자신과 대화방 생성 방지
-    CONSTRAINT chk_conversations_different_users     CHECK (user1_id <> user2_id)
+    CONSTRAINT chk_conversations_different_users     CHECK (user1_id <> user2_id),
+
+    CONSTRAINT chk_conversations_user_order          CHECK (user1_id < user2_id)
 );
 
 CREATE TABLE direct_messages (
