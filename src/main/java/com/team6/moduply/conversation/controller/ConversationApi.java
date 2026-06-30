@@ -47,6 +47,22 @@ public interface ConversationApi {
           )
       ),
       @ApiResponse(
+          responseCode = "404",
+          description = "대화 상대 사용자를 찾을 수 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "409",
+          description = "대화방 생성 충돌",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
           responseCode = "500",
           description = "서버 오류",
           content = @Content(
