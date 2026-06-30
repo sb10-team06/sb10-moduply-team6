@@ -531,4 +531,14 @@ class ContentControllerTest {
 
     verify(contentService).delete(contentId);
   }
+
+  @Test
+  @DisplayName("잘못된 UUID로 콘텐츠 삭제 요청 시 400 응답을 반환한다.")
+  void delete_fail_when_content_id_is_invalid() throws Exception {
+    // When & Then
+    mockMvc.perform(delete("/api/contents/{contentId}", "not-a-uuid"))
+        .andExpect(status().isBadRequest());
+
+    verify(contentService, never()).delete(any());
+  }
 }

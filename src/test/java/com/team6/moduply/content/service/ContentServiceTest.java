@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,6 +44,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -711,6 +713,12 @@ class ContentServiceTest {
     verify(contentRepository).flush();
     verify(contentRepository).delete(content);
     verify(binaryContentService).delete(contentImgId);
+
+    InOrder inOrder = inOrder(contentTagRepository, contentRepository, binaryContentService);
+    inOrder.verify(contentTagRepository).deleteAllByContentId(contentId);
+    inOrder.verify(contentRepository).flush();
+    inOrder.verify(contentRepository).delete(content);
+    inOrder.verify(binaryContentService).delete(contentImgId);
   }
 
   @Test
