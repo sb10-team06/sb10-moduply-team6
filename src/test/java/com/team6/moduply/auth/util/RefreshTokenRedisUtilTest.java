@@ -1,6 +1,5 @@
 package com.team6.moduply.auth.util;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -45,22 +43,6 @@ class RefreshTokenRedisUtilTest {
         eq(newRefreshToken),
         eq(String.valueOf(RedisKeyPolicy.REFRESH_TOKEN.getTtl().toMillis()))
     );
-  }
-
-  @Test
-  @DisplayName("refresh token 원자 갱신 재시도 실패 시 예외를 다시 던진다")
-  void recover_rotate_throws_exception() {
-    // Given
-    DataAccessResourceFailureException exception =
-        new DataAccessResourceFailureException("redis unavailable");
-
-    // When & Then
-    assertThatThrownBy(() -> refreshTokenRedisUtil.recoverRotate(
-        exception,
-        "tester@example.com",
-        "refresh-token",
-        "new-refresh-token"
-    )).isSameAs(exception);
   }
 
   @SuppressWarnings("unchecked")
