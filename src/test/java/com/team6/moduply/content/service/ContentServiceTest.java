@@ -21,6 +21,7 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
+import com.team6.moduply.content.dto.ContentUpdateRequest;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
@@ -303,6 +304,269 @@ class ContentServiceTest {
         });
 
     verify(contentTagRepository, never()).saveAll(anyList());
+    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 수정 요청 시 기본 정보와 썸네일 및 태그를 수정한다.")
+  void update_success_with_content_fields_thumbnail_and_tags() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    BinaryContent oldContentImg = BinaryContent.create(
+        "old-thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/thumbnail/old-thumbnail.png"
+    );
+    BinaryContent newContentImg = BinaryContent.create(
+        "new-thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/thumbnail/new-thumbnail.png"
+    );
+    Content content = new Content(
+        oldContentImg,
+        null,
+        ContentType.movie,
+        "Old Title",
+        "Old Description"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "Updated Title",
+        "Updated Description",
+        List.of("SF", "액션", "SF ")
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "new-thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
+    );
+    Tag existingTag = new Tag("SF");
+    Tag newTag = new Tag("액션");
+    ContentDto expected = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Updated Title",
+        "Updated Description",
+        "https://example.com/new-thumbnail.png",
+        List.of("SF", "액션"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(binaryContentService.createContentImage(contentId, thumbnail, oldContentImg))
+        .willReturn(newContentImg);
+    given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
+        .willReturn(List.of(existingTag), List.of(existingTag, newTag));
+    given(tagRepository.insertIgnore(any(UUID.class), eq("액션"))).willReturn(1);
+    given(contentTagRepository.saveAll(anyList()))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(binaryContentService.generateUrl(newContentImg))
+        .willReturn("https://example.com/new-thumbnail.png");
+    given(contentMapper.toDto(
+        content,
+        "https://example.com/new-thumbnail.png",
+        List.of("SF", "액션")
+    )).willReturn(expected);
+
+    // When
+    ContentDto response = contentService.update(contentId, request, thumbnail);
+
+    // Then
+    assertThat(response).isEqualTo(expected);
+    assertThat(content.getTitle()).isEqualTo("Updated Title");
+    assertThat(content.getDescription()).isEqualTo("Updated Description");
+    assertThat(content.getContentImg()).isEqualTo(newContentImg);
+    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(binaryContentService).createContentImage(contentId, thumbnail, oldContentImg);
+    verify(contentTagRepository).deleteAllByContentId(contentId);
+    verify(contentTagRepository).saveAll(argThat(contentTags -> {
+      assertThat(contentTags).hasSize(2);
+      return true;
+    }));
+    verify(tagRepository, times(2)).findAllByTagNameIn(List.of("SF", "액션"));
+    verify(tagRepository).insertIgnore(any(UUID.class), eq("액션"));
+    verify(binaryContentService).generateUrl(newContentImg);
+    verify(contentMapper).toDto(
+        content,
+        "https://example.com/new-thumbnail.png",
+        List.of("SF", "액션")
+    );
+  }
+
+  @Test
+  @DisplayName("일부 필드만 포함된 콘텐츠 수정 요청 시 나머지 값은 유지한다.")
+  void update_success_with_partial_request() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    BinaryContent contentImg = BinaryContent.create(
+        "thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/thumbnail/thumbnail.png"
+    );
+    Content content = new Content(
+        contentImg,
+        null,
+        ContentType.movie,
+        "Old Title",
+        "Old Description"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "Updated Title",
+        null,
+        null
+    );
+    List<String> existingTagNames = List.of("SF", "액션");
+    ContentDto expected = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Updated Title",
+        "Old Description",
+        null,
+        existingTagNames,
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
+    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
+    given(contentMapper.toDto(content, null, existingTagNames)).willReturn(expected);
+
+    // When
+    ContentDto response = contentService.update(contentId, request, null);
+
+    // Then
+    assertThat(response).isEqualTo(expected);
+    assertThat(content.getTitle()).isEqualTo("Updated Title");
+    assertThat(content.getDescription()).isEqualTo("Old Description");
+    assertThat(content.getContentImg()).isEqualTo(contentImg);
+    verify(contentTagRepository).findTagNamesByContentId(contentId);
+    verify(contentTagRepository, never()).deleteAllByContentId(any(UUID.class));
+    verify(contentTagRepository, never()).saveAll(anyList());
+    verify(binaryContentService, never()).createContentImage(any(), any(), any());
+    verify(binaryContentService).generateUrl(contentImg);
+  }
+
+  @Test
+  @DisplayName("태그 목록이 비어 있으면 콘텐츠 태그를 모두 제거한다.")
+  void update_success_with_empty_tags() {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Old Title",
+        "Old Description"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        null,
+        null,
+        List.of()
+    );
+    ContentDto expected = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Old Title",
+        "Old Description",
+        null,
+        List.of(),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(contentMapper.toDto(content, null, List.of())).willReturn(expected);
+
+    // When
+    ContentDto response = contentService.update(contentId, request, null);
+
+    // Then
+    assertThat(response).isEqualTo(expected);
+    verify(contentTagRepository).deleteAllByContentId(contentId);
+    verify(contentTagRepository, never()).saveAll(anyList());
+    verify(tagRepository, never()).findAllByTagNameIn(anyList());
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 콘텐츠 수정 요청 시 예외를 던진다.")
+  void update_fail_when_content_not_found() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "Updated Title",
+        "Updated Description",
+        List.of("SF")
+    );
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.update(contentId, request, null))
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
+        });
+
+    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(binaryContentService, never()).createContentImage(any(), any(), any());
+    verify(contentTagRepository, never()).deleteAllByContentId(any(UUID.class));
+    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  @Test
+  @DisplayName("썸네일 파일 읽기에 실패하면 콘텐츠 수정에 실패한다.")
+  void update_fail_when_thumbnail_read_fails() throws Exception {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    BinaryContent oldContentImg = BinaryContent.create(
+        "old-thumbnail.png",
+        100L,
+        "image/png",
+        "contents/content-id/thumbnail/old-thumbnail.png"
+    );
+    Content content = new Content(
+        oldContentImg,
+        null,
+        ContentType.movie,
+        "Old Title",
+        "Old Description"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentUpdateRequest request = new ContentUpdateRequest(
+        "Updated Title",
+        "Updated Description",
+        List.of("SF")
+    );
+    MockMultipartFile thumbnail = new MockMultipartFile(
+        "thumbnail",
+        "new-thumbnail.png",
+        "image/png",
+        "thumbnail".getBytes()
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(binaryContentService.createContentImage(contentId, thumbnail, oldContentImg))
+        .willThrow(new IOException("read failed"));
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.update(contentId, request, thumbnail))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.FILE_READ_FAILED);
+          assertThat(exception.getDetails().get("fileName")).isEqualTo("new-thumbnail.png");
+        });
+
+    verify(binaryContentService).createContentImage(contentId, thumbnail, oldContentImg);
+    verify(contentTagRepository, never()).deleteAllByContentId(any(UUID.class));
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
 

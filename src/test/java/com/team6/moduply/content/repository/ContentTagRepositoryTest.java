@@ -98,4 +98,30 @@ class ContentTagRepositoryTest extends RepositoryTestSupport {
             tuple(sport.getId(), "스포츠")
         );
   }
+
+  @Test
+  @DisplayName("콘텐츠 ID로 연결된 태그 매핑을 모두 삭제한다.")
+  void delete_all_by_content_id_success_with_existing_content_tags() {
+    // Given
+    Content content = contentRepository.save(new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    ));
+    Tag sf = tagRepository.save(new Tag("SF"));
+    Tag action = tagRepository.save(new Tag("액션"));
+    contentTagRepository.saveAll(List.of(
+        new ContentTag(content, sf),
+        new ContentTag(content, action)
+    ));
+
+    // When
+    contentTagRepository.deleteAllByContentId(content.getId());
+
+    // Then
+    assertThat(contentTagRepository.findTagNamesByContentId(content.getId())).isEmpty();
+    assertThat(tagRepository.findAll()).contains(sf, action);
+  }
 }
