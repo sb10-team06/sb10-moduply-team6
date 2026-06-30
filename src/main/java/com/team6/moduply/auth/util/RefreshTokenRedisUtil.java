@@ -54,11 +54,6 @@ public class RefreshTokenRedisUtil {
     return script;
   }
 
-  @Retryable(
-      retryFor = DataAccessException.class,
-      maxAttempts = 3,
-      backoff = @Backoff(delay = 300, multiplier = 2)
-  )
   public String rotate(String email, String presentedRefreshToken, String newRefreshToken) {
     String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
     Duration ttl = RedisKeyPolicy.REFRESH_TOKEN.getTtl();
@@ -70,16 +65,5 @@ public class RefreshTokenRedisUtil {
         newRefreshToken,
         String.valueOf(ttl.toMillis())
     );
-  }
-
-  @Recover
-  public String recoverRotate(
-      DataAccessException e,
-      String email,
-      String presentedRefreshToken,
-      String newRefreshToken
-  ) {
-    log.error("Redis refresh token 원자 갱신 재시도 실패. email={}", email, e);
-    throw e;
   }
 }
