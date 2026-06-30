@@ -1,15 +1,20 @@
 package com.team6.moduply.review.service;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewSearchRequest;
+import com.team6.moduply.review.dto.ReviewSortBy;
 import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.entity.Review;
 import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +28,7 @@ public class ReviewService {
   private final ReviewRepository reviewRepository;
   private final ReviewMapper reviewMapper;
   private final ContentRepository contentRepository;
+  private final ReviewQDSLRepository reviewQDSLRepository;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
     if (!review.getAuthorId().equals(authorId)) {
@@ -107,5 +113,48 @@ public class ReviewService {
     validateAuthor(review, authorId, reviewId);
 
     reviewRepository.delete(review);
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<ReviewDto> findAll(ReviewSearchRequest request) {
+    List<Review> reviews = reviewQDSLRepository.findAllWithCursor(request);
+    long totalCount = reviewQDSLRepository.countWithCondition(request);
+
+    boolean hasNext = reviews.size() > request.limit();
+
+    if (hasNext) {
+      reviews = reviews.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      Review last = reviews.get(reviews.size() - 1);
+      nextCursor = request.sortBy() == ReviewSortBy.rating
+          ? String.valueOf(last.getRating())
+          : last.getCreatedAt().toString();
+      nextIdAfter = last.getId();
+    }
+
+    List<ReviewDto> data = reviews.stream()
+        .map(review -> {
+          // TODO: User 도메인 담당자 작업 완료 후 실제 User 조회로 교체 필요
+          ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
+              review.getAuthorId(), null, null
+          );
+          return reviewMapper.toDto(review, author);
+        })
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
   }
 }
