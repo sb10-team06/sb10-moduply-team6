@@ -27,8 +27,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -158,6 +160,8 @@ class ReviewControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.text").value("수정된 내용"))
         .andExpect(jsonPath("$.rating").value(3.0));
+
+    verify(reviewService).update(eq(reviewId), any(ReviewUpdateRequest.class), any());
   }
 
   @Test
@@ -209,6 +213,8 @@ class ReviewControllerTest {
     // when & then
     mockMvc.perform(delete("/api/reviews/" + reviewId))
         .andExpect(status().isNoContent());
+
+    verify(reviewService).delete(eq(reviewId), any());
   }
 
   @Test
