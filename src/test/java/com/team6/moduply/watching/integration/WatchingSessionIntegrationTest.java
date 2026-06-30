@@ -227,7 +227,6 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
 
       @Override
       public void handleFrame(StompHeaders headers, Object payload) {
-        System.out.println("====== [TEST] 프레임 수신 성공!! ======"); // 👈 찍히는지 확인용
         messageExpectation.complete((WatchingSessionChange) payload);
       }
     });
@@ -263,7 +262,6 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
       public void handleFrame(StompHeaders headers, Object payload) {
         WatchingSessionChange message = (WatchingSessionChange) payload;
         if (message.type() == ChangeType.LEAVE) {
-          System.out.println("====== [TEST] 유저 B가 유저 A의 LEAVE 프레임 수신 성공!! ======");
           messageExpectation.complete(message);
         }
       }
