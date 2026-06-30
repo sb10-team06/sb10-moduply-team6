@@ -41,6 +41,7 @@ cors:
 #컨텍스트 로딩 통과용.
 moduply:
   storage:
+    type: s3
     s3:
       access-key: test-access-key
       secret-key: test-secret-key

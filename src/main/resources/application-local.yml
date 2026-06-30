@@ -31,3 +31,7 @@ cors:
   allowed-origins:
     - "http://localhost:[*]"
     - "http://127.0.0.1:[*]"
+
+moduply:
+  storage:
+    type: ${BINARY_CONTENT_STORAGE_TYPE:local}

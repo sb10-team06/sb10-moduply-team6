@@ -70,6 +70,9 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**").permitAll()
                 // 정적 리소스 접근 인증 불필요
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**").permitAll()
+                // 로컬 저장소 업로드 파일 접근 인증 불필요
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
                 // sse 관련 api 인증 불필요
                 .requestMatchers("/api/sse/**").permitAll()
                 // TODO: WebSocket STOMP CONNECT JWT 검증 구현 후 인가 정책 재검토
