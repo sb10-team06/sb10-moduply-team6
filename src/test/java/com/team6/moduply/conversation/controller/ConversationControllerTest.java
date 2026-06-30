@@ -1,7 +1,9 @@
 package com.team6.moduply.conversation.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -72,6 +74,21 @@ class ConversationControllerTest {
         .andExpect(jsonPath("$.hasUnread").value(false));
 
     verify(conversationService).create(request, currentUserId);
+  }
+
+  @Test
+  @DisplayName("대화 상대 사용자 ID가 누락되면 400 응답을 반환한다.")
+  void createConversation_fail_when_with_user_id_is_missing() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+
+    mockMvc.perform(post("/api/conversations")
+            .with(user(userDetails(currentUserId)))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{}"))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).create(any(), eq(currentUserId));
   }
 
   private ConversationDto conversationDto(UUID conversationId, UUID withUserId) {
