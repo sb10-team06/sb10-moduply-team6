@@ -221,6 +221,46 @@ class BinaryContentServiceTest {
   }
 
   @Test
+  @DisplayName("외부 이미지 bytes로 콘텐츠 이미지 생성 시 BinaryContent를 저장하고 업로드 이벤트를 발행한다.")
+  void createContentImage_success_with_external_image_bytes() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    byte[] bytes = "external-image-bytes".getBytes(StandardCharsets.UTF_8);
+    given(binaryContentRepository.save(any(BinaryContent.class)))
+        .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
+
+    // when
+    BinaryContent result = binaryContentService.createContentImage(
+        contentId,
+        "tmdb-movie-27205.jpg",
+        bytes,
+        "image/jpeg",
+        null
+    );
+
+    // then
+    assertThat(result.getFileName()).isEqualTo("tmdb-movie-27205.jpg");
+    assertThat(result.getSize()).isEqualTo((long) bytes.length);
+    assertThat(result.getContentType()).isEqualTo("image/jpeg");
+    assertThat(result.getStorageKey())
+        .startsWith("contents/%s/thumbnail/".formatted(contentId))
+        .endsWith(".jpg");
+    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
+
+    ArgumentCaptor<BinaryContentCreatedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentCreatedEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+    BinaryContentCreatedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(result.getId());
+    assertThat(event.getBytes()).isEqualTo(bytes);
+    assertThat(event.getUserId()).isNull();
+    assertThat(event.getContentId()).isEqualTo(contentId);
+    assertThat(event.getOldBinaryContentId()).isNull();
+    assertThat(event.getOldStorageKey()).isNull();
+  }
+
+  @Test
   @DisplayName("콘텐츠 이미지 생성 시 지원하지 않는 이미지 타입이면 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
   void createContentImage_fail_when_unsupported_image_type() {
     // given

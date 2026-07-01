@@ -2,12 +2,17 @@ package com.team6.moduply.content.external;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
@@ -20,6 +25,7 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ExternalContentServiceTest {
@@ -40,6 +47,12 @@ class ExternalContentServiceTest {
   @Mock
   private ContentTagRepository contentTagRepository;
 
+  @Mock
+  private ExternalImageClient externalImageClient;
+
+  @Mock
+  private BinaryContentService binaryContentService;
+
   private ExternalContentService externalContentService;
 
   @BeforeEach
@@ -48,7 +61,9 @@ class ExternalContentServiceTest {
         contentRepository,
         tagRepository,
         contentTagRepository,
-        new ExternalContentMapper(createTmdbProperties())
+        new ExternalContentMapper(createTmdbProperties()),
+        externalImageClient,
+        binaryContentService
     );
   }
 
@@ -99,6 +114,8 @@ class ExternalContentServiceTest {
     assertThat(result.requestedCount()).isEqualTo(2);
     assertThat(result.savedCount()).isEqualTo(1);
     assertThat(result.skippedCount()).isEqualTo(1);
+    assertThat(result.imageSavedCount()).isZero();
+    assertThat(result.imageFailedCount()).isZero();
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Content>> contentCaptor = ArgumentCaptor.forClass(List.class);
@@ -125,6 +142,8 @@ class ExternalContentServiceTest {
     assertThat(result.requestedCount()).isZero();
     assertThat(result.savedCount()).isZero();
     assertThat(result.skippedCount()).isZero();
+    assertThat(result.imageSavedCount()).isZero();
+    assertThat(result.imageFailedCount()).isZero();
     verify(contentRepository, never()).findAllByExternalApiIdIn(anyCollection());
     verify(contentRepository, never()).saveAll(anyList());
     verify(contentTagRepository, never()).saveAll(anyList());
@@ -150,6 +169,115 @@ class ExternalContentServiceTest {
               .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE);
         });
     verify(contentRepository, never()).saveAll(anyList());
+  }
+
+  @Test
+  @DisplayName("외부 콘텐츠 이미지 저장에 성공하면 콘텐츠에 BinaryContent를 연결한다.")
+  void importTmdbMovies_success_with_external_thumbnail_image() {
+    // Given
+    TmdbMovieResponse movie = new TmdbMovieResponse(
+        27205L,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        "/poster.jpg",
+        null,
+        "2010-07-15"
+    );
+    Tag tmdbTag = new Tag("TMDB");
+    Tag movieTag = new Tag("movie");
+    ExternalImageFile imageFile = new ExternalImageFile(
+        "poster.jpg",
+        "image/jpeg",
+        "image-bytes".getBytes()
+    );
+    BinaryContent contentImg = BinaryContent.create(
+        "poster.jpg",
+        imageFile.size(),
+        "image/jpeg",
+        "contents/content-id/thumbnail/poster.jpg"
+    );
+
+    given(contentRepository.findAllByExternalApiIdIn(anyCollection()))
+        .willReturn(List.of());
+    given(contentRepository.saveAll(anyList()))
+        .willAnswer(invocation -> {
+          @SuppressWarnings("unchecked")
+          List<Content> contents = invocation.getArgument(0);
+          contents.forEach(content -> ReflectionTestUtils.setField(content, "id", UUID.randomUUID()));
+          return contents;
+        });
+    given(externalImageClient.download("https://image.tmdb.org/t/p/w500/poster.jpg"))
+        .willReturn(imageFile);
+    given(binaryContentService.createContentImage(
+        any(UUID.class),
+        eq("poster.jpg"),
+        eq(imageFile.bytes()),
+        eq("image/jpeg"),
+        eq(null)
+    )).willReturn(contentImg);
+    given(tagRepository.findAllByTagNameIn(anyCollection()))
+        .willReturn(List.of())
+        .willReturn(List.of(tmdbTag, movieTag));
+
+    // When
+    ExternalContentImportResult result = externalContentService.importTmdbMovies(List.of(movie));
+
+    // Then
+    assertThat(result.savedCount()).isEqualTo(1);
+    assertThat(result.imageSavedCount()).isEqualTo(1);
+    assertThat(result.imageFailedCount()).isZero();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Content>> contentCaptor = ArgumentCaptor.forClass(List.class);
+    verify(contentRepository).saveAll(contentCaptor.capture());
+    assertThat(contentCaptor.getValue().get(0).getContentImg()).isEqualTo(contentImg);
+  }
+
+  @Test
+  @DisplayName("외부 콘텐츠 이미지 저장에 실패해도 콘텐츠 저장은 유지하고 실패 개수를 기록한다.")
+  void importTmdbMovies_success_when_external_thumbnail_image_save_fails() {
+    // Given
+    TmdbMovieResponse movie = new TmdbMovieResponse(
+        27205L,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        "/poster.jpg",
+        null,
+        "2010-07-15"
+    );
+    Tag tmdbTag = new Tag("TMDB");
+    Tag movieTag = new Tag("movie");
+
+    given(contentRepository.findAllByExternalApiIdIn(anyCollection()))
+        .willReturn(List.of());
+    given(contentRepository.saveAll(anyList()))
+        .willAnswer(invocation -> {
+          @SuppressWarnings("unchecked")
+          List<Content> contents = invocation.getArgument(0);
+          contents.forEach(content -> ReflectionTestUtils.setField(content, "id", UUID.randomUUID()));
+          return contents;
+        });
+    willThrow(new RuntimeException("download failed"))
+        .given(externalImageClient)
+        .download("https://image.tmdb.org/t/p/w500/poster.jpg");
+    given(tagRepository.findAllByTagNameIn(anyCollection()))
+        .willReturn(List.of())
+        .willReturn(List.of(tmdbTag, movieTag));
+
+    // When
+    ExternalContentImportResult result = externalContentService.importTmdbMovies(List.of(movie));
+
+    // Then
+    assertThat(result.savedCount()).isEqualTo(1);
+    assertThat(result.imageSavedCount()).isZero();
+    assertThat(result.imageFailedCount()).isEqualTo(1);
+    verify(binaryContentService, never()).createContentImage(
+        any(UUID.class),
+        any(String.class),
+        any(byte[].class),
+        any(String.class),
+        any()
+    );
   }
 
   private static TmdbProperties createTmdbProperties() {

@@ -1,5 +1,7 @@
 package com.team6.moduply.content.external;
 
+import com.team6.moduply.binarycontent.entity.BinaryContent;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +35,8 @@ public class ExternalContentService {
   private final TagRepository tagRepository;
   private final ContentTagRepository contentTagRepository;
   private final ExternalContentMapper externalContentMapper;
+  private final ExternalImageClient externalImageClient;
+  private final BinaryContentService binaryContentService;
 
   @Transactional
   public ExternalContentImportResult importTmdbMovies(List<TmdbMovieResponse> responses) {
@@ -62,7 +67,7 @@ public class ExternalContentService {
 
   private ExternalContentImportResult saveNewContents(List<ExternalContentItem> items) {
     if (items.isEmpty()) {
-      return new ExternalContentImportResult(0, 0, 0);
+      return new ExternalContentImportResult(0, 0, 0, 0, 0);
     }
 
     Map<String, ExternalContentItem> itemByExternalApiId = items.stream()
@@ -94,6 +99,7 @@ public class ExternalContentService {
         .toList();
 
     List<Content> savedContents = contentRepository.saveAll(contents);
+    ExternalImageSaveResult imageSaveResult = saveContentImages(savedContents, itemByExternalApiId);
     saveContentTags(savedContents, itemByExternalApiId);
 
     int skippedCount = items.size() - savedContents.size();
@@ -107,8 +113,49 @@ public class ExternalContentService {
     return new ExternalContentImportResult(
         items.size(),
         savedContents.size(),
-        skippedCount
+        skippedCount,
+        imageSaveResult.savedCount(),
+        imageSaveResult.failedCount()
     );
+  }
+
+  private ExternalImageSaveResult saveContentImages(
+      List<Content> contents,
+      Map<String, ExternalContentItem> itemByExternalApiId
+  ) {
+    int imageSavedCount = 0;
+    int imageFailedCount = 0;
+
+    for (Content content : contents) {
+      ExternalContentItem item = itemByExternalApiId.get(content.getExternalApiId());
+
+      if (item == null || !StringUtils.hasText(item.thumbnailUrl())) {
+        continue;
+      }
+
+      try {
+        ExternalImageFile imageFile = externalImageClient.download(item.thumbnailUrl());
+        BinaryContent contentImg = binaryContentService.createContentImage(
+            content.getId(),
+            imageFile.fileName(),
+            imageFile.bytes(),
+            imageFile.contentType(),
+            null
+        );
+        content.updateContentImg(contentImg);
+        imageSavedCount++;
+      } catch (RuntimeException e) {
+        imageFailedCount++;
+        log.warn(
+            "외부 콘텐츠 이미지 저장 실패. externalApiId={}, thumbnailUrl={}",
+            content.getExternalApiId(),
+            item.thumbnailUrl(),
+            e
+        );
+      }
+    }
+
+    return new ExternalImageSaveResult(imageSavedCount, imageFailedCount);
   }
 
   private void saveContentTags(
@@ -169,5 +216,11 @@ public class ExternalContentService {
 
   private <T> List<T> emptyIfNull(Collection<T> values) {
     return values == null ? List.of() : List.copyOf(values);
+  }
+
+  private record ExternalImageSaveResult(
+      int savedCount,
+      int failedCount
+  ) {
   }
 }
