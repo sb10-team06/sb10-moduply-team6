@@ -34,22 +34,24 @@ public class SecurityConfig {
   private final JwtLogoutHandler jwtLogoutHandler;
   private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
   private final CsrfTokenRepository csrfTokenRepository;
+  private final SpaCsrfTokenRequestHandler spaCsrfTokenRequestHandler;
+
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.
         csrf(csrf -> csrf
             .csrfTokenRepository(csrfTokenRepository)
             .ignoringRequestMatchers(
-    new AntPathRequestMatcher("/api/users", "POST"),
-    new AntPathRequestMatcher("/api/auth/sign-in", "POST"),
-            // TODO: 비밀번호 재발급 API CSRF 검증 정책은 추후 논의 후 변경
-    new AntPathRequestMatcher("/api/auth/reset-password", "POST"),
-            // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
-    new AntPathRequestMatcher("/api/auth/refresh", "POST"),
-    new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
-    new AntPathRequestMatcher("/ws/**")
+                new AntPathRequestMatcher("/api/users", "POST"),
+                new AntPathRequestMatcher("/api/auth/sign-in", "POST"),
+                // TODO: 비밀번호 재발급 API CSRF 검증 정책은 추후 논의 후 변경
+                new AntPathRequestMatcher("/api/auth/reset-password", "POST"),
+                // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
+                new AntPathRequestMatcher("/api/auth/refresh", "POST"),
+                new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
+                new AntPathRequestMatcher("/ws/**")
             )
-            .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+            .csrfTokenRequestHandler(spaCsrfTokenRequestHandler)
         )
         .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
