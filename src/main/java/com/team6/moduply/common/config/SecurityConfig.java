@@ -6,6 +6,7 @@ import com.team6.moduply.auth.handler.JwtLogoutHandler;
 import com.team6.moduply.auth.handler.ModuPlyAccessDeniedHandler;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import com.team6.moduply.auth.handler.ModuPlyLoginFailureHandler;
+import com.team6.moduply.auth.handler.SpaCsrfTokenRequestHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,15 +40,16 @@ public class SecurityConfig {
         csrf(csrf -> csrf
             .csrfTokenRepository(csrfTokenRepository)
             .ignoringRequestMatchers(
-                new AntPathRequestMatcher("/api/users", "POST"),
-                new AntPathRequestMatcher("/api/auth/sign-in", "POST"),
-                // TODO: 비밀번호 재발급 API CSRF 검증 정책은 추후 논의 후 변경
-                new AntPathRequestMatcher("/api/auth/reset-password", "POST"),
-                // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
-                new AntPathRequestMatcher("/api/auth/refresh", "POST"),
-                new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
-                new AntPathRequestMatcher("/ws/**")
+    new AntPathRequestMatcher("/api/users", "POST"),
+    new AntPathRequestMatcher("/api/auth/sign-in", "POST"),
+            // TODO: 비밀번호 재발급 API CSRF 검증 정책은 추후 논의 후 변경
+    new AntPathRequestMatcher("/api/auth/reset-password", "POST"),
+            // TODO: refresh token 재발급 API 구현 후 CSRF 헤더 검증 흐름으로 변경
+    new AntPathRequestMatcher("/api/auth/refresh", "POST"),
+    new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
+    new AntPathRequestMatcher("/ws/**")
             )
+            .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
         )
         .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
