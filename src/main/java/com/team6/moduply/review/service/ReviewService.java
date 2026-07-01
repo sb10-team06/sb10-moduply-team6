@@ -133,7 +133,7 @@ public class ReviewService {
       Review last = reviews.get(reviews.size() - 1);
       nextCursor = request.sortBy() == ReviewSortBy.rating
           ? String.valueOf(last.getRating())
-          : last.getCreatedAt().toString();
+          : (last.getCreatedAt() != null ? last.getCreatedAt().toString() : null);
       nextIdAfter = last.getId();
     }
 

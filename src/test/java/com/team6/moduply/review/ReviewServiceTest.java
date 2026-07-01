@@ -315,10 +315,13 @@ class ReviewServiceTest {
 
   @Test
   @DisplayName("리뷰 목록이 limit개를 초과하면 hasNext가 true이고 nextCursor가 채워진다.")
-  void findAll_success_with_has_next_and_cursor() {
+  void findAll_success_with_has_next_and_cursor() throws Exception {
     // given
     UUID contentId = UUID.randomUUID();
     UUID authorId = UUID.randomUUID();
+    UUID review1Id = UUID.randomUUID();
+    Instant review1CreatedAt = Instant.now();
+
     ReviewSearchRequest request = new ReviewSearchRequest(
         contentId, null, null, 1, SortDirection.DESCENDING, ReviewSortBy.createdAt
     );
@@ -328,8 +331,17 @@ class ReviewServiceTest {
     Review review2 = Review.builder()
         .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
 
+    // id, createdAt 주입
+    java.lang.reflect.Field idField = review1.getClass().getSuperclass().getSuperclass().getDeclaredField("id");
+    idField.setAccessible(true);
+    idField.set(review1, review1Id);
+
+    java.lang.reflect.Field createdAtField = review1.getClass().getSuperclass().getSuperclass().getDeclaredField("createdAt");
+    createdAtField.setAccessible(true);
+    createdAtField.set(review1, review1CreatedAt);
+
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
-    ReviewDto dto1 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "첫번째", 4.0);
+    ReviewDto dto1 = new ReviewDto(review1Id, contentId, authorDto, "첫번째", 4.0);
 
     given(reviewQDSLRepository.findAllWithCursor(request))
         .willReturn(new ArrayList<>(List.of(review1, review2)));
@@ -342,6 +354,8 @@ class ReviewServiceTest {
     // then
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo(review1CreatedAt.toString());
+    assertThat(result.nextIdAfter()).isEqualTo(review1Id);
   }
 
   @Test
