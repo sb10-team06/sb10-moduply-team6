@@ -141,8 +141,8 @@ public class ReviewService {
       Review last = reviews.get(reviews.size() - 1);
       if (last.getCreatedAt() == null) {
         throw new ReviewException(
-            ReviewErrorCode.REVIEW_NOT_FOUND,
-            Map.of("message", "리뷰의 createdAt이 null입니다.")
+            ReviewErrorCode.REVIEW_INVALID_STATE,
+            Map.of("reviewId", last.getId())
         );
       }
       if (request.sortBy() == ReviewSortBy.rating) {
