@@ -47,6 +47,14 @@ public interface ConversationApi {
           )
       ),
       @ApiResponse(
+              responseCode = "403",
+              description = "대화방 접근 권한 없음",
+              content = @Content(
+                      mediaType = MediaType.ALL_VALUE,
+                      schema = @Schema(implementation = ErrorResponse.class)
+              )
+      ),
+      @ApiResponse(
           responseCode = "404",
           description = "대화 상대 사용자를 찾을 수 없음",
           content = @Content(
