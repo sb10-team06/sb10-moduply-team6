@@ -64,6 +64,9 @@ moduply:
       base-url: ${TMDB_BASE_URL:https://api.themoviedb.org/3}
       image-base-url: ${TMDB_IMAGE_BASE_URL:https://image.tmdb.org/t/p}
       read-access-token: ${TMDB_READ_ACCESS_TOKEN:}
+    sports-db:
+      base-url: ${SPORTS_DB_BASE_URL:https://www.thesportsdb.com/api/v1/json}
+      api-key: ${SPORTS_DB_API_KEY:123}
 
 jwt:
   key: ${JWT_SECRET_KEY}
