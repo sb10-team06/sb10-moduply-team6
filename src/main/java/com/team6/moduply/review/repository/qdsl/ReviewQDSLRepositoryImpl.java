@@ -29,10 +29,7 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
             contentIdCondition(request.contentIdEqual()),
             cursorCondition(request)
         )
-        .orderBy(
-            primaryOrder(request),
-            secondaryOrder(request)
-        )
+        .orderBy(orderSpecifiers(request))
         .limit((long) request.limit() + 1)
         .fetch();
   }
@@ -79,6 +76,20 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
       return review.createdAt.lt(cursorTime)
           .or(review.createdAt.eq(cursorTime).and(review.id.gt(request.idAfter())));
     }
+  }
+
+  private OrderSpecifier<?>[] orderSpecifiers(ReviewSearchRequest request) {
+    if (request.sortBy() == ReviewSortBy.rating) {
+      return new OrderSpecifier<?>[] {
+          primaryOrder(request),
+          secondaryOrder(request),
+          review.id.asc()
+      };
+    }
+    return new OrderSpecifier<?>[] {
+        primaryOrder(request),
+        secondaryOrder(request)
+    };
   }
 
   private OrderSpecifier<?> primaryOrder(ReviewSearchRequest request) {
