@@ -114,6 +114,30 @@ public class ContentService {
     return response;
   }
 
+  @PreAuthorize("hasRole('ADMIN')")
+  @Transactional
+  public void delete(UUID contentId) {
+    log.debug("콘텐츠 삭제 처리 시작: contentId={}", contentId);
+
+    Content content = findContent(contentId);
+    BinaryContent contentImg = content.getContentImg();
+
+    contentTagRepository.deleteAllByContentId(contentId);
+
+    if (contentImg != null) {
+      content.updateContentImg(null);
+      contentRepository.flush();
+    }
+
+    contentRepository.delete(content);
+
+    if (contentImg != null) {
+      binaryContentService.delete(contentImg.getId());
+    }
+
+    log.debug("콘텐츠 삭제 처리 완료: contentId={}", contentId);
+  }
+
   @Transactional(readOnly = true)
   public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
     List<String> normalizedTagsIn = normalizeTags(request.tagsIn());

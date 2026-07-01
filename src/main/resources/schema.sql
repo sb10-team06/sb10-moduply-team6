@@ -14,7 +14,7 @@ CREATE TABLE binary_contents (
     CONSTRAINT uk_binary_contents_storage_key       UNIQUE (storage_key),
     -- 파일 크기는 0초과만 허용
     CONSTRAINT chk_binary_contents_size             CHECK (size > 0),
-    CONSTRAINT chk_binary_contents_status           CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL'))
+    CONSTRAINT chk_binary_contents_status           CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL', 'DELETED'))
 );
 
 -- 콘텐츠 관리 테이블 (contents)
