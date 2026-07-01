@@ -59,6 +59,11 @@ moduply:
     local:
       root-path: ${LOCAL_STORAGE_ROOT_PATH:./uploads}
       url-prefix: ${LOCAL_STORAGE_URL_PREFIX:/uploads}
+  external:
+    tmdb:
+      base-url: ${TMDB_BASE_URL:https://api.themoviedb.org/3}
+      image-base-url: ${TMDB_IMAGE_BASE_URL:https://image.tmdb.org/t/p}
+      read-access-token: ${TMDB_READ_ACCESS_TOKEN:}
 
 jwt:
   key: ${JWT_SECRET_KEY}
