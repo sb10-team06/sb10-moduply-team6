@@ -8,6 +8,7 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.review.controller.ReviewController;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewSearchRequest;
 import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
@@ -272,5 +273,7 @@ class ReviewControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.totalCount").value(0));
+
+    verify(reviewService).findAll(any(ReviewSearchRequest.class));
   }
 }

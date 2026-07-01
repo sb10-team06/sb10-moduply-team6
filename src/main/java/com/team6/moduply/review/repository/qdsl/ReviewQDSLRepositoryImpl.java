@@ -36,6 +36,7 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
                 : (request.sortDirection() == SortDirection.ASCENDING
                     ? review.createdAt.asc()
                     : review.createdAt.desc()),
+            review.createdAt.asc(),
             review.id.asc()
         )
         .limit(request.limit() + 1)

@@ -1,9 +1,13 @@
 package com.team6.moduply.review;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewSearchRequest;
+import com.team6.moduply.review.dto.ReviewSortBy;
 import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.entity.Review;
 import com.team6.moduply.review.exception.ReviewErrorCode;
@@ -15,6 +19,7 @@ import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -271,5 +276,39 @@ class ReviewServiceTest {
         .isInstanceOf(ReviewException.class)
         .satisfies(e -> assertThat(((ReviewException) e).getErrorCode())
             .isEqualTo(ReviewErrorCode.REVIEW_FORBIDDEN));
+  }
+
+  @Test
+  @DisplayName("리뷰 목록이 limit개이면 hasNext가 false를 반환한다.")
+  void findAll_success_with_last_page() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    UUID authorId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        contentId, null, null, 2, SortDirection.DESCENDING, ReviewSortBy.createdAt
+    );
+
+    Review review1 = Review.builder()
+        .contentId(contentId).authorId(authorId).text("첫번째").rating(4.0).build();
+    Review review2 = Review.builder()
+        .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
+
+    ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
+    ReviewDto dto1 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "첫번째", 4.0);
+    ReviewDto dto2 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "두번째", 3.5);
+
+    given(reviewQDSLRepository.findAllWithCursor(request)).willReturn(List.of(review1, review2));
+    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class)))
+        .willReturn(dto1, dto2);
+
+    // when
+    CursorResponse<ReviewDto> result = reviewService.findAll(request);
+
+    // then
+    assertThat(result.data()).hasSize(2);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextIdAfter()).isNull();
   }
 }
