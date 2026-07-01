@@ -14,9 +14,14 @@ import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.mapper.UserMapper;
+import com.team6.moduply.user.repository.UserRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +34,8 @@ public class ReviewService {
   private final ReviewMapper reviewMapper;
   private final ContentRepository contentRepository;
   private final ReviewQDSLRepository reviewQDSLRepository;
+  private final UserRepository userRepository;
+  private final UserMapper userMapper;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
     if (!review.getAuthorId().equals(authorId)) {
@@ -137,11 +144,22 @@ public class ReviewService {
       nextIdAfter = last.getId();
     }
 
+    List<UUID> authorIds = reviews.stream()
+        .map(Review::getAuthorId)
+        .distinct()
+        .toList();
+
+    Map<UUID, UserDto> authorMap = userRepository.findAllById(authorIds)
+        .stream()
+        .collect(Collectors.toMap(User::getId, userMapper::toDto));
+
     List<ReviewDto> data = reviews.stream()
         .map(review -> {
-          // TODO: User 도메인 담당자 작업 완료 후 실제 User 조회로 교체 필요
+          UserDto userDto = authorMap.get(review.getAuthorId());
           ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
-              review.getAuthorId(), null, null
+              userDto != null ? userDto.getId() : review.getAuthorId(),
+              userDto != null ? userDto.getName() : null,
+              userDto != null ? userDto.getProfileImageUrl() : null
           );
           return reviewMapper.toDto(review, author);
         })
