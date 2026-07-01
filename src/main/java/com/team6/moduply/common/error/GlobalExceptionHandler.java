@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
   }
 
-  /// @RequestParam 누란된경우
+  /// @RequestParam 누락된경우
   @ExceptionHandler(MissingServletRequestParameterException.class)
   public ResponseEntity<ErrorResponse> handleMissingRequestParameter(
       MissingServletRequestParameterException ex
