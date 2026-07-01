@@ -1,9 +1,11 @@
 package com.team6.moduply.user.controller;
 
 import com.team6.moduply.common.error.ErrorResponse;
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserFindAllRequest;
 import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
@@ -15,10 +17,13 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -65,6 +70,56 @@ public interface UserApi {
       )
   })
   ResponseEntity<UserDto> postUser(UserCreateRequest request);
+
+  @Operation(
+      summary = "[어드민] 사용자 목록 조회 (커서 페이지네이션)",
+      operationId = "findUsers"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "성공",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = CursorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<CursorResponse<UserDto>> getUsers(
+      @Valid @ParameterObject @ModelAttribute UserFindAllRequest request
+  );
 
   @Operation(
       summary = "사용자 단건 조회",

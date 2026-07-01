@@ -1,8 +1,11 @@
 package com.team6.moduply.user.controller;
 
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserFindAllRequest;
 import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
@@ -15,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +42,15 @@ public class UserController implements UserApi {
     UserDto response = userService.createUser(request);
     log.info("회원가입 요청 처리 완료. userId={}", response.getId());
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+  @Override
+  public ResponseEntity<CursorResponse<UserDto>> getUsers(@Valid @ModelAttribute UserFindAllRequest request){
+    log.info("사용자 목록 조회 요청 수신");
+    CursorResponse<UserDto> response = userService.findAll(request);
+    log.info("사용자 목록 조회 요청 처리 완료: count={}", response.data().size());
+    return ResponseEntity.ok(response);
   }
 
   @GetMapping("/{userId}")
