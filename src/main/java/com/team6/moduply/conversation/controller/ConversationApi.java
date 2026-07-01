@@ -75,4 +75,63 @@ public interface ConversationApi {
       ConversationCreateRequest request,
       @Parameter(hidden = true) UUID currentUserId
   );
+
+  @Operation(
+      summary = "대화 조회",
+      operationId = "findConversationById"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "200",
+          description = "성공",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ConversationDto.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+              responseCode = "403",
+              description = "대화방 접근 권한 없음",
+              content = @Content(
+                      mediaType = MediaType.ALL_VALUE,
+                      schema = @Schema(implementation = ErrorResponse.class)
+              )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "해당 리소스 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<ConversationDto> findConversationById(
+      @Parameter(description = "대화 ID", required = true) UUID conversationId,
+      @Parameter(hidden = true) UUID currentUserId
+  );
 }
