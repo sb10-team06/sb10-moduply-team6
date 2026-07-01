@@ -1,5 +1,6 @@
 package com.team6.moduply.auth.controller;
 
+import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.dto.JwtDto;
@@ -7,11 +8,15 @@ import com.team6.moduply.auth.dto.ResetPasswordRequest;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -29,6 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController implements AuthApi {
   private final JwtTokenProvider jwtTokenProvider;
   private final AuthService authService;
+  @Value("${jwt.refresh-token-expiration-minutes}")
+  private int refreshTokenExpirationMinutes;
 
   @GetMapping("/csrf-token")
   @Override
@@ -48,21 +55,20 @@ public class AuthController implements AuthApi {
       ));
     }
 
-    if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
-      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
-          "tokenType", "refresh"
-      ));
-    }
+    TokenRefreshDto tokenRefreshDto = authService.refreshTokens(refreshToken);
 
-    UUID userId = jwtTokenProvider.getUserId(refreshToken);
-    Authentication authentication = authService.getAuthentication(userId);
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+    ResponseCookie newRefreshTokenCookie = ResponseCookie.from("REFRESH_TOKEN",
+        tokenRefreshDto.getRefreshToken())
+        .httpOnly(true)
+        .secure(true) // HTTPS 환경 필수
+        .path("/")
+        .maxAge(refreshTokenExpirationMinutes * 60)
+        .sameSite("Lax")
+        .build();
 
-    ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
-    JwtDto response = new JwtDto(userDetails.getUserDto(), accessToken);
-
-    // TODO: Redis 기반 refresh token 저장소 도입 후 refresh token 검증 및 rotation 처리 추가
-    return ResponseEntity.ok(response);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.SET_COOKIE, newRefreshTokenCookie.toString())
+        .body(tokenRefreshDto.getJwtDto());
   }
 
   @PostMapping("/reset-password")

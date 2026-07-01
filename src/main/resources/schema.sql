@@ -14,7 +14,7 @@ CREATE TABLE binary_contents (
     CONSTRAINT uk_binary_contents_storage_key       UNIQUE (storage_key),
     -- 파일 크기는 0초과만 허용
     CONSTRAINT chk_binary_contents_size             CHECK (size > 0),
-    CONSTRAINT chk_binary_contents_status           CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL'))
+    CONSTRAINT chk_binary_contents_status           CHECK (status IN ('PROCESSING', 'SUCCESS', 'FAIL', 'DELETED'))
 );
 
 -- 콘텐츠 관리 테이블 (contents)
@@ -279,7 +279,9 @@ CREATE TABLE conversations (
     CONSTRAINT uk_conversations_user_pair            UNIQUE (user1_id, user2_id),
 
     -- 자기 자신과 대화방 생성 방지
-    CONSTRAINT chk_conversations_different_users     CHECK (user1_id <> user2_id)
+    CONSTRAINT chk_conversations_different_users     CHECK (user1_id <> user2_id),
+
+    CONSTRAINT chk_conversations_user_order          CHECK (user1_id < user2_id)
 );
 
 CREATE TABLE direct_messages (
