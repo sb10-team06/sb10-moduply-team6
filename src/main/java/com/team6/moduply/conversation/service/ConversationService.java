@@ -108,8 +108,8 @@ public class ConversationService {
       );
     }
 
-    findUser(currentUserId);
-    findUser(userId);
+    User currentUser = findUser(currentUserId);
+    User withUser = findUser(userId);
 
     Conversation sortedConversation = Conversation.create(currentUserId, userId);
     Conversation conversation = conversationRepository.findByUser1IdAndUser2Id(
@@ -120,7 +120,7 @@ public class ConversationService {
         Map.of("userId", userId)
     ));
 
-    ConversationDto response = toDto(conversation, currentUserId);
+    ConversationDto response = toDto(conversation, currentUser, withUser);
     log.debug("특정 사용자와의 대화 조회 처리 완료. conversationId={}", response.id());
     return response;
   }
@@ -154,11 +154,15 @@ public class ConversationService {
     User currentUser = findUser(currentUserId);
     User withUser = findUser(resolveWithUserId(conversation, currentUserId));
 
+    return toDto(conversation, currentUser, withUser);
+  }
+
+  private ConversationDto toDto(Conversation conversation, User currentUser, User withUser) {
     DirectMessage lastestMessage = directMessageRepository
         .findTopByConversationIdOrderByCreatedAtDesc(conversation.getId())
         .orElse(null);
     boolean hasUnread = directMessageRepository
-        .existsByConversationIdAndSenderIdNotAndReadFalse(conversation.getId(), currentUserId);
+        .existsByConversationIdAndSenderIdNotAndReadFalse(conversation.getId(), currentUser.getId());
 
     return conversationMapper.toDto(
         conversation,
