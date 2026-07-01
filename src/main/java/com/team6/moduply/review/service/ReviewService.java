@@ -18,6 +18,7 @@ import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -138,9 +139,13 @@ public class ReviewService {
 
     if (hasNext) {
       Review last = reviews.get(reviews.size() - 1);
-      nextCursor = request.sortBy() == ReviewSortBy.rating
-          ? String.valueOf(last.getRating())
-          : (last.getCreatedAt() != null ? last.getCreatedAt().toString() : null);
+      if (request.sortBy() == ReviewSortBy.rating) {
+        // "rating:createdAt" 복합 커서
+        String createdAtStr = last.getCreatedAt() != null ? last.getCreatedAt().toString() : Instant.now().toString();
+        nextCursor = last.getRating() + ":" + createdAtStr;
+      } else {
+        nextCursor = last.getCreatedAt() != null ? last.getCreatedAt().toString() : null;
+      }
       nextIdAfter = last.getId();
     }
 

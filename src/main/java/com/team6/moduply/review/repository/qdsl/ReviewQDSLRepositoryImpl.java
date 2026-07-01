@@ -36,7 +36,9 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
                 : (request.sortDirection() == SortDirection.ASCENDING
                     ? review.createdAt.asc()
                     : review.createdAt.desc()),
-            review.createdAt.asc(),
+            request.sortDirection() == SortDirection.ASCENDING
+                ? review.createdAt.asc()
+                : review.createdAt.desc(),
             review.id.asc()
         )
         .limit((long) request.limit() + 1)
@@ -62,13 +64,18 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
     }
 
     if (request.sortBy() == ReviewSortBy.rating) {
-      Double cursorRating = Double.parseDouble(request.cursor());
+      int colonIndex = request.cursor().indexOf(":");
+      Double cursorRating = Double.parseDouble(request.cursor().substring(0, colonIndex));
+      Instant cursorCreatedAt = Instant.parse(request.cursor().substring(colonIndex + 1));
+
       if (request.sortDirection() == SortDirection.ASCENDING) {
         return review.rating.gt(cursorRating)
-            .or(review.rating.eq(cursorRating).and(review.id.gt(request.idAfter())));
+            .or(review.rating.eq(cursorRating).and(review.createdAt.gt(cursorCreatedAt)))
+            .or(review.rating.eq(cursorRating).and(review.createdAt.eq(cursorCreatedAt)).and(review.id.gt(request.idAfter())));
       } else {
         return review.rating.lt(cursorRating)
-            .or(review.rating.eq(cursorRating).and(review.id.gt(request.idAfter())));
+            .or(review.rating.eq(cursorRating).and(review.createdAt.lt(cursorCreatedAt)))
+            .or(review.rating.eq(cursorRating).and(review.createdAt.eq(cursorCreatedAt)).and(review.id.gt(request.idAfter())));
       }
     }
 
