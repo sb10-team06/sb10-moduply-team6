@@ -139,12 +139,16 @@ public class ReviewService {
 
     if (hasNext) {
       Review last = reviews.get(reviews.size() - 1);
+      if (last.getCreatedAt() == null) {
+        throw new ReviewException(
+            ReviewErrorCode.REVIEW_NOT_FOUND,
+            Map.of("message", "리뷰의 createdAt이 null입니다.")
+        );
+      }
       if (request.sortBy() == ReviewSortBy.rating) {
-        // "rating:createdAt" 복합 커서
-        String createdAtStr = last.getCreatedAt() != null ? last.getCreatedAt().toString() : Instant.now().toString();
-        nextCursor = last.getRating() + ":" + createdAtStr;
+        nextCursor = last.getRating() + ":" + last.getCreatedAt().toString();
       } else {
-        nextCursor = last.getCreatedAt() != null ? last.getCreatedAt().toString() : null;
+        nextCursor = last.getCreatedAt().toString();
       }
       nextIdAfter = last.getId();
     }

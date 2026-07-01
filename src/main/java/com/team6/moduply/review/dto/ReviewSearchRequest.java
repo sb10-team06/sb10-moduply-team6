@@ -36,12 +36,12 @@ public record ReviewSearchRequest(
     ReviewSortBy sortBy
 ) {
     @AssertTrue(message = "cursor와 idAfter는 함께 제공되어야 합니다.")
-    private boolean isCursorAndIdAfterBothPresent() {
+    public boolean isCursorAndIdAfterBothPresent() {
         return (cursor == null) == (idAfter == null);
     }
 
     @AssertTrue(message = "rating 정렬 시 cursor는 'rating:createdAt' 형식이어야 합니다.")
-    private boolean isRatingCursorValid() {
+    public boolean isRatingCursorValid() {
         if (sortBy != ReviewSortBy.rating || cursor == null) return true;
         try {
             int colonIndex = cursor.indexOf(":");
@@ -55,7 +55,7 @@ public record ReviewSearchRequest(
     }
 
     @AssertTrue(message = "createdAt 정렬 시 cursor는 ISO-8601 형식이어야 합니다.")
-    private boolean isCreatedAtCursorValid() {
+    public boolean isCreatedAtCursorValid() {
         if (sortBy != ReviewSortBy.createdAt || cursor == null) return true;
         try {
             Instant.parse(cursor);
