@@ -1,5 +1,6 @@
 package com.team6.moduply.review.repository.qdsl;
 
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -29,17 +30,8 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
             cursorCondition(request)
         )
         .orderBy(
-            request.sortBy() == ReviewSortBy.rating
-                ? (request.sortDirection() == SortDirection.ASCENDING
-                ? review.rating.asc()
-                : review.rating.desc())
-                : (request.sortDirection() == SortDirection.ASCENDING
-                    ? review.createdAt.asc()
-                    : review.createdAt.desc()),
-            request.sortDirection() == SortDirection.ASCENDING
-                ? review.createdAt.asc()
-                : review.createdAt.desc(),
-            review.id.asc()
+            primaryOrder(request),
+            secondaryOrder(request)
         )
         .limit((long) request.limit() + 1)
         .fetch();
@@ -87,5 +79,25 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
       return review.createdAt.lt(cursorTime)
           .or(review.createdAt.eq(cursorTime).and(review.id.gt(request.idAfter())));
     }
+  }
+
+  private OrderSpecifier<?> primaryOrder(ReviewSearchRequest request) {
+    if (request.sortBy() == ReviewSortBy.rating) {
+      return request.sortDirection() == SortDirection.ASCENDING
+          ? review.rating.asc()
+          : review.rating.desc();
+    }
+    return request.sortDirection() == SortDirection.ASCENDING
+        ? review.createdAt.asc()
+        : review.createdAt.desc();
+  }
+
+  private OrderSpecifier<?> secondaryOrder(ReviewSearchRequest request) {
+    if (request.sortBy() == ReviewSortBy.rating) {
+      return request.sortDirection() == SortDirection.ASCENDING
+          ? review.createdAt.asc()
+          : review.createdAt.desc();
+    }
+    return review.id.asc();
   }
 }
