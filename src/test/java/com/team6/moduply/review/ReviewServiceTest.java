@@ -18,6 +18,8 @@ import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.mapper.UserMapper;
+import com.team6.moduply.user.repository.UserRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +56,12 @@ class ReviewServiceTest {
 
   @Mock
   private ReviewQDSLRepository reviewQDSLRepository;
+
+  @Mock
+  private UserRepository userRepository;
+
+  @Mock
+  private UserMapper userMapper;
 
 
   private ModuPlyUserDetails createUserDetails(UUID userId) {
@@ -303,6 +311,7 @@ class ReviewServiceTest {
     given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class)))
         .willReturn(dto1, dto2);
+    given(userRepository.findAllById(any())).willReturn(List.of());
 
     // when
     CursorResponse<ReviewDto> result = reviewService.findAll(request);
@@ -342,6 +351,7 @@ class ReviewServiceTest {
         .willReturn(new ArrayList<>(List.of(review1, review2)));
     given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
+    given(userRepository.findAllById(any())).willReturn(List.of());
 
     // when
     CursorResponse<ReviewDto> result = reviewService.findAll(request);
@@ -379,6 +389,7 @@ class ReviewServiceTest {
         .willReturn(new ArrayList<>(List.of(review1, review2)));
     given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
+    given(userRepository.findAllById(any())).willReturn(List.of());
 
     // when
     CursorResponse<ReviewDto> result = reviewService.findAll(request);
