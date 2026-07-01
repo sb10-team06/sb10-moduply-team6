@@ -18,6 +18,7 @@ import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -138,9 +139,17 @@ public class ReviewService {
 
     if (hasNext) {
       Review last = reviews.get(reviews.size() - 1);
-      nextCursor = request.sortBy() == ReviewSortBy.rating
-          ? String.valueOf(last.getRating())
-          : (last.getCreatedAt() != null ? last.getCreatedAt().toString() : null);
+      if (last.getCreatedAt() == null) {
+        throw new ReviewException(
+            ReviewErrorCode.REVIEW_INVALID_STATE,
+            Map.of("reviewId", last.getId())
+        );
+      }
+      if (request.sortBy() == ReviewSortBy.rating) {
+        nextCursor = last.getRating() + ":" + last.getCreatedAt().toString();
+      } else {
+        nextCursor = last.getCreatedAt().toString();
+      }
       nextIdAfter = last.getId();
     }
 

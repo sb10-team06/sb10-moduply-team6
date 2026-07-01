@@ -375,12 +375,15 @@ class ReviewServiceTest {
         contentId, null, null, 1, SortDirection.DESCENDING, ReviewSortBy.rating
     );
 
+    Instant review1CreatedAt = Instant.now();
+
     Review review1 = Review.builder()
         .contentId(contentId).authorId(authorId).text("첫번째").rating(4.0).build();
     Review review2 = Review.builder()
         .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
 
     ReflectionTestUtils.setField(review1, "id", review1Id);
+    ReflectionTestUtils.setField(review1, "createdAt", review1CreatedAt);
 
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
     ReviewDto dto1 = new ReviewDto(review1Id, contentId, authorDto, "첫번째", 4.0);
@@ -397,7 +400,7 @@ class ReviewServiceTest {
     // then
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
-    assertThat(result.nextCursor()).isEqualTo(String.valueOf(review1.getRating()));
+    assertThat(result.nextCursor()).isEqualTo(review1.getRating() + ":" + review1CreatedAt.toString());
     assertThat(result.nextIdAfter()).isEqualTo(review1Id);
   }
 }
