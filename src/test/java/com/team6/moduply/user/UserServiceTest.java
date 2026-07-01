@@ -1,7 +1,7 @@
 package com.team6.moduply.user;
 
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -13,21 +13,26 @@ import static org.mockito.Mockito.verify;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserFindAllRequest;
 import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.enums.UserSortBy;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -138,6 +143,73 @@ public class UserServiceTest {
     verify(passwordEncoder).encode(request.getPassword());
     verify(userRepository).save(any(User.class));
     verify(userMapper, never()).toDto(any(User.class));
+  }
+
+  @Test
+  @DisplayName("사용자 목록 조회 성공 시 limit 이후 데이터로 다음 커서를 생성한다.")
+  public void find_all_success_with_next_cursor() {
+    // Given
+    UUID firstUserId = UUID.randomUUID();
+    UUID secondUserId = UUID.randomUUID();
+    User firstUser = new User("alpha@example.com", "encoded-password", "alpha", Role.USER);
+    User secondUser = new User("bravo@example.com", "encoded-password", "bravo", Role.USER);
+    ReflectionTestUtils.setField(firstUser, "id", firstUserId);
+    ReflectionTestUtils.setField(secondUser, "id", secondUserId);
+
+    UserFindAllRequest request = new UserFindAllRequest(
+        "example.com",
+        Role.ADMIN,
+        true,
+        null,
+        null,
+        1,
+        SortDirection.ASCENDING,
+        UserSortBy.email
+    );
+    UserDto firstUserDto = new UserDto(
+        firstUserId,
+        null,
+        firstUser.getEmail(),
+        firstUser.getName(),
+        null,
+        firstUser.getRole(),
+        firstUser.isBlocked()
+    );
+
+    given(userRepository.findUsers(
+        request.getEmailLike(),
+        request.getSortBy(),
+        request.getSortDirection(),
+        request.getCursor(),
+        request.getIdAfter(),
+        request.getLimit()
+    )).willReturn(List.of(firstUser, secondUser));
+    given(userRepository.countUsers(request.getEmailLike())).willReturn(2L);
+    given(userMapper.toDto(firstUser)).willReturn(firstUserDto);
+
+    // When
+    CursorResponse<UserDto> response = userService.findAll(request);
+
+    // Then
+    assertThat(response.data()).containsExactly(firstUserDto);
+    assertThat(response.hasNext()).isTrue();
+    assertThat(response.nextCursor()).isEqualTo(firstUser.getEmail());
+    assertThat(response.nextIdAfter()).isEqualTo(firstUserId);
+    assertThat(response.totalCount()).isEqualTo(2L);
+    assertThat(response.sortBy()).isEqualTo(UserSortBy.email.name());
+    assertThat(response.sortDirection()).isEqualTo(SortDirection.ASCENDING);
+
+    verify(userRepository).findUsers(
+        request.getEmailLike(),
+        request.getSortBy(),
+        request.getSortDirection(),
+        request.getCursor(),
+        request.getIdAfter(),
+        request.getLimit()
+    );
+    verify(userRepository).countUsers(request.getEmailLike());
+    verify(userMapper).toDto(firstUser);
+    verify(userMapper, never()).toDto(secondUser);
   }
 
   @Test
