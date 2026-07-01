@@ -29,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -315,7 +316,7 @@ class ReviewServiceTest {
 
   @Test
   @DisplayName("리뷰 목록이 limit개를 초과하면 hasNext가 true이고 nextCursor가 채워진다.")
-  void findAll_success_with_has_next_and_cursor() throws Exception {
+  void findAll_success_with_has_next_and_cursor() {
     // given
     UUID contentId = UUID.randomUUID();
     UUID authorId = UUID.randomUUID();
@@ -331,14 +332,8 @@ class ReviewServiceTest {
     Review review2 = Review.builder()
         .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
 
-    // id, createdAt 주입
-    java.lang.reflect.Field idField = review1.getClass().getSuperclass().getSuperclass().getDeclaredField("id");
-    idField.setAccessible(true);
-    idField.set(review1, review1Id);
-
-    java.lang.reflect.Field createdAtField = review1.getClass().getSuperclass().getSuperclass().getDeclaredField("createdAt");
-    createdAtField.setAccessible(true);
-    createdAtField.set(review1, review1CreatedAt);
+    ReflectionTestUtils.setField(review1, "id", review1Id);
+    ReflectionTestUtils.setField(review1, "createdAt", review1CreatedAt);
 
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
     ReviewDto dto1 = new ReviewDto(review1Id, contentId, authorDto, "첫번째", 4.0);
@@ -364,6 +359,8 @@ class ReviewServiceTest {
     // given
     UUID contentId = UUID.randomUUID();
     UUID authorId = UUID.randomUUID();
+    UUID review1Id = UUID.randomUUID();
+
     ReviewSearchRequest request = new ReviewSearchRequest(
         contentId, null, null, 1, SortDirection.DESCENDING, ReviewSortBy.rating
     );
@@ -373,8 +370,10 @@ class ReviewServiceTest {
     Review review2 = Review.builder()
         .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
 
+    ReflectionTestUtils.setField(review1, "id", review1Id);
+
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
-    ReviewDto dto1 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "첫번째", 4.0);
+    ReviewDto dto1 = new ReviewDto(review1Id, contentId, authorDto, "첫번째", 4.0);
 
     given(reviewQDSLRepository.findAllWithCursor(request))
         .willReturn(new ArrayList<>(List.of(review1, review2)));
@@ -388,5 +387,6 @@ class ReviewServiceTest {
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
     assertThat(result.nextCursor()).isEqualTo(String.valueOf(review1.getRating()));
+    assertThat(result.nextIdAfter()).isEqualTo(review1Id);
   }
 }
