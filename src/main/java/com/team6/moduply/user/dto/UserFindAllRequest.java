@@ -24,10 +24,10 @@ public class UserFindAllRequest {
   @Schema(description = "이메일", example = "tester")
   private String emailLike;
 
-  @Schema(description = "권한", example = "USER")
+  @Schema(description = "권한 (현재 미지원, 추후 반영 예정)", example = "USER")
   private Role roleEqual;
 
-  @Schema(description = "계정 잠금 상태", example = "false")
+  @Schema(description = "계정 잠금 상태 (현재 미지원, 추후 반영 예정)", example = "false")
   private Boolean isLocked;
 
   @Schema(description = "커서")

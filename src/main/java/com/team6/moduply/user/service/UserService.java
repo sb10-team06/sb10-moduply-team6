@@ -71,6 +71,7 @@ public class UserService {
   }
 
   @Transactional(readOnly = true)
+  @PreAuthorize("hasRole('ADMIN')")
   public CursorResponse<UserDto> findAll(UserFindAllRequest request) {
 
     // roleEqual, isLocked는 API 확장용 파라미터로 열어두었지만,
