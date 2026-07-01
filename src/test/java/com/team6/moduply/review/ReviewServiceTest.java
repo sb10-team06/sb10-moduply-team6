@@ -19,6 +19,7 @@ import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -310,5 +311,68 @@ class ReviewServiceTest {
     assertThat(result.hasNext()).isFalse();
     assertThat(result.nextCursor()).isNull();
     assertThat(result.nextIdAfter()).isNull();
+  }
+
+  @Test
+  @DisplayName("리뷰 목록이 limit개를 초과하면 hasNext가 true이고 nextCursor가 채워진다.")
+  void findAll_success_with_has_next_and_cursor() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    UUID authorId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        contentId, null, null, 1, SortDirection.DESCENDING, ReviewSortBy.createdAt
+    );
+
+    Review review1 = Review.builder()
+        .contentId(contentId).authorId(authorId).text("첫번째").rating(4.0).build();
+    Review review2 = Review.builder()
+        .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
+
+    ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
+    ReviewDto dto1 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "첫번째", 4.0);
+
+    given(reviewQDSLRepository.findAllWithCursor(request))
+        .willReturn(new ArrayList<>(List.of(review1, review2)));
+    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
+
+    // when
+    CursorResponse<ReviewDto> result = reviewService.findAll(request);
+
+    // then
+    assertThat(result.data()).hasSize(1);
+    assertThat(result.hasNext()).isTrue();
+  }
+
+  @Test
+  @DisplayName("rating 기준 정렬 시 nextCursor가 rating 값으로 계산된다.")
+  void findAll_success_with_rating_sort_cursor() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    UUID authorId = UUID.randomUUID();
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        contentId, null, null, 1, SortDirection.DESCENDING, ReviewSortBy.rating
+    );
+
+    Review review1 = Review.builder()
+        .contentId(contentId).authorId(authorId).text("첫번째").rating(4.0).build();
+    Review review2 = Review.builder()
+        .contentId(contentId).authorId(authorId).text("두번째").rating(3.5).build();
+
+    ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
+    ReviewDto dto1 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "첫번째", 4.0);
+
+    given(reviewQDSLRepository.findAllWithCursor(request))
+        .willReturn(new ArrayList<>(List.of(review1, review2)));
+    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
+
+    // when
+    CursorResponse<ReviewDto> result = reviewService.findAll(request);
+
+    // then
+    assertThat(result.data()).hasSize(1);
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo(String.valueOf(review1.getRating()));
   }
 }

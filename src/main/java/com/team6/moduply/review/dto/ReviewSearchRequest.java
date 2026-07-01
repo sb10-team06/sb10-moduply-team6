@@ -2,6 +2,7 @@ package com.team6.moduply.review.dto;
 
 import com.team6.moduply.common.pagination.SortDirection;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.UUID;
@@ -20,6 +21,7 @@ public record ReviewSearchRequest(
 
     @NotNull
     @Positive
+    @Max(100)
     @Schema(description = "한 번에 가져올 개수")
     Integer limit,
 

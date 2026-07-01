@@ -39,7 +39,7 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
             review.createdAt.asc(),
             review.id.asc()
         )
-        .limit(request.limit() + 1)
+        .limit((long) request.limit() + 1)
         .fetch();
   }
 
