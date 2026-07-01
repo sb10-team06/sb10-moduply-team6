@@ -1,17 +1,27 @@
 package com.team6.moduply.review.service;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
+import com.team6.moduply.review.dto.ReviewSearchRequest;
+import com.team6.moduply.review.dto.ReviewSortBy;
 import com.team6.moduply.review.dto.ReviewUpdateRequest;
 import com.team6.moduply.review.entity.Review;
 import com.team6.moduply.review.exception.ReviewErrorCode;
 import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.mapper.UserMapper;
+import com.team6.moduply.user.repository.UserRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +33,9 @@ public class ReviewService {
   private final ReviewRepository reviewRepository;
   private final ReviewMapper reviewMapper;
   private final ContentRepository contentRepository;
+  private final ReviewQDSLRepository reviewQDSLRepository;
+  private final UserRepository userRepository;
+  private final UserMapper userMapper;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
     if (!review.getAuthorId().equals(authorId)) {
@@ -107,5 +120,59 @@ public class ReviewService {
     validateAuthor(review, authorId, reviewId);
 
     reviewRepository.delete(review);
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<ReviewDto> findAll(ReviewSearchRequest request) {
+    List<Review> reviews = reviewQDSLRepository.findAllWithCursor(request);
+    long totalCount = reviewQDSLRepository.countWithCondition(request);
+
+    boolean hasNext = reviews.size() > request.limit();
+
+    if (hasNext) {
+      reviews = reviews.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      Review last = reviews.get(reviews.size() - 1);
+      nextCursor = request.sortBy() == ReviewSortBy.rating
+          ? String.valueOf(last.getRating())
+          : (last.getCreatedAt() != null ? last.getCreatedAt().toString() : null);
+      nextIdAfter = last.getId();
+    }
+
+    List<UUID> authorIds = reviews.stream()
+        .map(Review::getAuthorId)
+        .distinct()
+        .toList();
+
+    Map<UUID, UserDto> authorMap = userRepository.findAllById(authorIds)
+        .stream()
+        .collect(Collectors.toMap(User::getId, userMapper::toDto));
+
+    List<ReviewDto> data = reviews.stream()
+        .map(review -> {
+          UserDto userDto = authorMap.get(review.getAuthorId());
+          ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
+              userDto != null ? userDto.getId() : review.getAuthorId(),
+              userDto != null ? userDto.getName() : null,
+              userDto != null ? userDto.getProfileImageUrl() : null
+          );
+          return reviewMapper.toDto(review, author);
+        })
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
   }
 }

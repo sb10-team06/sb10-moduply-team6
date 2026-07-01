@@ -223,4 +223,58 @@ public interface ContentApi {
       ContentUpdateRequest request,
       MultipartFile thumbnail
   );
+
+  @Operation(
+      summary = "[어드민] 콘텐츠 삭제",
+      description = "기존 콘텐츠를 삭제합니다.",
+      operationId = "deleteContent"
+  )
+  @ApiResponses({
+      @ApiResponse(
+          responseCode = "204",
+          description = "성공",
+          content = @Content
+      ),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "콘텐츠 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<Void> delete(UUID contentId);
 }
