@@ -3,10 +3,12 @@ package com.team6.moduply.user.service;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.dto.UserFindAllRequest;
 import com.team6.moduply.user.dto.UserLockUpdateRequest;
 import com.team6.moduply.user.dto.UserRoleUpdateRequest;
 import com.team6.moduply.user.dto.UserUpdateRequest;
@@ -17,6 +19,7 @@ import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +68,55 @@ public class UserService {
     UserDto response = userMapper.toDto(user);
     log.debug("회원가입 처리 완료. userId={}", response.getId());
     return response;
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<UserDto> findAll(UserFindAllRequest request) {
+
+    // roleEqual, isLocked는 API 확장용 파라미터로 열어두었지만,
+    // 현재 프로토타입 UI에서 사용하지 않아 필터 조건에는 아직 반영하지 않는다.
+    List<User> users = userRepository.findUsers(
+        request.getEmailLike(),
+        request.getSortBy(),
+        request.getSortDirection(),
+        request.getCursor(),
+        request.getIdAfter(),
+        request.getLimit()
+    );
+
+    long totalCount = userRepository.countUsers(request.getEmailLike());
+
+    boolean hasNext = users.size() > request.getLimit();
+
+    if(hasNext){
+      users = users.subList(0, request.getLimit());
+    }
+    List<UserDto> data = users.stream().map(userMapper::toDto).toList();
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if(hasNext){
+      User last = users.get(users.size() - 1);
+      nextCursor = switch(request.getSortBy()){
+        case name -> last.getName();
+        case email -> last.getEmail();
+        case createdAt -> last.getCreatedAt().toString();
+        case isLocked -> String.valueOf(last.isBlocked());
+        case role -> last.getRole().toString();
+      };
+      nextIdAfter = last.getId();
+    }
+
+    return new CursorResponse<UserDto>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.getSortBy().name(),
+        request.getSortDirection()
+    );
   }
 
   @Transactional(readOnly = true)
