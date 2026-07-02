@@ -17,9 +17,14 @@ import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -163,12 +168,23 @@ public class ConversationService {
       nextCursor = last.getCreatedAt().toString();
       nextIdAfter = last.getId();
     }
+    // (사용자ID, 사용자)
+    Map<UUID, User> usersById = findUsersById(resolveWithUserIds(conversations, currentUserId));
+    // (대화방ID, 가장최근DM)
+    Map<UUID, DirectMessage> latestMessagesByConversationId = findLatestMessagesByConversationId(
+        conversations
+    );
+    // 읽지않은 DM이 존재하는 대화방 ID들
+    Set<UUID> unreadConversationIds = findUnreadConversationIds(conversations, currentUserId);
 
+    // 대화방돌면서 Dto 형태로 매핑
     List<ConversationDto> data = conversations.stream()
-        .map(conversation -> toDto(
+        .map(conversation -> conversationMapper.toDto(
             conversation,
             currentUser,
-            findUser(resolveWithUserId(conversation, currentUserId))
+            usersById.get(resolveWithUserId(conversation, currentUserId)),
+            latestMessagesByConversationId.get(conversation.getId()),
+            unreadConversationIds.contains(conversation.getId())
         ))
         .toList();
 
@@ -217,6 +233,77 @@ public class ConversationService {
 
     directMessage.markAsRead();
     log.debug("DM 읽음 처리 완료. directMessageId={}", directMessageId);
+  }
+
+  /// 대화방 돌면서 대화에 참여하고있는 상대방 ID들를 Set으로 return
+  private Set<UUID> resolveWithUserIds(List<Conversation> conversations, UUID currentUserId) {
+    return conversations.stream()
+        .map(conversation -> resolveWithUserId(conversation, currentUserId))
+        .collect(Collectors.toSet());
+  }
+
+  ///
+  private Map<UUID, User> findUsersById(Set<UUID> userIds) {
+    if (userIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    // User들 돌면서 Map<UUID, User> 형태로
+    // User(id=aaaa-aaa..., name="인성"), ...
+    Map<UUID, User> usersById = userRepository.findAllById(userIds).stream()
+        .collect(Collectors.toMap(User::getId, Function.identity()));
+
+    // userIds중 실제로 DB에 있는지 검증
+    userIds.stream()
+        .filter(userId -> !usersById.containsKey(userId))
+        .findFirst()
+        .ifPresent(userId -> {
+          throw new UserException(
+              UserErrorCode.USER_NOT_FOUND_EXCEPTION,
+              Map.of("userId", userId)
+          );
+        });
+
+    return usersById;
+  }
+
+  /// 각 대화방의 최근 DM을 MAP 형태로 (대화방ID : 가장 최근 DM)
+  private Map<UUID, DirectMessage> findLatestMessagesByConversationId(
+      List<Conversation> conversations
+  ) {
+    // 대화방 ID 리스트로 만들고
+    List<UUID> conversationIds = resolveConversationIds(conversations);
+    if (conversationIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    return directMessageRepository.findLatestMessagesByConversationIds(conversationIds).stream()
+        .collect(Collectors.toMap(
+            message -> message.getConversation().getId(),
+            Function.identity(),
+            (first, ignored) -> first
+        ));
+  }
+
+  /// 읽지않은 DM이 존재하는 대화방ID들
+  private Set<UUID> findUnreadConversationIds(
+      List<Conversation> conversations,
+      UUID currentUserId
+  ) {
+    List<UUID> conversationIds = resolveConversationIds(conversations);
+    if (conversationIds.isEmpty()) {
+      return Collections.emptySet();
+    }
+
+    return new HashSet<>(directMessageRepository.findUnreadConversationIds(
+        conversationIds,
+        currentUserId
+    ));
+  }
+
+  private List<UUID> resolveConversationIds(List<Conversation> conversations) {
+    return conversations.stream()
+        .map(Conversation::getId)
+        .toList();
   }
 
   private User findUser(UUID userId) {
