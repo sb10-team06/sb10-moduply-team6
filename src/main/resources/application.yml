@@ -68,7 +68,7 @@ moduply:
       read-timeout-millis: ${TMDB_READ_TIMEOUT_MILLIS:10000}
     sports-db:
       base-url: ${SPORTS_DB_BASE_URL:https://www.thesportsdb.com/api/v1/json}
-      api-key: ${SPORTS_DB_API_KEY:123}
+      api-key: ${SPORTS_DB_API_KEY}
       connect-timeout-millis: ${SPORTS_DB_CONNECT_TIMEOUT_MILLIS:3000}
       read-timeout-millis: ${SPORTS_DB_READ_TIMEOUT_MILLIS:10000}
     image:
