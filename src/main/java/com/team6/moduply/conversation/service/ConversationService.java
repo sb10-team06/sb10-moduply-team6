@@ -8,6 +8,8 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.directmessage.entity.DirectMessage;
+import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
+import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -123,6 +125,40 @@ public class ConversationService {
     ConversationDto response = toDto(conversation, currentUser, withUser);
     log.debug("특정 사용자와의 대화 조회 처리 완료. conversationId={}", response.id());
     return response;
+  }
+
+  @Transactional
+  public void read(UUID conversationId, UUID directMessageId, UUID currentUserId) {
+    log.debug(
+        "DM 읽음 처리 시작. conversationId={}, directMessageId={}, currentUserId={}",
+        conversationId,
+        directMessageId,
+        currentUserId
+    );
+    Conversation conversation = conversationRepository.findById(conversationId)
+        .orElseThrow(() -> new ConversationException(
+            ConversationErrorCode.CONVERSATION_NOT_FOUND,
+            Map.of("conversationId", conversationId)
+        ));
+    validateParticipant(conversation, currentUserId);
+
+    DirectMessage directMessage = directMessageRepository
+        .findByIdAndConversationId(directMessageId, conversationId)
+        .orElseThrow(() -> new DirectMessageException(
+            DirectMessageErrorCode.DIRECT_MESSAGE_NOT_FOUND,
+            Map.of("directMessageId", directMessageId, "conversationId", conversationId)
+        ));
+
+    // 자기자신 메세지 읽음처리 x
+    if (directMessage.getSender().getId().equals(currentUserId)) {
+      throw new DirectMessageException(
+          DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN,
+          Map.of("directMessageId", directMessageId, "userId", currentUserId)
+      );
+    }
+
+    directMessage.markAsRead();
+    log.debug("DM 읽음 처리 완료. directMessageId={}", directMessageId);
   }
 
   private User findUser(UUID userId) {

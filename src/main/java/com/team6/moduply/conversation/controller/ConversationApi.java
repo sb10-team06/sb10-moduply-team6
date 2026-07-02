@@ -185,4 +185,56 @@ public interface ConversationApi {
       @Parameter(description = "대화 ID", required = true) UUID conversationId,
       @Parameter(hidden = true) UUID currentUserId
   );
+  @Operation(
+      summary = "DM 읽음 처리",
+      operationId = "read"
+  )
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "성공"),
+      @ApiResponse(
+          responseCode = "400",
+          description = "잘못된 요청",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "401",
+          description = "인증 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "403",
+          description = "권한 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "404",
+          description = "리소스 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
+          responseCode = "500",
+          description = "서버 오류",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      )
+  })
+  ResponseEntity<Void> read(
+      @Parameter(description = "대화 ID", required = true) UUID conversationId,
+      @Parameter(description = "DM ID", required = true) UUID directMessageId,
+      @Parameter(hidden = true) UUID currentUserId
+  );
 }
