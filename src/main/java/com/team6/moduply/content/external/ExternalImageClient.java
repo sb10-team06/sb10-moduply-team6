@@ -4,6 +4,7 @@ import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import java.net.URI;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -13,6 +14,12 @@ import org.springframework.web.client.RestClientException;
 public class ExternalImageClient {
 
   private static final String DEFAULT_FILE_NAME = "external-thumbnail";
+
+  private static final Set<String> ALLOWED_IMAGE_HOSTS = Set.of(
+      "image.tmdb.org",
+      "r2.thesportsdb.com",
+      "www.thesportsdb.com"
+  );
 
   private final RestClient restClient;
 
@@ -29,6 +36,8 @@ public class ExternalImageClient {
     }
 
     try {
+      validateImageUrl(imageUrl);
+
       ResponseEntity<byte[]> response = restClient.get()
           .uri(imageUrl)
           .retrieve()
@@ -47,6 +56,18 @@ public class ExternalImageClient {
           ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED,
           Map.of("imageUrl", imageUrl),
           e
+      );
+    }
+  }
+
+  private void validateImageUrl(String imageUrl) {
+    URI uri = URI.create(imageUrl);
+
+    if (!"https".equalsIgnoreCase(uri.getScheme())
+        || !ALLOWED_IMAGE_HOSTS.contains(uri.getHost())) {
+      throw new ContentException(
+          ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED,
+          Map.of("imageUrl", imageUrl)
       );
     }
   }

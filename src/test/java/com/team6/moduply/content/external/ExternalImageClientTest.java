@@ -53,10 +53,52 @@ class ExternalImageClientTest {
   }
 
   @Test
+  @DisplayName("The Sports DB 이미지 URL 다운로드에 성공한다.")
+  void download_success_with_sports_db_image_url() {
+    // Given
+    byte[] bytes = "image-bytes".getBytes();
+    String imageUrl = "https://r2.thesportsdb.com/images/media/event/thumb/poster.jpg";
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(bytes, MediaType.IMAGE_JPEG));
+
+    // When
+    ExternalImageFile result = externalImageClient.download(imageUrl);
+
+    // Then
+    assertThat(result.fileName()).isEqualTo("poster.jpg");
+    assertThat(result.contentType()).isEqualTo("image/jpeg");
+    assertThat(result.bytes()).isEqualTo(bytes);
+    server.verify();
+  }
+
+  @Test
   @DisplayName("외부 이미지 URL이 비어 있으면 다운로드에 실패한다.")
   void download_fail_when_image_url_is_blank() {
     // When & Then
     assertThatThrownBy(() -> externalImageClient.download(" "))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL이 HTTPS가 아니면 다운로드에 실패한다.")
+  void download_fail_when_image_url_scheme_is_not_https() {
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download("http://image.tmdb.org/t/p/w500/poster.jpg"))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL 호스트가 허용 목록에 없으면 다운로드에 실패한다.")
+  void download_fail_when_image_url_host_is_not_allowed() {
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download("https://example.com/poster.jpg"))
         .isInstanceOfSatisfying(ContentException.class, exception ->
             assertThat(exception.getErrorCode())
                 .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
