@@ -289,6 +289,29 @@ class ConversationControllerTest {
   }
 
   @Test
+  @DisplayName("DM 목록 조회 요청 시 대화방 참여자가 아니면 403 응답을 반환한다.")
+  void findDms_fail_when_user_is_not_participant() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+
+    given(conversationService.findDms(eq(conversationId), any(), eq(currentUserId)))
+        .willThrow(new ConversationException(
+            ConversationErrorCode.CONVERSATION_FORBIDDEN,
+            Map.of("conversationId", conversationId, "userId", currentUserId)
+        ));
+
+    mockMvc.perform(get("/api/conversations/{conversationId}/direct-messages", conversationId)
+            .queryParam("limit", "10")
+            .queryParam("sortDirection", "DESCENDING")
+            .queryParam("sortBy", "createdAt")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value(ConversationErrorCode.CONVERSATION_FORBIDDEN.getCode()));
+
+    verify(conversationService).findDms(eq(conversationId), any(), eq(currentUserId));
+  }
+
+  @Test
   @DisplayName("특정 사용자와의 대화 조회 요청 시 사용자 ID가 없으면 400 응답을 반환한다.")
   void findConversationWithUser_fail_when_user_id_is_missing() throws Exception {
     UUID currentUserId = UUID.randomUUID();
