@@ -1,9 +1,14 @@
 package com.team6.moduply.directmessage.repository.qdsl;
 
 import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
 import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.directmessage.entity.QDirectMessage;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,5 +51,60 @@ public class DirectMessageQDSLRepositoryImpl implements DirectMessageQDSLReposit
                 .notExists()
         )
         .fetch();
+  }
+
+  @Override
+  public List<DirectMessage> findAllWithCursor(
+      DirectMessageFindAllRequest request,
+      UUID conversationId
+  ) {
+    return queryFactory.selectFrom(directMessage)
+            // fetch join으로 DM - 대화방 - 사용자 조회
+        .join(directMessage.conversation).fetchJoin()
+        .join(directMessage.sender).fetchJoin()
+        .where(
+            directMessage.conversation.id.eq(conversationId),
+            cursorCondition(request)
+        )
+        .orderBy(createdAtOrder(request.sortDirection()), idOrder(request.sortDirection()))
+        .limit(request.limit() + 1)
+        .fetch();
+  }
+
+  @Override
+  public long countWithCondition(UUID conversationId) {
+    Long result = queryFactory.select(directMessage.count())
+        .from(directMessage)
+        .where(directMessage.conversation.id.eq(conversationId))
+        .fetchOne();
+
+    return result != null ? result : 0L;
+  }
+
+  private BooleanExpression cursorCondition(DirectMessageFindAllRequest request) {
+    if (request.cursor() == null) {
+      return null;
+    }
+
+    Instant cursor = Instant.parse(request.cursor());
+    if (request.sortDirection() == SortDirection.ASCENDING) {
+      return directMessage.createdAt.gt(cursor)
+          .or(directMessage.createdAt.eq(cursor).and(directMessage.id.gt(request.idAfter())));
+    }
+
+    return directMessage.createdAt.lt(cursor)
+        .or(directMessage.createdAt.eq(cursor).and(directMessage.id.lt(request.idAfter())));
+  }
+
+  private OrderSpecifier<Instant> createdAtOrder(SortDirection sortDirection) {
+    return sortDirection == SortDirection.ASCENDING
+        ? directMessage.createdAt.asc()
+        : directMessage.createdAt.desc();
+  }
+
+  private OrderSpecifier<UUID> idOrder(SortDirection sortDirection) {
+    return sortDirection == SortDirection.ASCENDING
+        ? directMessage.id.asc()
+        : directMessage.id.desc();
   }
 }
