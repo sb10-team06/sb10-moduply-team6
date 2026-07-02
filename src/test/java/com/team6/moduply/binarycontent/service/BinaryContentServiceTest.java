@@ -261,6 +261,51 @@ class BinaryContentServiceTest {
   }
 
   @Test
+  @DisplayName("외부 이미지 bytes가 비어 있으면 EMPTY_FILE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_external_image_bytes_is_empty() {
+    // given
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createContentImage(
+        contentId,
+        "tmdb-movie-27205.jpg",
+        new byte[0],
+        "image/jpeg",
+        null
+    ))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.EMPTY_FILE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("외부 이미지 타입이 지원되지 않으면 UNSUPPORTED_IMAGE_TYPE 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_external_image_type_is_unsupported() {
+    // given
+    UUID contentId = UUID.randomUUID();
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createContentImage(
+        contentId,
+        "tmdb-movie-27205.gif",
+        "external-image-bytes".getBytes(StandardCharsets.UTF_8),
+        "image/gif",
+        null
+    ))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE)
+        );
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
   @DisplayName("콘텐츠 이미지 생성 시 지원하지 않는 이미지 타입이면 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
   void createContentImage_fail_when_unsupported_image_type() {
     // given
