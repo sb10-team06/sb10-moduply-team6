@@ -17,5 +17,5 @@ public class ChangePasswordRequest {
       message = "비밀번호는 8~20자에 영문, 숫자, 특수문자를 포함해야 합니다."
   )
   @Schema(description = "새 비밀번호", requiredMode = Schema.RequiredMode.REQUIRED)
-  private String newPassword;
+  private String password;
 }
