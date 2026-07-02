@@ -229,6 +229,72 @@ class ConversationServiceTest {
     verify(userRepository, never()).findById(any(UUID.class));
   }
 
+  @Test
+  @DisplayName("특정 사용자와의 대화가 존재하면 대화 정보를 반환한다.")
+  void findByUserId_success_with_existing_conversation() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    ConversationDto expected = new ConversationDto(conversationId, null, null, true);
+
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(conversationRepository.findByUser1IdAndUser2Id(conversation.getUser1Id(), conversation.getUser2Id()))
+        .willReturn(Optional.of(conversation));
+    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId))
+        .willReturn(Optional.empty());
+    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
+        conversationId,
+        currentUserId
+    )).willReturn(true);
+    given(conversationMapper.toDto(conversation, currentUser, withUser, null, true)).willReturn(expected);
+
+    ConversationDto result = conversationService.findByUserId(withUserId, currentUserId);
+
+    assertThat(result).isEqualTo(expected);
+  }
+
+  @Test
+  @DisplayName("특정 사용자와의 대화가 존재하지 않으면 예외가 발생한다.")
+  void findByUserId_fail_when_conversation_not_found() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation sortedConversation = Conversation.create(currentUserId, withUserId);
+
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(conversationRepository.findByUser1IdAndUser2Id(
+        sortedConversation.getUser1Id(),
+        sortedConversation.getUser2Id()
+    )).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> conversationService.findByUserId(withUserId, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_NOT_FOUND);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(withUserId);
+        });
+  }
+
+  @Test
+  @DisplayName("자기 자신과의 대화를 조회하면 예외가 발생한다.")
+  void findByUserId_fail_when_user_is_self() {
+    UUID userId = UUID.randomUUID();
+
+    assertThatThrownBy(() -> conversationService.findByUserId(userId, userId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.SELF_CONVERSATION_NOT_ALLOWED);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(userId);
+        });
+
+    verify(userRepository, never()).findById(any(UUID.class));
+  }
+
   private User user(UUID userId, String name) {
     User user = new User(name + "@example.com", "password", name, Role.USER);
     ReflectionTestUtils.setField(user, "id", userId);
