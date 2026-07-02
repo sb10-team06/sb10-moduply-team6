@@ -15,6 +15,9 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.conversation.service.ConversationService;
+import com.team6.moduply.directmessage.entity.DirectMessage;
+import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
+import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
@@ -293,6 +296,118 @@ class ConversationServiceTest {
         });
 
     verify(userRepository, never()).findById(any(UUID.class));
+  }
+
+  @Test
+  @DisplayName("DM 수신자가 읽음 처리를 요청하면 메시지를 읽음 상태로 변경한다.")
+  void read_success_with_receiver() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID senderId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    User sender = user(senderId, "sender");
+    Conversation conversation = Conversation.create(currentUserId, senderId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(directMessageRepository.findByIdAndConversationId(directMessageId, conversationId))
+        .willReturn(Optional.of(directMessage));
+    given(directMessage.getSender()).willReturn(sender);
+
+    conversationService.read(conversationId, directMessageId, currentUserId);
+
+    verify(directMessage).markAsRead();
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 대화방의 DM 읽음 처리를 요청하면 예외가 발생한다.")
+  void read_fail_when_conversation_not_found() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> conversationService.read(conversationId, directMessageId, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_NOT_FOUND);
+          assertThat(exception.getDetails().get("conversationId")).isEqualTo(conversationId);
+        });
+
+    verify(directMessageRepository, never()).findByIdAndConversationId(any(), any());
+  }
+
+  @Test
+  @DisplayName("대화방 참여자가 아닌 사용자가 DM 읽음 처리를 요청하면 예외가 발생한다.")
+  void read_fail_when_not_participant() {
+    UUID user1Id = UUID.randomUUID();
+    UUID user2Id = UUID.randomUUID();
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Conversation conversation = Conversation.create(user1Id, user2Id);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+
+    assertThatThrownBy(() -> conversationService.read(conversationId, directMessageId, currentUserId))
+        .isInstanceOfSatisfying(ConversationException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ConversationErrorCode.CONVERSATION_FORBIDDEN);
+          assertThat(exception.getDetails().get("conversationId")).isEqualTo(conversationId);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(currentUserId);
+        });
+
+    verify(directMessageRepository, never()).findByIdAndConversationId(any(), any());
+  }
+
+  @Test
+  @DisplayName("대화방에 속하지 않는 DM 읽음 처리를 요청하면 예외가 발생한다.")
+  void read_fail_when_direct_message_not_found() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(directMessageRepository.findByIdAndConversationId(directMessageId, conversationId))
+        .willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> conversationService.read(conversationId, directMessageId, currentUserId))
+        .isInstanceOfSatisfying(DirectMessageException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(DirectMessageErrorCode.DIRECT_MESSAGE_NOT_FOUND);
+          assertThat(exception.getDetails().get("directMessageId")).isEqualTo(directMessageId);
+          assertThat(exception.getDetails().get("conversationId")).isEqualTo(conversationId);
+        });
+  }
+
+  @Test
+  @DisplayName("DM 발신자가 본인 메시지 읽음 처리를 요청하면 예외가 발생한다.")
+  void read_fail_when_sender_requests() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    User sender = user(currentUserId, "sender");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(directMessageRepository.findByIdAndConversationId(directMessageId, conversationId))
+        .willReturn(Optional.of(directMessage));
+    given(directMessage.getSender()).willReturn(sender);
+
+    assertThatThrownBy(() -> conversationService.read(conversationId, directMessageId, currentUserId))
+        .isInstanceOfSatisfying(DirectMessageException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN);
+          assertThat(exception.getDetails().get("directMessageId")).isEqualTo(directMessageId);
+          assertThat(exception.getDetails().get("userId")).isEqualTo(currentUserId);
+        });
+
+    verify(directMessage, never()).markAsRead();
   }
 
   private User user(UUID userId, String name) {
