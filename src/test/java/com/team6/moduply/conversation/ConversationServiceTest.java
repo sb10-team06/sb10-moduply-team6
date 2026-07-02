@@ -321,6 +321,32 @@ class ConversationServiceTest {
   }
 
   @Test
+  @DisplayName("이미 읽은 DM의 읽음 처리를 다시 요청하면 예외 없이 성공한다.")
+  void read_success_when_already_read() throws Exception {
+    // given
+    UUID currentUserId = UUID.randomUUID();
+    UUID senderId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    User sender = user(senderId, "sender");
+    Conversation conversation = Conversation.create(currentUserId, senderId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    java.lang.reflect.Constructor<DirectMessage> constructor = DirectMessage.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    DirectMessage directMessage = constructor.newInstance();
+    ReflectionTestUtils.setField(directMessage, "sender", sender);
+    ReflectionTestUtils.setField(directMessage, "read", true);
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(directMessageRepository.findByIdAndConversationId(directMessageId, conversationId))
+        .willReturn(Optional.of(directMessage));
+    // when
+    conversationService.read(conversationId, directMessageId, currentUserId);
+    // then
+    assertThat(directMessage.isRead()).isTrue();
+  }
+
+  @Test
   @DisplayName("존재하지 않는 대화방의 DM 읽음 처리를 요청하면 예외가 발생한다.")
   void read_fail_when_conversation_not_found() {
     UUID currentUserId = UUID.randomUUID();
