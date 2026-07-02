@@ -49,16 +49,17 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     String contentKey = CONTENT_KEY_PREFIX + watchingSession.getContentId().toString();
 
     WatchingSession previous = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
-    if (previous != null && !previous.getSessionId().equals(watchingSession.getSessionId())) {
-      sessionIdAndUserIdRedisTemplate.delete(SESSION_KEY_PREFIX + previous.getSessionId());
-
-      // 과거 컨텐츠 인덱스가 0이 되면 삭제
-      String prevContentKey = CONTENT_KEY_PREFIX + previous.getContentId();
-      sessionIdAndUserIdRedisTemplate.opsForSet().remove(prevContentKey, watcherId.toString());
-
-      Long prevCount = countByContentId(previous.getContentId());
-      if (prevCount == 0) {
-        sessionIdAndUserIdRedisTemplate.delete(prevContentKey);
+    if (previous != null) {
+      if (!previous.getSessionId().equals(watchingSession.getSessionId())) {
+        sessionIdAndUserIdRedisTemplate.delete(SESSION_KEY_PREFIX + previous.getSessionId());
+      }
+      if (!previous.getContentId().equals(watchingSession.getContentId())) {
+        String prevContentKey = CONTENT_KEY_PREFIX + previous.getContentId();
+        sessionIdAndUserIdRedisTemplate.opsForSet().remove(prevContentKey, watcherId.toString());
+        Long prevCount = countByContentId(previous.getContentId());
+        if (prevCount == 0) {
+          sessionIdAndUserIdRedisTemplate.delete(prevContentKey);
+        }
       }
     }
 

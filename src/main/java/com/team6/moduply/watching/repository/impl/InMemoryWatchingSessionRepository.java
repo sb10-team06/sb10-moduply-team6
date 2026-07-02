@@ -120,19 +120,24 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
   @Scheduled(fixedRate = SCHEDULED_MINUTES, timeUnit = TimeUnit.MINUTES)
   private void deleteExpiredSessions() {
     Instant expiredTime = Instant.now().minusSeconds(EXPIRED_HOURS * 3600);
-    watchingSessionStorage.entrySet().removeIf(entry -> {
-      WatchingSession watchingSession = entry.getValue();
-      if (watchingSession.getCreatedAt().isBefore(expiredTime)) {
-        Lock lock = locks.get(watchingSession.getContentId());
-        lock.lock();
-        try {
-          sessionIdAndUserIdMap.remove(watchingSession.getSessionId());
-          return true;
-        } finally {
-          lock.unlock();
-        }
+    watchingSessionStorage.forEach((watcherId, watchingSession) -> {
+      if (!watchingSession.getCreatedAt().isBefore(expiredTime)) {
+        return;
       }
-      return false;
+      Lock lock = locks.get(watchingSession.getContentId());
+      lock.lock();
+      try {
+        watchingSessionStorage.computeIfPresent(watcherId, (id, currentSession) -> {
+          if (currentSession.getSessionId().equals(watchingSession.getSessionId())
+              && currentSession.getCreatedAt().isBefore(expiredTime)) {
+            sessionIdAndUserIdMap.remove(watchingSession.getSessionId());
+            return null;
+          }
+          return currentSession;
+        });
+      } finally {
+        lock.unlock();
+      }
     });
   }
 
