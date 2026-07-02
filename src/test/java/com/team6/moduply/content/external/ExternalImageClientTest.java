@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.team6.moduply.content.exception.ContentErrorCode;
@@ -60,5 +61,24 @@ class ExternalImageClientTest {
             assertThat(exception.getErrorCode())
                 .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
         );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 다운로드 중 HTTP 오류가 발생하면 ContentException으로 변환한다.")
+  void download_fail_when_http_error_occurs() {
+    // Given
+    String imageUrl = "https://image.tmdb.org/t/p/w500/poster.jpg";
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withServerError());
+
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download(imageUrl))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+
+    server.verify();
   }
 }

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Component
 public class ExternalImageClient {
@@ -29,19 +30,27 @@ public class ExternalImageClient {
       );
     }
 
-    ResponseEntity<byte[]> response = restClient.get()
-        .uri(imageUrl)
-        .retrieve()
-        .toEntity(byte[].class);
+    try {
+      ResponseEntity<byte[]> response = restClient.get()
+          .uri(imageUrl)
+          .retrieve()
+          .toEntity(byte[].class);
 
-    byte[] bytes = response.getBody();
-    MediaType mediaType = response.getHeaders().getContentType();
+      byte[] bytes = response.getBody();
+      MediaType mediaType = response.getHeaders().getContentType();
 
-    return new ExternalImageFile(
-        extractFileName(imageUrl),
-        mediaType == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : mediaType.toString(),
-        bytes == null ? new byte[0] : bytes
-    );
+      return new ExternalImageFile(
+          extractFileName(imageUrl),
+          mediaType == null ? MediaType.APPLICATION_OCTET_STREAM_VALUE : mediaType.toString(),
+          bytes == null ? new byte[0] : bytes
+      );
+    } catch (RestClientException | IllegalArgumentException e) {
+      throw new ContentException(
+          ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED,
+          Map.of("imageUrl", imageUrl),
+          e
+      );
+    }
   }
 
   private String extractFileName(String imageUrl) {
