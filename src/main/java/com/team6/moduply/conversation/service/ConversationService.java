@@ -244,7 +244,6 @@ public class ConversationService {
     log.debug("DM 읽음 처리 완료. directMessageId={}", directMessageId);
   }
 
-  /// 대화방 돌면서 대화에 참여하고있는 상대방 ID들를 Set으로 return
   @Transactional(readOnly = true)
   public CursorResponse<DirectMessageDto> findDms(
       UUID conversationId,
