@@ -24,7 +24,7 @@ public class ContentQueryService {
         contentDto.title(),
         contentDto.description(),
         contentDto.thumbnailUrl(),
-        contentDto.tags().toArray(String[]::new),
+        contentDto.tags(),
         contentDto.averageRating().doubleValue(),
         contentDto.reviewCount()
     );

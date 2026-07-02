@@ -3,6 +3,7 @@ package com.team6.moduply.content.dto;
 import com.team6.moduply.content.enums.ContentType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ public record ContentSummary(
     String thumbnailUrl,
 
     @Schema(description = "콘텐츠 태그 목록", requiredMode = RequiredMode.REQUIRED)
-    String[] tags,
+    List<String> tags,
 
     @Schema(description = "평균 평점", requiredMode = RequiredMode.REQUIRED)
     double averageRating,
