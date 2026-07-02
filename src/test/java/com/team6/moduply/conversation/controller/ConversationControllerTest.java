@@ -16,8 +16,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
+import com.team6.moduply.conversation.dto.ConversationSortBy;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.service.ConversationService;
@@ -26,6 +29,7 @@ import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.enums.Role;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -137,6 +141,53 @@ class ConversationControllerTest {
         .andExpect(jsonPath("$.hasUnread").value(false));
 
     verify(conversationService).findByUserId(withUserId, currentUserId);
+  }
+
+  @Test
+  @DisplayName("대화 목록 조회 요청 시 인증 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
+  void findConversations_success_with_authenticated_principal() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    ConversationDto conversation = conversationDto(conversationId, withUserId);
+    CursorResponse<ConversationDto> response = new CursorResponse<>(
+        List.of(conversation),
+        null,
+        null,
+        false,
+        1L,
+        ConversationSortBy.createdAt.name(),
+        SortDirection.DESCENDING
+    );
+
+    given(conversationService.findAll(any(), eq(currentUserId))).willReturn(response);
+
+    mockMvc.perform(get("/api/conversations")
+            .queryParam("limit", "10")
+            .queryParam("sortDirection", "DESCENDING")
+            .queryParam("sortBy", "createdAt")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data[0].id").value(conversationId.toString()))
+        .andExpect(jsonPath("$.data[0].with.userId").value(withUserId.toString()))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(1))
+        .andExpect(jsonPath("$.sortBy").value("createdAt"))
+        .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
+
+    verify(conversationService).findAll(any(), eq(currentUserId));
+  }
+
+  @Test
+  @DisplayName("대화 목록 조회 요청 시 필수 쿼리 파라미터가 없으면 400 응답을 반환한다.")
+  void findConversations_fail_when_required_query_parameters_are_missing() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/conversations")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).findAll(any(), eq(currentUserId));
   }
 
   @Test
