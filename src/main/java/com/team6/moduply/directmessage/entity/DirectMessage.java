@@ -1,6 +1,5 @@
 package com.team6.moduply.directmessage.entity;
 
-import com.team6.moduply.common.baseentity.BaseEntity;
 import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.user.entity.User;
@@ -32,4 +31,11 @@ public class DirectMessage extends BaseUpdatableEntity {
 
   @Column(name = "is_read", nullable = false)
   private boolean read = false;
+
+  protected DirectMessage() {
+  }
+
+  public void markAsRead() {
+    this.read = true;
+  }
 }
