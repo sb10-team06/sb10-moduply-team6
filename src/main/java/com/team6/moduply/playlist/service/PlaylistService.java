@@ -221,7 +221,8 @@ public class PlaylistService {
     } catch (DataIntegrityViolationException e) {
       throw new PlaylistException(
           PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_ALREADY_EXISTS,
-          Map.of("playlistId", playlistId)
+          Map.of("playlistId", playlistId),
+          e
       );
     }
   }
