@@ -69,6 +69,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     sessionIdAndUserIdRedisTemplate.opsForSet()
         .add(contentKey, watchingSession.getWatcherId().toString());
 
+    sessionIdAndUserIdRedisTemplate.expire(contentKey, EXPIRED_HOURS, TimeUnit.HOURS);
     return new WatchingSessionResult(watchingSession,
         countByContentId(watchingSession.getContentId()));
   }
