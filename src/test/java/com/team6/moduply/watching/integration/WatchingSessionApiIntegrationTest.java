@@ -126,4 +126,12 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
         .andExpect(jsonPath("$.exceptionType").value("UserException"));
   }
 
+  @Test
+  @DisplayName("인증되지 않은 요청은 401을 반환합니다.")
+  void find_fail_by_unauthenticated_request() throws Exception {
+    mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", user1Id)
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isUnauthorized());
+  }
+
 }
