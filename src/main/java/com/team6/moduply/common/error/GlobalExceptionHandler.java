@@ -11,6 +11,7 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
@@ -89,7 +90,16 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
   }
 
-  // 클라이언트가 지원하지 않는 Content-Type으로 요청한 경우
+  /// @RequestParam 누락된경우
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ErrorResponse> handleMissingRequestParameter(
+      MissingServletRequestParameterException ex
+  ) {
+    log.warn("[MissingServletRequestParameterException] {}", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
+  }
+
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
   public ResponseEntity<ErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException ex) {
     log.warn("[HttpMediaTypeNotSupportedException] {}", ex.getMessage());

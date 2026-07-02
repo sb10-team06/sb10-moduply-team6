@@ -17,10 +17,13 @@ import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
+import com.team6.moduply.conversation.exception.ConversationErrorCode;
+import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.service.ConversationService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.enums.Role;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -110,6 +113,59 @@ class ConversationControllerTest {
         .andExpect(jsonPath("$.hasUnread").value(false));
 
     verify(conversationService).findById(conversationId, currentUserId);
+  }
+
+  @Test
+  @DisplayName("특정 사용자와의 대화 조회 요청 시 인증 사용자 ID와 대상 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
+  void findConversationWithUser_success_with_authenticated_principal() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    ConversationDto response = conversationDto(conversationId, withUserId);
+
+    given(conversationService.findByUserId(eq(withUserId), eq(currentUserId))).willReturn(response);
+
+    mockMvc.perform(get("/api/conversations/with")
+            .queryParam("userId", withUserId.toString())
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(conversationId.toString()))
+        .andExpect(jsonPath("$.with.userId").value(withUserId.toString()))
+        .andExpect(jsonPath("$.hasUnread").value(false));
+
+    verify(conversationService).findByUserId(withUserId, currentUserId);
+  }
+
+  @Test
+  @DisplayName("특정 사용자와의 대화 조회 요청 시 사용자 ID가 없으면 400 응답을 반환한다.")
+  void findConversationWithUser_fail_when_user_id_is_missing() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/conversations/with")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).findByUserId(any(), eq(currentUserId));
+  }
+
+  @Test
+  @DisplayName("특정 사용자와의 대화 조회 요청 시 자기 자신을 조회하면 400 응답을 반환한다.")
+  void findConversationWithUser_fail_when_user_is_self() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+
+    given(conversationService.findByUserId(eq(currentUserId), eq(currentUserId)))
+        .willThrow(new ConversationException(
+            ConversationErrorCode.SELF_CONVERSATION_NOT_ALLOWED,
+            Map.of("userId", currentUserId)
+        ));
+
+    mockMvc.perform(get("/api/conversations/with")
+            .queryParam("userId", currentUserId.toString())
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value(ConversationErrorCode.SELF_CONVERSATION_NOT_ALLOWED.getCode()));
+
+    verify(conversationService).findByUserId(currentUserId, currentUserId);
   }
 
   private ConversationDto conversationDto(UUID conversationId, UUID withUserId) {
