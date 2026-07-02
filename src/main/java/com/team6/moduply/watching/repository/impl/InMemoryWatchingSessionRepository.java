@@ -1,13 +1,17 @@
 package com.team6.moduply.watching.repository.impl;
 
+import com.google.common.util.concurrent.Striped;
 import com.team6.moduply.watching.model.WatchingSession;
+import com.team6.moduply.watching.model.WatchingSessionResult;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import org.springframework.scheduling.annotation.Scheduled;
 
 /**
@@ -31,19 +35,30 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
   // websocket session ID, watcher ID
   private final Map<String, UUID> sessionIdAndUserIdMap = new ConcurrentHashMap<>();
 
+  private final Striped<Lock> locks = Striped.lock(1024);
+
   private static final long EXPIRED_HOURS = 12;
   private static final long SCHEDULED_MINUTES = 30;
 
   @Override
-  public WatchingSession save(WatchingSession watchingSession) {
-    watchingSessionStorage.compute(watchingSession.getWatcherId(), (watcherId, previous) -> {
-      if (previous != null) {
-        sessionIdAndUserIdMap.remove(previous.getSessionId());
-      }
-      sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watchingSession.getWatcherId());
-      return watchingSession;
-    });
-    return watchingSession;
+  public WatchingSessionResult save(WatchingSession watchingSession) {
+    //contentId로 락 걸기
+    Lock lock = locks.get(watchingSession.getContentId());
+    lock.lock();
+
+    try {
+      watchingSessionStorage.compute(watchingSession.getWatcherId(), (watcherId, previous) -> {
+        if (previous != null) {
+          sessionIdAndUserIdMap.remove(previous.getSessionId());
+        }
+        sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watchingSession.getWatcherId());
+        return watchingSession;
+      });
+      return new WatchingSessionResult(watchingSession,
+          countByContentId(watchingSession.getContentId()));
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
@@ -54,25 +69,45 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
   @Override
   public Optional<WatchingSession> findBySessionId(String sessionId) {
     return Optional.ofNullable(sessionIdAndUserIdMap.get(sessionId))
-        .map(watcherId -> watchingSessionStorage.get(watcherId))
+        .map(watchingSessionStorage::get)
         .filter(session -> sessionId.equals(session.getSessionId()));
   }
 
   @Override
-  public Optional<WatchingSession> deleteBySessionId(String sessionId) {
+  public Optional<WatchingSessionResult> deleteBySessionId(String sessionId) {
 
-    UUID watcherId = sessionIdAndUserIdMap.remove(sessionId);
+    UUID watcherId = sessionIdAndUserIdMap.get(sessionId);
 
     if (watcherId == null) {
       return Optional.empty();
     }
-    WatchingSession removed = watchingSessionStorage.computeIfPresent(watcherId, (k, session) -> {
-      if (session.getSessionId().equals(sessionId)) {
-        return null;
+
+    WatchingSession target = watchingSessionStorage.get(watcherId);
+    if (target == null || !target.getSessionId().equals(sessionId)) {
+      return Optional.empty();
+    }
+
+    Lock lock = locks.get(target.getContentId());
+    lock.lock();
+
+    try {
+      sessionIdAndUserIdMap.remove(sessionId);
+      WatchingSession[] removed = new WatchingSession[1];
+      watchingSessionStorage.computeIfPresent(watcherId, (k, session) -> {
+        if (session.getSessionId().equals(sessionId)) {
+          removed[0] = session;
+          return null;
+        }
+        return session;
+      });
+      if (removed[0] == null) {
+        return Optional.empty();
       }
-      return session;
-    });
-    return Optional.ofNullable(removed);
+      return Optional.of(
+          new WatchingSessionResult(removed[0], countByContentId(removed[0].getContentId())));
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
@@ -88,8 +123,14 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
     watchingSessionStorage.entrySet().removeIf(entry -> {
       WatchingSession watchingSession = entry.getValue();
       if (watchingSession.getCreatedAt().isBefore(expiredTime)) {
-        sessionIdAndUserIdMap.remove(watchingSession.getSessionId());
-        return true;
+        Lock lock = locks.get(watchingSession.getContentId());
+        lock.lock();
+        try {
+          sessionIdAndUserIdMap.remove(watchingSession.getSessionId());
+          return true;
+        } finally {
+          lock.unlock();
+        }
       }
       return false;
     });

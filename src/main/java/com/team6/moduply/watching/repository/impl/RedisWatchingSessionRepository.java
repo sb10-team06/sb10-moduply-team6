@@ -1,6 +1,7 @@
 package com.team6.moduply.watching.repository.impl;
 
 import com.team6.moduply.watching.model.WatchingSession;
+import com.team6.moduply.watching.model.WatchingSessionResult;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,7 +42,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
   }
 
   @Override
-  public WatchingSession save(WatchingSession watchingSession) {
+  public WatchingSessionResult save(WatchingSession watchingSession) {
     UUID watcherId = watchingSession.getWatcherId();
     String watcherKey = WATCHER_KEY_PREFIX + watcherId.toString();
     String sessionKey = SESSION_KEY_PREFIX + watchingSession.getSessionId();
@@ -50,8 +51,15 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     WatchingSession previous = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
     if (previous != null && !previous.getSessionId().equals(watchingSession.getSessionId())) {
       sessionIdAndUserIdRedisTemplate.delete(SESSION_KEY_PREFIX + previous.getSessionId());
-      sessionIdAndUserIdRedisTemplate.opsForSet()
-          .remove(CONTENT_KEY_PREFIX + previous.getContentId(), watcherId.toString());
+
+      // 과거 컨텐츠 인덱스가 0이 되면 삭제
+      String prevContentKey = CONTENT_KEY_PREFIX + previous.getContentId();
+      sessionIdAndUserIdRedisTemplate.opsForSet().remove(prevContentKey, watcherId.toString());
+
+      Long prevCount = countByContentId(previous.getContentId());
+      if (prevCount == 0) {
+        sessionIdAndUserIdRedisTemplate.delete(prevContentKey);
+      }
     }
 
     watchingSessionRedisTemplate.opsForValue()
@@ -60,9 +68,9 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
         .set(sessionKey, watcherId.toString(), EXPIRED_HOURS, TimeUnit.HOURS);
     sessionIdAndUserIdRedisTemplate.opsForSet()
         .add(contentKey, watchingSession.getWatcherId().toString());
-    sessionIdAndUserIdRedisTemplate.expire(contentKey, EXPIRED_HOURS, TimeUnit.HOURS);
 
-    return watchingSession;
+    return new WatchingSessionResult(watchingSession,
+        countByContentId(watchingSession.getContentId()));
   }
 
   @Override
@@ -83,7 +91,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
   }
 
   @Override
-  public Optional<WatchingSession> deleteBySessionId(String sessionId) {
+  public Optional<WatchingSessionResult> deleteBySessionId(String sessionId) {
     String sessionKey = SESSION_KEY_PREFIX + sessionId;
     String watcherId = sessionIdAndUserIdRedisTemplate.opsForValue().get(sessionKey);
 
@@ -92,7 +100,6 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     }
 
     String watcherKey = WATCHER_KEY_PREFIX + watcherId;
-
     WatchingSession session = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
 
     if (session != null && session.getSessionId().equals(sessionId)) {
@@ -101,13 +108,12 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
       watchingSessionRedisTemplate.delete(watcherKey);
       sessionIdAndUserIdRedisTemplate.opsForSet()
           .remove(contentKey, session.getWatcherId().toString());
-      return Optional.of(session);
-    }
 
-    if (session != null) {
-      String contentKey = CONTENT_KEY_PREFIX + session.getContentId();
-      sessionIdAndUserIdRedisTemplate.opsForSet()
-          .remove(contentKey, session.getWatcherId().toString());
+      long currentCount = countByContentId(session.getContentId());
+      if (currentCount == 0) {
+        sessionIdAndUserIdRedisTemplate.delete(contentKey);
+      }
+      return Optional.of(new WatchingSessionResult(session, currentCount));
     }
 
     sessionIdAndUserIdRedisTemplate.delete(sessionKey);
@@ -120,4 +126,5 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     Long count = sessionIdAndUserIdRedisTemplate.opsForSet().size(contentKey);
     return count == null ? 0 : count;
   }
+
 }

@@ -5,7 +5,8 @@ import com.team6.moduply.watching.model.WatchingSession;
 
 public record WatchingSessionChangedEvent(
     ChangeType type,
-    WatchingSession watchingSession
+    WatchingSession watchingSession,
+    long watcherCount
 
 ) {
 

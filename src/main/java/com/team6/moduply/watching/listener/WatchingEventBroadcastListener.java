@@ -9,7 +9,6 @@ import com.team6.moduply.user.service.UserQueryService;
 import com.team6.moduply.watching.dto.WatchingSessionChange;
 import com.team6.moduply.watching.dto.WatchingSessionDto;
 import com.team6.moduply.watching.enums.ChangeType;
-import com.team6.moduply.watching.service.WatchingSessionService;
 import com.team6.moduply.watching.util.mapper.WatchingSessionMapper;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,6 @@ public class WatchingEventBroadcastListener {
   private final ContentQueryService contentQueryService;
   private final WatchingSessionMapper watchingSessionMapper;
   private final SimpMessagingTemplate messagingTemplate;
-  private final WatchingSessionService watchingSessionService;
 
   @Async(AsyncConfig.WATCHING_EVENT_TASK_EXECUTOR)
   @EventListener
@@ -56,11 +54,10 @@ public class WatchingEventBroadcastListener {
     WatchingSessionDto sessionDto = watchingSessionMapper.toDto(event.watchingSession(), watcher,
         content);
 
-    long watcherCount = watchingSessionService.countByContentId(content.id());
     WatchingSessionChange message = new WatchingSessionChange(
         event.type(),
         sessionDto,
-        watcherCount
+        event.watcherCount()
     );
     String destination = String.format("/sub/contents/%s/watch",
         contentId.toString());
