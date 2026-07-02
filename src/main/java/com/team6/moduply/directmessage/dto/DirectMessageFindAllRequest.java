@@ -2,10 +2,8 @@ package com.team6.moduply.directmessage.dto;
 
 import com.team6.moduply.common.pagination.SortDirection;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
+
 import java.util.UUID;
 
 @Schema(description = "DM 목록 조회 요청")
@@ -22,6 +20,7 @@ public record DirectMessageFindAllRequest(
 
     @NotNull
     @Positive
+    @Max(100)
     @Schema(description = "한 번에 가져올 개수")
     Integer limit,
 
