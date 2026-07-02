@@ -20,6 +20,7 @@ import com.team6.moduply.auth.handler.JwtLogoutHandler;
 import com.team6.moduply.auth.handler.ModuPlyAccessDeniedHandler;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import com.team6.moduply.auth.handler.ModuPlyLoginFailureHandler;
+import com.team6.moduply.auth.handler.SpaCsrfTokenRequestHandler;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.config.CsrfConfig;
@@ -47,6 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({
     SecurityConfig.class,
     CsrfConfig.class,
+    SpaCsrfTokenRequestHandler.class,
     JwtAuthenticationFilter.class,
     ModuPlyAuthenticationEntryPoint.class,
     ModuPlyAccessDeniedHandler.class

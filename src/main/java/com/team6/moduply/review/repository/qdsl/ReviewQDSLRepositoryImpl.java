@@ -1,5 +1,6 @@
 package com.team6.moduply.review.repository.qdsl;
 
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -28,17 +29,7 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
             contentIdCondition(request.contentIdEqual()),
             cursorCondition(request)
         )
-        .orderBy(
-            request.sortBy() == ReviewSortBy.rating
-                ? (request.sortDirection() == SortDirection.ASCENDING
-                ? review.rating.asc()
-                : review.rating.desc())
-                : (request.sortDirection() == SortDirection.ASCENDING
-                    ? review.createdAt.asc()
-                    : review.createdAt.desc()),
-            review.createdAt.asc(),
-            review.id.asc()
-        )
+        .orderBy(orderSpecifiers(request))
         .limit((long) request.limit() + 1)
         .fetch();
   }
@@ -62,13 +53,18 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
     }
 
     if (request.sortBy() == ReviewSortBy.rating) {
-      Double cursorRating = Double.parseDouble(request.cursor());
+      int colonIndex = request.cursor().indexOf(":");
+      Double cursorRating = Double.parseDouble(request.cursor().substring(0, colonIndex));
+      Instant cursorCreatedAt = Instant.parse(request.cursor().substring(colonIndex + 1));
+
       if (request.sortDirection() == SortDirection.ASCENDING) {
         return review.rating.gt(cursorRating)
-            .or(review.rating.eq(cursorRating).and(review.id.gt(request.idAfter())));
+            .or(review.rating.eq(cursorRating).and(review.createdAt.gt(cursorCreatedAt)))
+            .or(review.rating.eq(cursorRating).and(review.createdAt.eq(cursorCreatedAt)).and(review.id.gt(request.idAfter())));
       } else {
         return review.rating.lt(cursorRating)
-            .or(review.rating.eq(cursorRating).and(review.id.gt(request.idAfter())));
+            .or(review.rating.eq(cursorRating).and(review.createdAt.lt(cursorCreatedAt)))
+            .or(review.rating.eq(cursorRating).and(review.createdAt.eq(cursorCreatedAt)).and(review.id.gt(request.idAfter())));
       }
     }
 
@@ -80,5 +76,39 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
       return review.createdAt.lt(cursorTime)
           .or(review.createdAt.eq(cursorTime).and(review.id.gt(request.idAfter())));
     }
+  }
+
+  private OrderSpecifier<?>[] orderSpecifiers(ReviewSearchRequest request) {
+    if (request.sortBy() == ReviewSortBy.rating) {
+      return new OrderSpecifier<?>[] {
+          primaryOrder(request),
+          secondaryOrder(request),
+          review.id.asc()
+      };
+    }
+    return new OrderSpecifier<?>[] {
+        primaryOrder(request),
+        secondaryOrder(request)
+    };
+  }
+
+  private OrderSpecifier<?> primaryOrder(ReviewSearchRequest request) {
+    if (request.sortBy() == ReviewSortBy.rating) {
+      return request.sortDirection() == SortDirection.ASCENDING
+          ? review.rating.asc()
+          : review.rating.desc();
+    }
+    return request.sortDirection() == SortDirection.ASCENDING
+        ? review.createdAt.asc()
+        : review.createdAt.desc();
+  }
+
+  private OrderSpecifier<?> secondaryOrder(ReviewSearchRequest request) {
+    if (request.sortBy() == ReviewSortBy.rating) {
+      return request.sortDirection() == SortDirection.ASCENDING
+          ? review.createdAt.asc()
+          : review.createdAt.desc();
+    }
+    return review.id.asc();
   }
 }
