@@ -43,7 +43,7 @@ public class AsyncConfig implements AsyncConfigurer {
     executor.setThreadNamePrefix("watching-event-task-");
     executor.setWaitForTasksToCompleteOnShutdown(true); // 진행 중인 작업 완료 후 종료
     executor.setAwaitTerminationSeconds(100);           // 최대 대기 시간 설정
-    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());//유실허용
     executor.initialize();
     return executor;
   }
