@@ -194,6 +194,24 @@ class ConversationControllerTest {
   }
 
   @Test
+  @DisplayName("대화 목록 조회 요청의 cursor가 파싱할 수 없는 날짜이면 400 응답을 반환한다.")
+  void findConversations_fail_when_cursor_is_not_parseable() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID idAfter = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/conversations")
+            .queryParam("cursor", "2024-13-40T99:99:99Z")
+            .queryParam("idAfter", idAfter.toString())
+            .queryParam("limit", "10")
+            .queryParam("sortDirection", "DESCENDING")
+            .queryParam("sortBy", "createdAt")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).findAll(any(), eq(currentUserId));
+  }
+
+  @Test
   @DisplayName("DM 목록 조회 요청 시 인증 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
   void findDms_success_with_authenticated_principal() throws Exception {
     UUID currentUserId = UUID.randomUUID();
@@ -245,6 +263,25 @@ class ConversationControllerTest {
     UUID conversationId = UUID.randomUUID();
 
     mockMvc.perform(get("/api/conversations/{conversationId}/direct-messages", conversationId)
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).findDms(eq(conversationId), any(), eq(currentUserId));
+  }
+
+  @Test
+  @DisplayName("DM 목록 조회 요청의 cursor가 파싱할 수 없는 날짜이면 400 응답을 반환한다.")
+  void findDms_fail_when_cursor_is_not_parseable() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID idAfter = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/conversations/{conversationId}/direct-messages", conversationId)
+            .queryParam("cursor", "2024-13-40T99:99:99Z")
+            .queryParam("idAfter", idAfter.toString())
+            .queryParam("limit", "10")
+            .queryParam("sortDirection", "DESCENDING")
+            .queryParam("sortBy", "createdAt")
             .with(user(userDetails(currentUserId))))
         .andExpect(status().isBadRequest());
 
