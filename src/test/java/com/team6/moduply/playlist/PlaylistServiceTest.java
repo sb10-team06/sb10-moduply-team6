@@ -10,11 +10,13 @@ import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.entity.PlaylistContent;
+import com.team6.moduply.playlist.entity.PlaylistSubscription;
 import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistContentRepository;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
+import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
 import java.util.ArrayList;
@@ -56,6 +58,9 @@ class PlaylistServiceTest {
 
   @Mock
   private PlaylistContentRepository playlistContentRepository;
+
+  @Mock
+  private PlaylistSubscriptionRepository playlistSubscriptionRepository;
 
   @Test
   @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")
@@ -541,5 +546,111 @@ class PlaylistServiceTest {
         .isInstanceOf(PlaylistException.class)
         .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
             .isEqualTo(PlaylistErrorCode.PLAYLIST_FORBIDDEN));
+  }
+
+  @Test
+  @DisplayName("플레이리스트를 구독하면 구독 정보가 저장된다.")
+  void subscribe_success() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, subscriberId))
+        .willReturn(false);
+
+    // when
+    playlistService.subscribe(playlistId, subscriberId);
+
+    // then
+    verify(playlistSubscriptionRepository).save(any(PlaylistSubscription.class));
+  }
+
+  @Test
+  @DisplayName("본인 플레이리스트를 구독하면 예외가 발생한다.")
+  void subscribe_fail_with_self_subscription() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.subscribe(playlistId, ownerId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_SELF_SUBSCRIPTION));
+  }
+
+  @Test
+  @DisplayName("이미 구독 중인 플레이리스트를 구독하면 예외가 발생한다.")
+  void subscribe_fail_with_duplicate() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, subscriberId))
+        .willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.subscribe(playlistId, subscriberId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_ALREADY_EXISTS));
+  }
+
+  @Test
+  @DisplayName("플레이리스트 구독을 취소하면 구독 정보가 삭제된다.")
+  void unsubscribe_success() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("제목").description("설명").build();
+
+    PlaylistSubscription subscription = PlaylistSubscription.builder()
+        .playlist(playlist).subscriberId(subscriberId).build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistSubscriptionRepository.findByPlaylistAndSubscriberId(playlist, subscriberId))
+        .willReturn(Optional.of(subscription));
+
+    // when
+    playlistService.unsubscribe(playlistId, subscriberId);
+
+    // then
+    verify(playlistSubscriptionRepository).delete(subscription);
+  }
+
+  @Test
+  @DisplayName("구독하지 않은 플레이리스트를 구독취소하면 예외가 발생한다.")
+  void unsubscribe_fail_with_not_found() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistSubscriptionRepository.findByPlaylistAndSubscriberId(playlist, subscriberId))
+        .willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.unsubscribe(playlistId, subscriberId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_NOT_FOUND));
   }
 }
