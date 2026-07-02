@@ -1,7 +1,9 @@
 package com.team6.moduply.conversation.service;
 
+import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
+import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
 import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
@@ -15,6 +17,7 @@ import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -124,6 +127,61 @@ public class ConversationService {
 
     ConversationDto response = toDto(conversation, currentUser, withUser);
     log.debug("특정 사용자와의 대화 조회 처리 완료. conversationId={}", response.id());
+    return response;
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<ConversationDto> findAll(
+      ConversationFindAllRequest request,
+      UUID currentUserId
+  ) {
+    log.debug(
+        "대화 목록 조회 처리 시작. currentUserId={}, keywordLike={}, cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}",
+        currentUserId,
+        request.keywordLike(),
+        request.cursor(),
+        request.idAfter(),
+        request.limit(),
+        request.sortBy(),
+        request.sortDirection()
+    );
+
+    User currentUser = findUser(currentUserId);
+    List<Conversation> conversations = conversationRepository.findAllWithCursor(request, currentUserId);
+    long totalCount = conversationRepository.countWithCondition(request, currentUserId);
+    boolean hasNext = conversations.size() > request.limit();
+
+    if (hasNext) {
+      conversations = conversations.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      Conversation last = conversations.get(conversations.size() - 1);
+      nextCursor = last.getCreatedAt().toString();
+      nextIdAfter = last.getId();
+    }
+
+    List<ConversationDto> data = conversations.stream()
+        .map(conversation -> toDto(
+            conversation,
+            currentUser,
+            findUser(resolveWithUserId(conversation, currentUserId))
+        ))
+        .toList();
+
+    CursorResponse<ConversationDto> response = new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
+    log.debug("대화 목록 조회 처리 완료. count={}, hasNext={}", data.size(), hasNext);
     return response;
   }
 
