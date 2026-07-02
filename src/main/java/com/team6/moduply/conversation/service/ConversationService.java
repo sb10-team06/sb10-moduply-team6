@@ -1,6 +1,7 @@
 package com.team6.moduply.conversation.service;
 
 import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
 import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
@@ -17,8 +18,10 @@ import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.directmessage.mapper.DirectMessageMapper;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
+import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.Collections;
 import java.util.HashSet;
@@ -44,6 +47,8 @@ public class ConversationService {
   private final UserRepository userRepository;
   private final ConversationMapper conversationMapper;
   private final DirectMessageMapper directMessageMapper;
+  private final BinaryContentService binaryContentService;
+  private final UserMapper userMapper;
 
   @Transactional
   public ConversationDto create(ConversationCreateRequest request, UUID currentUserId) {
@@ -265,6 +270,8 @@ public class ConversationService {
 
     User currentUser = findUser(currentUserId);
     User withUser = findUser(resolveWithUserId(conversation, currentUserId));
+    UserSummaryDto currentUserSummary = toUserSummaryDto(currentUser);
+    UserSummaryDto withUserSummary = toUserSummaryDto(withUser);
     List<DirectMessage> directMessages = directMessageRepository.findAllWithCursor(
         request,
         conversationId
@@ -289,8 +296,9 @@ public class ConversationService {
         .map(directMessage -> directMessageMapper.toDto(
             directMessage,
             conversation,
-            currentUser,
-            withUser
+            currentUserId,
+            currentUserSummary,
+            withUserSummary
         ))
         .toList();
 
@@ -382,6 +390,10 @@ public class ConversationService {
             UserErrorCode.USER_NOT_FOUND_EXCEPTION,
             Map.of("userId", userId)
         ));
+  }
+
+  private UserSummaryDto toUserSummaryDto(User user) {
+    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
   }
 
   private void validateParticipant(Conversation conversation, UUID userId) {

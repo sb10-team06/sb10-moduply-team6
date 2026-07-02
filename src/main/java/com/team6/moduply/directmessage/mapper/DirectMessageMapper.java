@@ -1,50 +1,49 @@
 package com.team6.moduply.directmessage.mapper;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.user.dto.UserSummaryDto;
-import com.team6.moduply.user.entity.User;
-import com.team6.moduply.user.mapper.UserMapper;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-@Component
-public class DirectMessageMapper {
+@Mapper(componentModel = "spring")
+public abstract class DirectMessageMapper {
 
-  private final BinaryContentService binaryContentService;
-  private final UserMapper userMapper;
-
-  public DirectMessageMapper(BinaryContentService binaryContentService, UserMapper userMapper) {
-    this.binaryContentService = binaryContentService;
-    this.userMapper = userMapper;
-  }
-
-  public DirectMessageDto toDto(
+  @Mapping(target = "id", source = "directMessage.id")
+  @Mapping(target = "conversationId", source = "conversation.id")
+  @Mapping(target = "createdAt", source = "directMessage.createdAt")
+  @Mapping(target = "sender", expression = "java(resolveSender(directMessage, currentUserId, currentUserSummary, withUserSummary))")
+  @Mapping(target = "receiver", expression = "java(resolveReceiver(directMessage, currentUserId, currentUserSummary, withUserSummary))")
+  @Mapping(target = "content", source = "directMessage.content")
+  public abstract DirectMessageDto toDto(
       DirectMessage directMessage,
       Conversation conversation,
-      User currentUser,
-      User withUser
+      UUID currentUserId,
+      UserSummaryDto currentUserSummary,
+      UserSummaryDto withUserSummary
+  );
+
+  protected UserSummaryDto resolveSender(
+      DirectMessage directMessage,
+      UUID currentUserId,
+      UserSummaryDto currentUserSummary,
+      UserSummaryDto withUserSummary
   ) {
-    User sender = directMessage.getSender();
-    User receiver = resolveReceiver(sender.getId(), currentUser, withUser);
-
-    return new DirectMessageDto(
-        directMessage.getId(),
-        conversation.getId(),
-        directMessage.getCreatedAt(),
-        toUserSummaryDto(sender),
-        toUserSummaryDto(receiver),
-        directMessage.getContent()
-    );
+    return directMessage.getSender().getId().equals(currentUserId)
+        ? currentUserSummary
+        : withUserSummary;
   }
 
-  private UserSummaryDto toUserSummaryDto(User user) {
-    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
-  }
-
-  private User resolveReceiver(UUID senderId, User currentUser, User withUser) {
-    return currentUser.getId().equals(senderId) ? withUser : currentUser;
+  protected UserSummaryDto resolveReceiver(
+      DirectMessage directMessage,
+      UUID currentUserId,
+      UserSummaryDto currentUserSummary,
+      UserSummaryDto withUserSummary
+  ) {
+    return directMessage.getSender().getId().equals(currentUserId)
+        ? withUserSummary
+        : currentUserSummary;
   }
 }

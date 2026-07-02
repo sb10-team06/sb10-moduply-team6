@@ -6,8 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
@@ -29,9 +31,11 @@ import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.directmessage.mapper.DirectMessageMapper;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
+import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
@@ -66,6 +70,12 @@ class ConversationServiceTest {
 
   @Mock
   private DirectMessageMapper directMessageMapper;
+
+  @Mock
+  private BinaryContentService binaryContentService;
+
+  @Mock
+  private UserMapper userMapper;
 
   @Test
   @DisplayName("대화 상대가 존재하고 기존 대화방이 없으면 새 대화방을 생성한다.")
@@ -330,6 +340,8 @@ class ConversationServiceTest {
     ReflectionTestUtils.setField(conversation, "id", conversationId);
     DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
     DirectMessage sentinelDirectMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
     DirectMessageFindAllRequest request = new DirectMessageFindAllRequest(
         null,
         null,
@@ -349,12 +361,22 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))
         .willReturn(List.of(directMessage, sentinelDirectMessage));
     given(directMessageRepository.countWithCondition(conversationId)).willReturn(2L);
     given(directMessage.getId()).willReturn(directMessageId);
     given(directMessage.getCreatedAt()).willReturn(createdAt);
-    given(directMessageMapper.toDto(directMessage, conversation, currentUser, withUser))
+    given(directMessageMapper.toDto(
+        directMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    ))
         .willReturn(expected);
 
     CursorResponse<DirectMessageDto> result = conversationService.findDms(
@@ -370,6 +392,9 @@ class ConversationServiceTest {
     assertThat(result.totalCount()).isEqualTo(2L);
     assertThat(result.sortBy()).isEqualTo(DirectMessageSortBy.createdAt.name());
     assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+    verify(binaryContentService, times(2)).generateUrl(null);
+    verify(userMapper).toSummaryDto(currentUser, null);
+    verify(userMapper).toSummaryDto(withUser, null);
   }
 
   @Test
