@@ -11,5 +11,5 @@ public class SportsDbProperties {
 
   private String baseUrl = "https://www.thesportsdb.com/api/v1/json";
 
-  private String apiKey = "123";
+  private String apiKey;
 }

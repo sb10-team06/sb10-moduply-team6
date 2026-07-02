@@ -2,17 +2,21 @@ package com.team6.moduply.content.controller;
 
 import com.team6.moduply.content.external.ExternalContentImportResult;
 import com.team6.moduply.content.external.ExternalContentManualImportService;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @Slf4j
 @RequestMapping("/api/contents/import")
@@ -56,7 +60,7 @@ public class ExternalContentImportController implements ExternalContentImportApi
   @PostMapping(value = "/sports-db/league-events", produces = MediaType.APPLICATION_JSON_VALUE)
   @Override
   public ResponseEntity<ExternalContentImportResult> importSportsDbLeagueEvents(
-      @RequestParam String leagueId
+      @RequestParam @NotBlank String leagueId
   ) {
     log.info("The Sports DB 리그 경기 수동 수집 요청 수신: leagueId={}", leagueId);
     ExternalContentImportResult response =
@@ -77,11 +81,15 @@ public class ExternalContentImportController implements ExternalContentImportApi
         date, sport, leagueId);
     ExternalContentImportResult response = externalContentManualImportService.importSportsDbDayEvents(
         date,
-        sport,
-        leagueId
+        normalizeBlankToNull(sport),
+        normalizeBlankToNull(leagueId)
     );
     log.info("The Sports DB 일별 경기 수동 수집 요청 처리 완료: savedCount={}", response.savedCount());
 
     return ResponseEntity.ok(response);
+  }
+
+  private String normalizeBlankToNull(String value) {
+    return StringUtils.hasText(value) ? value : null;
   }
 }

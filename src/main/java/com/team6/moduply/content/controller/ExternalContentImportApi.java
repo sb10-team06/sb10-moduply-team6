@@ -106,6 +106,7 @@ public interface ExternalContentImportApi {
           The Sports DB 리그 다음 경기 데이터를 수동으로 수집합니다.
 
           leagueId 값으로 특정 리그의 경기만 수집합니다.
+          leagueId는 필수값이며 공백은 허용하지 않습니다.
           예시: 4328(EPL), 4387(NBA), 4424(MLB)
           """,
       operationId = "importSportsDbLeagueEvents",
@@ -132,7 +133,7 @@ public interface ExternalContentImportApi {
               schema = @Schema(implementation = ErrorResponse.class)))
   })
   ResponseEntity<ExternalContentImportResult> importSportsDbLeagueEvents(
-      @Parameter(description = "The Sports DB 리그 ID. 예시: 4328(EPL), 4387(NBA), 4424(MLB)",
+      @Parameter(description = "The Sports DB 리그 ID. 공백 불가. 예시: 4328(EPL), 4387(NBA), 4424(MLB)",
           example = "4328") String leagueId
   );
 
@@ -144,6 +145,7 @@ public interface ExternalContentImportApi {
           date 값으로 수집 날짜를 지정합니다.
           sport 값을 입력하면 특정 종목만 수집하고, leagueId 값을 입력하면 특정 리그만 수집합니다.
           sport, leagueId는 선택값이므로 날짜 기준 전체 경기 수집도 가능합니다.
+          선택값에 공백만 전달되면 입력하지 않은 값으로 처리합니다.
 
           예시: date=2026-07-02, sport=Soccer, leagueId=4328
           """,
