@@ -22,6 +22,7 @@ import java.lang.reflect.Type;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -74,6 +75,8 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
   @Autowired
   private ContentRepository contentRepository;
 
+  private ThreadPoolTaskScheduler taskScheduler;
+
   @BeforeEach
   void setUp() {
     contentRepository.deleteAll();
@@ -100,8 +103,8 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     this.stompClient.setMessageConverter(converter);
 
     // 💡 비동기 클라이언트 이벤트를 정상 스케줄링하기 위한 태스크 스케줄러 추가
-    ThreadPoolTaskScheduler taskScheduler =
-        new org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler();
+    taskScheduler =
+        new ThreadPoolTaskScheduler();
     taskScheduler.initialize();
     this.stompClient.setTaskScheduler(taskScheduler);
 
@@ -136,6 +139,16 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     Content content = new Content(null, null, ContentType.movie, "title", "description");
     contentRepository.save(content);
     contentId = content.getId();
+  }
+
+  @AfterEach
+  void tearDown() {
+    if (stompClient != null && stompClient.isRunning()) {
+      stompClient.stop();
+    }
+    if (taskScheduler != null) {
+      taskScheduler.destroy();
+    }
   }
 
   @Test
