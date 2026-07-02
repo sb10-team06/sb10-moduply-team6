@@ -49,4 +49,15 @@ public class ConversationController implements ConversationApi {
   ) {
     return ResponseEntity.ok(conversationService.findById(conversationId, currentUserId));
   }
+
+  @PostMapping("/{conversationId}/direct-messages/{directMessageId}/read")
+  @Override
+  public ResponseEntity<Void> read(
+      @PathVariable UUID conversationId,
+      @PathVariable UUID directMessageId,
+      @AuthenticationPrincipal(expression = "userDto.id") UUID currentUserId
+  ) {
+    conversationService.read(conversationId, directMessageId, currentUserId);
+    return ResponseEntity.ok().build();
+  }
 }
