@@ -118,6 +118,28 @@ class ExternalContentMapperTest {
   }
 
   @Test
+  @DisplayName("The Sports DB 경기 일자가 비어 있으면 리그와 경기명으로 설명을 생성한다.")
+  void toItem_success_with_sportsdb_event_response_without_event_date() {
+    // Given
+    SportsDbEventResponse response = new SportsDbEventResponse(
+        "2494000",
+        "Arsenal vs Coventry City",
+        "",
+        "",
+        "Soccer",
+        "English Premier League",
+        " "
+    );
+
+    // When
+    ExternalContentItem item = mapper.toItem(response);
+
+    // Then
+    assertThat(item.description())
+        .isEqualTo("English Premier League Arsenal vs Coventry City");
+  }
+
+  @Test
   @DisplayName("The Sports DB 경기 응답의 썸네일 URL을 외부 콘텐츠 저장 모델에 포함한다.")
   void toItem_success_with_sportsdb_thumbnail_url() {
     // Given

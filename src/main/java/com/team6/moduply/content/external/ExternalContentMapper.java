@@ -102,11 +102,18 @@ public class ExternalContentMapper {
   }
 
   private String sportsDescription(SportsDbEventResponse response) {
-    return "%s %s %s".formatted(
+    if (StringUtils.hasText(response.eventDate())) {
+      return "%s %s %s".formatted(
+          defaultIfBlank(response.league(), "Sports"),
+          response.eventDate(),
+          response.eventName()
+      );
+    }
+
+    return "%s %s".formatted(
         defaultIfBlank(response.league(), "Sports"),
-        defaultIfBlank(response.eventDate(), ""),
         response.eventName()
-    ).trim();
+    );
   }
 
   private String defaultIfBlank(String value, String defaultValue) {
