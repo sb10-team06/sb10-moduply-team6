@@ -1,7 +1,6 @@
 package com.team6.moduply.common.config;
 
 import java.util.Arrays;
-import java.util.concurrent.ThreadPoolExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.context.annotation.Bean;
@@ -43,7 +42,11 @@ public class AsyncConfig implements AsyncConfigurer {
     executor.setThreadNamePrefix("watching-event-task-");
     executor.setWaitForTasksToCompleteOnShutdown(true); // 진행 중인 작업 완료 후 종료
     executor.setAwaitTerminationSeconds(100);           // 최대 대기 시간 설정
-    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());//유실허용
+    //유실허용
+    executor.setRejectedExecutionHandler((r, e) -> {
+      log.warn("시청 이벤트 브로드캐스트 작업이 거부되었습니다. poolSize={}, activeCount={}, queueSize={}",
+          e.getPoolSize(), e.getActiveCount(), e.getQueue().size());
+    });
     executor.initialize();
     return executor;
   }
