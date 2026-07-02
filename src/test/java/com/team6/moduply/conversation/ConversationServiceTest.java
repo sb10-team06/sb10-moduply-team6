@@ -7,8 +7,12 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
+import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
+import com.team6.moduply.conversation.dto.ConversationSortBy;
 import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
@@ -24,6 +28,7 @@ import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -211,6 +216,49 @@ class ConversationServiceTest {
   }
 
   @Test
+  @DisplayName("대화 목록을 조회하면 요청자의 대화 목록을 커서 응답으로 반환한다.")
+  void findAll_success_with_current_user_conversations() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    ConversationFindAllRequest request = new ConversationFindAllRequest(
+        null,
+        null,
+        null,
+        10,
+        SortDirection.DESCENDING,
+        ConversationSortBy.createdAt
+    );
+    ConversationDto expected = new ConversationDto(conversationId, null, null, false);
+
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(conversationRepository.findAllWithCursor(request, currentUserId))
+        .willReturn(List.of(conversation));
+    given(conversationRepository.countWithCondition(request, currentUserId)).willReturn(1L);
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId))
+        .willReturn(Optional.empty());
+    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
+        conversationId,
+        currentUserId
+    )).willReturn(false);
+    given(conversationMapper.toDto(conversation, currentUser, withUser, null, false))
+        .willReturn(expected);
+
+    CursorResponse<ConversationDto> result = conversationService.findAll(request, currentUserId);
+
+    assertThat(result.data()).containsExactly(expected);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.totalCount()).isEqualTo(1L);
+    assertThat(result.sortBy()).isEqualTo(ConversationSortBy.createdAt.name());
+    assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+  }
+
+  @Test
   @DisplayName("대화방 참여자가 아닌 사용자가 대화방을 조회하면 예외가 발생한다.")
   void findById_fail_when_not_participant() {
     UUID user1Id = UUID.randomUUID();
@@ -324,17 +372,20 @@ class ConversationServiceTest {
   @DisplayName("이미 읽은 DM의 읽음 처리를 다시 요청하면 예외 없이 성공한다.")
   void read_success_when_already_read() throws Exception {
     // given
+    // currentUser: 수신자, sender: 발신자
     UUID currentUserId = UUID.randomUUID();
     UUID senderId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     UUID directMessageId = UUID.randomUUID();
     User sender = user(senderId, "sender");
     Conversation conversation = Conversation.create(currentUserId, senderId);
+    // conversation.id를 위에서 만든 conversationId로 설정
     ReflectionTestUtils.setField(conversation, "id", conversationId);
     java.lang.reflect.Constructor<DirectMessage> constructor = DirectMessage.class.getDeclaredConstructor();
     constructor.setAccessible(true);
     DirectMessage directMessage = constructor.newInstance();
     ReflectionTestUtils.setField(directMessage, "sender", sender);
+    // DM 읽음상태 true로 셋팅
     ReflectionTestUtils.setField(directMessage, "read", true);
 
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
