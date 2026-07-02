@@ -432,4 +432,32 @@ class PlaylistControllerTest {
     mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscriptions"))
         .andExpect(status().isNotFound());
   }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트를 구독하면 404를 반환한다.")
+  void subscribe_fail_with_not_found() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+        Map.of("playlistId", playlistId)
+    )).when(playlistService).subscribe(eq(playlistId), eq(TEST_OWNER_ID));
+
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscriptions"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트를 구독취소하면 404를 반환한다.")
+  void unsubscribe_fail_with_not_found_playlist() throws Exception {
+    UUID playlistId = UUID.randomUUID();
+
+    doThrow(new PlaylistException(
+        PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+        Map.of("playlistId", playlistId)
+    )).when(playlistService).unsubscribe(eq(playlistId), eq(TEST_OWNER_ID));
+
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscriptions"))
+        .andExpect(status().isNotFound());
+  }
 }

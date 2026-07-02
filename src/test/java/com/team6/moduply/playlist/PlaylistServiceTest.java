@@ -653,4 +653,36 @@ class PlaylistServiceTest {
         .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
             .isEqualTo(PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_NOT_FOUND));
   }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트를 구독하면 예외가 발생한다.")
+  void subscribe_fail_with_not_found_playlist() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.subscribe(playlistId, subscriberId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_NOT_FOUND));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 플레이리스트를 구독취소하면 예외가 발생한다.")
+  void unsubscribe_fail_with_not_found_playlist() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.unsubscribe(playlistId, subscriberId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_NOT_FOUND));
+  }
 }
