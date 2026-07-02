@@ -1,6 +1,7 @@
 package com.team6.moduply.common.error;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,17 @@ public class GlobalExceptionHandler {
     log.warn("[MethodArgumentNotValidException] {}", ex.getMessage());
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, details, ex));
+  }
+
+  // @RequestParam, @PathVariable 등 컨트롤러 메서드 파라미터 검증 실패
+  @ExceptionHandler({
+      HandlerMethodValidationException.class,
+      ConstraintViolationException.class
+  })
+  public ResponseEntity<ErrorResponse> handleHandlerMethodValidation(Exception ex) {
+    log.warn("[{}] {}", ex.getClass().getSimpleName(), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
   }
 
   /*

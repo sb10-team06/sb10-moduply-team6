@@ -1,6 +1,8 @@
 package com.team6.moduply.content.controller;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -90,6 +92,17 @@ class ExternalContentImportControllerTest {
         .andExpect(jsonPath("$.savedCount").value(1));
 
     verify(externalContentManualImportService).importSportsDbLeagueEvents("4328");
+  }
+
+  @Test
+  @DisplayName("The Sports DB 리그 ID가 공백이면 400 응답을 반환한다.")
+  void importSportsDbLeagueEvents_fail_when_league_id_is_blank() throws Exception {
+    // When & Then
+    mockMvc.perform(post("/api/contents/import/sports-db/league-events")
+            .param("leagueId", " "))
+        .andExpect(status().isBadRequest());
+
+    verify(externalContentManualImportService, never()).importSportsDbLeagueEvents(anyString());
   }
 
   @Test

@@ -186,6 +186,27 @@ class ExternalContentManualImportServiceTest {
     verify(externalContentService).importSportsEvents(response.events());
   }
 
+  @Test
+  @DisplayName("The Sports DB 일별 경기 응답 events가 null이면 빈 목록으로 저장 서비스를 호출한다.")
+  void importSportsDbDayEvents_success_when_events_is_null() {
+    // Given
+    LocalDate date = LocalDate.of(2026, 7, 1);
+    SportsDbEventListResponse response = new SportsDbEventListResponse(null);
+    ExternalContentImportResult expected = new ExternalContentImportResult(0, 0, 0, 0, 0);
+
+    given(sportsDbClient.fetchEventsByDay(date, "Soccer", "4328")).willReturn(response);
+    given(externalContentService.importSportsEvents(List.of())).willReturn(expected);
+
+    // When
+    ExternalContentImportResult result =
+        externalContentManualImportService.importSportsDbDayEvents(date, "Soccer", "4328");
+
+    // Then
+    assertThat(result).isEqualTo(expected);
+    verify(sportsDbClient).fetchEventsByDay(date, "Soccer", "4328");
+    verify(externalContentService).importSportsEvents(List.of());
+  }
+
   private SportsDbEventResponse createSportsEvent() {
     return new SportsDbEventResponse(
         "2494000",
