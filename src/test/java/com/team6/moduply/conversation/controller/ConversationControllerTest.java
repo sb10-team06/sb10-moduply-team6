@@ -24,6 +24,8 @@ import com.team6.moduply.conversation.dto.ConversationSortBy;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.service.ConversationService;
+import com.team6.moduply.directmessage.dto.DirectMessageDto;
+import com.team6.moduply.directmessage.dto.DirectMessageSortBy;
 import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
 import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.user.dto.UserDto;
@@ -32,6 +34,7 @@ import com.team6.moduply.user.enums.Role;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -188,6 +191,64 @@ class ConversationControllerTest {
         .andExpect(status().isBadRequest());
 
     verify(conversationService, never()).findAll(any(), eq(currentUserId));
+  }
+
+  @Test
+  @DisplayName("DM 목록 조회 요청 시 인증 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
+  void findDms_success_with_authenticated_principal() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+    DirectMessageDto directMessage = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        null,
+        null,
+        "hello"
+    );
+    CursorResponse<DirectMessageDto> response = new CursorResponse<>(
+        List.of(directMessage),
+        null,
+        null,
+        false,
+        1L,
+        DirectMessageSortBy.createdAt.name(),
+        SortDirection.DESCENDING
+    );
+
+    given(conversationService.findDms(eq(conversationId), any(), eq(currentUserId)))
+        .willReturn(response);
+
+    mockMvc.perform(get("/api/conversations/{conversationId}/direct-messages", conversationId)
+            .queryParam("limit", "10")
+            .queryParam("sortDirection", "DESCENDING")
+            .queryParam("sortBy", "createdAt")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data[0].id").value(directMessageId.toString()))
+        .andExpect(jsonPath("$.data[0].conversationId").value(conversationId.toString()))
+        .andExpect(jsonPath("$.data[0].content").value("hello"))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(1))
+        .andExpect(jsonPath("$.sortBy").value("createdAt"))
+        .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
+
+    verify(conversationService).findDms(eq(conversationId), any(), eq(currentUserId));
+  }
+
+  @Test
+  @DisplayName("DM 목록 조회 요청 시 필수 쿼리 파라미터가 없으면 400 응답을 반환한다.")
+  void findDms_fail_when_required_query_parameters_are_missing() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/conversations/{conversationId}/direct-messages", conversationId)
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).findDms(eq(conversationId), any(), eq(currentUserId));
   }
 
   @Test
