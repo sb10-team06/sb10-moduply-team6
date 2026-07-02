@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.JwtTokenProvider;
-import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
+import com.team6.moduply.auth.handler.exception.ModuPlyAuthenticationEntryPoint;
 import com.team6.moduply.common.util.RedisUtil;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;

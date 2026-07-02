@@ -1,4 +1,4 @@
-package com.team6.moduply.auth.handler;
+package com.team6.moduply.auth.handler.login;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.exception.AuthErrorCode;

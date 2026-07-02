@@ -2,6 +2,7 @@ package com.team6.moduply.auth.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.team6.moduply.auth.handler.csrf.SpaCsrfTokenRequestHandler;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

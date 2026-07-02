@@ -3,7 +3,7 @@ package com.team6.moduply.auth.filter;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.exception.AuthException;
-import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
+import com.team6.moduply.auth.handler.exception.ModuPlyAuthenticationEntryPoint;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.servlet.FilterChain;
