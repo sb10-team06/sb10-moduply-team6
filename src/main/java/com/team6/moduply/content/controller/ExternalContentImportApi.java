@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
@@ -134,7 +135,7 @@ public interface ExternalContentImportApi {
   })
   ResponseEntity<ExternalContentImportResult> importSportsDbLeagueEvents(
       @Parameter(description = "The Sports DB 리그 ID. 공백 불가. 예시: 4328(EPL), 4387(NBA), 4424(MLB)",
-          example = "4328") String leagueId
+          example = "4328") @NotBlank String leagueId
   );
 
   @Operation(
