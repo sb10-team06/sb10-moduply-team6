@@ -27,8 +27,8 @@ public class NotificationEventListener {
           event.getPlaylistTitle()
       );
     } catch (Exception e) {
-      log.error("[알림 발송 실패] 플레이리스트 구독 알림 - playlistId: {}, 원인: {}",
-          event.getPlaylistId(), e.getMessage());
+      log.error("[알림 발송 실패] 플레이리스트 구독 알림 - playlistId: {}",
+          event.getPlaylistId(), e);
     }
   }
 
@@ -43,8 +43,8 @@ public class NotificationEventListener {
           event.getContentTitle()
       );
     } catch (Exception e) {
-      log.error("[알림 발송 실패] 콘텐츠 추가 알림 - playlistId: {}, 원인: {}",
-          event.getPlaylistId(), e.getMessage());
+      log.error("[알림 발송 실패] 콘텐츠 추가 알림 - playlistId: {}",
+          event.getPlaylistId(), e);
     }
   }
 }
