@@ -12,6 +12,6 @@ public interface DirectMessageQDSLRepository {
 
   /// 특정 대화방의 DM 목록 조회
   List<DirectMessage> findAllWithCursor(DirectMessageFindAllRequest request, UUID conversationId);
-  /// 특정 대화망의 DM 총 개수 조회
+  /// 특정 대화방의 DM 총 개수 조회
   long countWithCondition(UUID conversationId);
 }
