@@ -6,6 +6,7 @@ import com.team6.moduply.auth.handler.JwtLogoutHandler;
 import com.team6.moduply.auth.handler.ModuPlyAccessDeniedHandler;
 import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
 import com.team6.moduply.auth.handler.ModuPlyLoginFailureHandler;
+import com.team6.moduply.auth.handler.SpaCsrfTokenRequestHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,6 +34,8 @@ public class SecurityConfig {
   private final JwtLogoutHandler jwtLogoutHandler;
   private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
   private final CsrfTokenRepository csrfTokenRepository;
+  private final SpaCsrfTokenRequestHandler spaCsrfTokenRequestHandler;
+
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.
@@ -48,6 +51,7 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/api/auth/sign-out", "POST"),
                 new AntPathRequestMatcher("/ws/**")
             )
+            .csrfTokenRequestHandler(spaCsrfTokenRequestHandler)
         )
         .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

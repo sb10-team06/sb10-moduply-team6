@@ -8,6 +8,8 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.directmessage.entity.DirectMessage;
+import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
+import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -92,28 +94,71 @@ public class ConversationService {
     // 참여중인 대화방 맞는지 검증.
     validateParticipant(conversation, currentUserId);
 
-    // 나와 상대방 객체 생성
-    User currentUser = findUser(currentUserId);
-    User withUser = findUser(resolveWithUserId(conversation, currentUserId));
-
-    // 대화방의 가장 최근 메시지 조회
-    // 메시지 없으면 null
-    DirectMessage lastestMessage = directMessageRepository
-        .findTopByConversationIdOrderByCreatedAtDesc(conversationId)
-        .orElse(null);
-    // 상대방이 보낸 메시지중 안읽은게 있는지?
-    boolean hasUnread = directMessageRepository
-        .existsByConversationIdAndSenderIdNotAndReadFalse(conversationId, currentUserId);
-
-    ConversationDto response = conversationMapper.toDto(
-        conversation,
-        currentUser,
-        withUser,
-        lastestMessage,
-        hasUnread
-    );
+    ConversationDto response = toDto(conversation, currentUserId);
     log.debug("대화 조회 처리 완료. conversationId={}", response.id());
     return response;
+  }
+
+  @Transactional(readOnly = true)
+  public ConversationDto findByUserId(UUID userId, UUID currentUserId) {
+    log.debug("특정 사용자와의 대화 조회 처리 시작. currentUserId={}, userId={}", currentUserId, userId);
+
+    if (currentUserId.equals(userId)) {
+      throw new ConversationException(
+          ConversationErrorCode.SELF_CONVERSATION_NOT_ALLOWED,
+          Map.of("userId", currentUserId)
+      );
+    }
+
+    User currentUser = findUser(currentUserId);
+    User withUser = findUser(userId);
+
+    Conversation sortedConversation = Conversation.create(currentUserId, userId);
+    Conversation conversation = conversationRepository.findByUser1IdAndUser2Id(
+        sortedConversation.getUser1Id(),
+        sortedConversation.getUser2Id()
+    ).orElseThrow(() -> new ConversationException(
+        ConversationErrorCode.CONVERSATION_NOT_FOUND,
+        Map.of("userId", userId)
+    ));
+
+    ConversationDto response = toDto(conversation, currentUser, withUser);
+    log.debug("특정 사용자와의 대화 조회 처리 완료. conversationId={}", response.id());
+    return response;
+  }
+
+  @Transactional
+  public void read(UUID conversationId, UUID directMessageId, UUID currentUserId) {
+    log.debug(
+        "DM 읽음 처리 시작. conversationId={}, directMessageId={}, currentUserId={}",
+        conversationId,
+        directMessageId,
+        currentUserId
+    );
+    Conversation conversation = conversationRepository.findById(conversationId)
+        .orElseThrow(() -> new ConversationException(
+            ConversationErrorCode.CONVERSATION_NOT_FOUND,
+            Map.of("conversationId", conversationId)
+        ));
+    validateParticipant(conversation, currentUserId);
+
+    DirectMessage directMessage = directMessageRepository
+        .findByIdAndConversationId(directMessageId, conversationId)
+        .orElseThrow(() -> new DirectMessageException(
+            DirectMessageErrorCode.DIRECT_MESSAGE_NOT_FOUND,
+            Map.of("directMessageId", directMessageId, "conversationId", conversationId)
+        ));
+
+    // 자기자신 메세지 읽음처리 x
+    if (directMessage.getSender().getId().equals(currentUserId)) {
+      throw new DirectMessageException(
+          DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN,
+          Map.of("directMessageId", directMessageId, "userId", currentUserId)
+      );
+    }
+
+    directMessage.markAsRead();
+    log.debug("DM 읽음 처리 완료. directMessageId={}", directMessageId);
   }
 
   private User findUser(UUID userId) {
@@ -125,7 +170,6 @@ public class ConversationService {
   }
 
   private void validateParticipant(Conversation conversation, UUID userId) {
-    // 자기가 참여하고 있는 대화방만 조회할 수 있다.
     if (!conversation.getUser1Id().equals(userId) && !conversation.getUser2Id().equals(userId)) {
       throw new ConversationException(
           ConversationErrorCode.CONVERSATION_FORBIDDEN,
@@ -140,5 +184,28 @@ public class ConversationService {
       return conversation.getUser2Id();
     }
     return conversation.getUser1Id();
+  }
+
+  private ConversationDto toDto(Conversation conversation, UUID currentUserId) {
+    User currentUser = findUser(currentUserId);
+    User withUser = findUser(resolveWithUserId(conversation, currentUserId));
+
+    return toDto(conversation, currentUser, withUser);
+  }
+
+  private ConversationDto toDto(Conversation conversation, User currentUser, User withUser) {
+    DirectMessage lastestMessage = directMessageRepository
+        .findTopByConversationIdOrderByCreatedAtDesc(conversation.getId())
+        .orElse(null);
+    boolean hasUnread = directMessageRepository
+        .existsByConversationIdAndSenderIdNotAndReadFalse(conversation.getId(), currentUser.getId());
+
+    return conversationMapper.toDto(
+        conversation,
+        currentUser,
+        withUser,
+        lastestMessage,
+        hasUnread
+    );
   }
 }

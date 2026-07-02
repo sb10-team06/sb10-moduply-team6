@@ -14,4 +14,7 @@ public interface DirectMessageRepository extends JpaRepository<DirectMessage, UU
   /// 대화방에서 senderId에 해당하는 사람이 상대방 메시지를 읽지않은게 있는지?
   /// senderId가 A라면: B가 보낸 읽지않은 메시지가 있는가?
   boolean existsByConversationIdAndSenderIdNotAndReadFalse(UUID conversationId, UUID senderId);
+
+  /// DM 조회
+  Optional<DirectMessage> findByIdAndConversationId(UUID id, UUID conversationId);
 }
