@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -35,6 +36,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class ExternalContentServiceTest {
@@ -54,17 +57,26 @@ class ExternalContentServiceTest {
   @Mock
   private BinaryContentService binaryContentService;
 
+  @Mock
+  private TransactionTemplate transactionTemplate;
+
   private ExternalContentService externalContentService;
 
   @BeforeEach
   void setUp() {
+    lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+      TransactionCallback<?> callback = invocation.getArgument(0);
+      return callback.doInTransaction(null);
+    });
+
     externalContentService = new ExternalContentService(
         contentRepository,
         tagRepository,
         contentTagRepository,
         new ExternalContentMapper(createTmdbProperties()),
         externalImageClient,
-        binaryContentService
+        binaryContentService,
+        transactionTemplate
     );
   }
 

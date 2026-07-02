@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -37,8 +37,8 @@ public class ExternalContentService {
   private final ExternalContentMapper externalContentMapper;
   private final ExternalImageClient externalImageClient;
   private final BinaryContentService binaryContentService;
+  private final TransactionTemplate transactionTemplate;
 
-  @Transactional
   public ExternalContentImportResult importTmdbMovies(List<TmdbMovieResponse> responses) {
     List<ExternalContentItem> items = emptyIfNull(responses).stream()
         .map(externalContentMapper::toItem)
@@ -47,7 +47,6 @@ public class ExternalContentService {
     return saveNewContents(items);
   }
 
-  @Transactional
   public ExternalContentImportResult importTmdbTvSeries(List<TmdbTvResponse> responses) {
     List<ExternalContentItem> items = emptyIfNull(responses).stream()
         .map(externalContentMapper::toItem)
@@ -56,7 +55,6 @@ public class ExternalContentService {
     return saveNewContents(items);
   }
 
-  @Transactional
   public ExternalContentImportResult importSportsEvents(List<SportsDbEventResponse> responses) {
     List<ExternalContentItem> items = emptyIfNull(responses).stream()
         .map(externalContentMapper::toItem)
@@ -78,6 +76,33 @@ public class ExternalContentService {
             LinkedHashMap::new
         ));
 
+    List<Content> savedContents = transactionTemplate.execute(status ->
+        saveContentMetadata(itemByExternalApiId)
+    );
+    savedContents = emptyIfNull(savedContents);
+
+    ExternalImageSaveResult imageSaveResult = saveContentImages(savedContents, itemByExternalApiId);
+
+    int skippedCount = items.size() - savedContents.size();
+    log.debug(
+        "외부 콘텐츠 저장 처리 완료: requestedCount={}, savedCount={}, skippedCount={}",
+        items.size(),
+        savedContents.size(),
+        skippedCount
+    );
+
+    return new ExternalContentImportResult(
+        items.size(),
+        savedContents.size(),
+        skippedCount,
+        imageSaveResult.savedCount(),
+        imageSaveResult.failedCount()
+    );
+  }
+
+  private List<Content> saveContentMetadata(
+      Map<String, ExternalContentItem> itemByExternalApiId
+  ) {
     Set<String> existingExternalApiIds = contentRepository.findAllByExternalApiIdIn(
             itemByExternalApiId.keySet()
         ).stream()
@@ -99,24 +124,9 @@ public class ExternalContentService {
         .toList();
 
     List<Content> savedContents = contentRepository.saveAll(contents);
-    ExternalImageSaveResult imageSaveResult = saveContentImages(savedContents, itemByExternalApiId);
     saveContentTags(savedContents, itemByExternalApiId);
 
-    int skippedCount = items.size() - savedContents.size();
-    log.debug(
-        "외부 콘텐츠 저장 처리 완료: requestedCount={}, savedCount={}, skippedCount={}",
-        items.size(),
-        savedContents.size(),
-        skippedCount
-    );
-
-    return new ExternalContentImportResult(
-        items.size(),
-        savedContents.size(),
-        skippedCount,
-        imageSaveResult.savedCount(),
-        imageSaveResult.failedCount()
-    );
+    return savedContents;
   }
 
   private ExternalImageSaveResult saveContentImages(
@@ -142,7 +152,7 @@ public class ExternalContentService {
             imageFile.contentType(),
             null
         );
-        content.updateContentImg(contentImg);
+        linkContentImage(content, contentImg);
         imageSavedCount++;
       } catch (RuntimeException e) {
         imageFailedCount++;
@@ -156,6 +166,14 @@ public class ExternalContentService {
     }
 
     return new ExternalImageSaveResult(imageSavedCount, imageFailedCount);
+  }
+
+  private void linkContentImage(Content content, BinaryContent contentImg) {
+    transactionTemplate.execute(status -> {
+      content.updateContentImg(contentImg);
+      contentRepository.save(content);
+      return null;
+    });
   }
 
   private void saveContentTags(
