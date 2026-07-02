@@ -2,6 +2,8 @@ package com.team6.moduply.playlist.service;
 
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.notification.event.ContentAddedEvent;
+import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
@@ -18,6 +20,7 @@ import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
 import java.util.Map;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
@@ -34,6 +37,7 @@ public class PlaylistService {
   private final ContentRepository contentRepository;
   private final PlaylistContentRepository playlistContentRepository;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -158,6 +162,22 @@ public class PlaylistService {
         .build();
 
     playlistContentRepository.save(playlistContent);
+
+    // 구독자 목록 조회 후 이벤트 발행
+    List<UUID> subscriberIds = playlistSubscriptionRepository
+        .findAllByPlaylist(playlist)
+        .stream()
+        .map(PlaylistSubscription::getSubscriberId)
+        .toList();
+
+    if (!subscriberIds.isEmpty()) {
+      eventPublisher.publishEvent(new ContentAddedEvent(
+          playlistId,
+          playlist.getTitle(),
+          String.valueOf(contentId),
+          subscriberIds
+      ));
+    }
   }
 
   @Transactional
@@ -225,6 +245,13 @@ public class PlaylistService {
           e
       );
     }
+    // 이벤트 발행
+    eventPublisher.publishEvent(new PlaylistSubscribedEvent(
+        playlist.getOwnerId(),
+        subscriberId,
+        playlistId,
+        playlist.getTitle()
+    ));
   }
 
   @Transactional
