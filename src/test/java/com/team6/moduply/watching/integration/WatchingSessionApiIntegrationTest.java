@@ -4,12 +4,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
-import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
@@ -22,10 +20,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.test.context.support.TestExecutionEvent;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -95,26 +91,10 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
     watchingSessionId3 = watchingSession3.getId();
   }
 
-  private void setupSecurityContext(User user) {
-    UserDetails customUserDetails = new ModuPlyUserDetails(
-        new UserDto(user.getId(), user.getCreatedAt(), user.getEmail(),
-            user.getName(), null, user.getRole(), false), user.getEncodedPassword()
-    );
-
-    Authentication authentication = new UsernamePasswordAuthenticationToken(
-        customUserDetails,
-        null,
-        customUserDetails.getAuthorities()
-    );
-
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-  }
-
   @Test
+  @WithUserDetails(value = "test2@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
   @DisplayName("사용자 아이디로 해당 사용자의 현재 시청세션을 조회하는데 성공합니다.")
   void find_watching_session_success_by_watcher_id() throws Exception {
-    // given
-    setupSecurityContext(user1);
     //when & then
     mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", user1Id)
             .accept(MediaType.APPLICATION_JSON))
@@ -125,10 +105,9 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
   }
 
   @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
   @DisplayName("사용자 아이디로 아무것도 보고 있지 않은 사용자의 시청 세션을 조회하는데 성공합니다.(null)")
   void find_null_success_by_watcher_id() throws Exception {
-    // given
-    setupSecurityContext(user1);
     watchingSessionRepository.deleteBySessionId(sessionId1);
     //when & then
     mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", user1Id)
@@ -137,10 +116,9 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
   }
 
   @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
   @DisplayName("존재하지 않는 사용자의 시청 세션 조회에 실패합니다.")
   void find_fail_by_wrong_watcher_id() throws Exception {
-    // given
-    setupSecurityContext(user1);
     //when & then
     mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", UUID.randomUUID())
             .accept(MediaType.APPLICATION_JSON))
