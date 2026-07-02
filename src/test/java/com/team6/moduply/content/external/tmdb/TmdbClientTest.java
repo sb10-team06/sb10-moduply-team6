@@ -6,8 +6,11 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
 import com.team6.moduply.content.external.tmdb.dto.TmdbPageResponse;
 import com.team6.moduply.content.external.tmdb.dto.TmdbTvResponse;
@@ -155,7 +158,29 @@ class TmdbClientTest {
 
     // When & Then
     assertThatThrownBy(() -> tmdbClient.fetchPopularMovies(1))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("TMDB_READ_ACCESS_TOKEN 설정이 누락되었습니다.");
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_CONFIG_INVALID)
+        );
+  }
+
+  @Test
+  @DisplayName("TMDB API 오류 응답이 발생하면 ContentException으로 변환한다.")
+  void fetchPopularMovies_fail_when_external_api_error_occurs() {
+    // Given
+    server.expect(once(), requestTo(
+            "https://api.themoviedb.org/3/movie/popular?language=ko-KR&page=1"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+        .andRespond(withServerError());
+
+    // When & Then
+    assertThatThrownBy(() -> tmdbClient.fetchPopularMovies(1))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
+        );
+
+    server.verify();
   }
 }

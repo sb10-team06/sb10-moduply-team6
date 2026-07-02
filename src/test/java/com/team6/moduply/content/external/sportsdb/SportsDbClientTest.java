@@ -5,8 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.external.sportsdb.dto.SportsDbEventListResponse;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
@@ -118,7 +121,50 @@ class SportsDbClientTest {
 
     // When & Then
     assertThatThrownBy(() -> sportsDbClient.fetchNextLeagueEvents("4328"))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("SPORTS_DB_API_KEY 설정이 누락되었습니다.");
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_CONFIG_INVALID)
+        );
+  }
+
+  @Test
+  @DisplayName("The Sports DB 리그 다음 경기 API 오류 응답이 발생하면 ContentException으로 변환한다.")
+  void fetchNextLeagueEvents_fail_when_external_api_error_occurs() {
+    // Given
+    server.expect(once(), requestTo(
+            "https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=4328"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withServerError());
+
+    // When & Then
+    assertThatThrownBy(() -> sportsDbClient.fetchNextLeagueEvents("4328"))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
+        );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("The Sports DB 일별 경기 API 오류 응답이 발생하면 ContentException으로 변환한다.")
+  void fetchEventsByDay_fail_when_external_api_error_occurs() {
+    // Given
+    server.expect(once(), requestTo(
+            "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=2026-07-01&s=Baseball&l=4424"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withServerError());
+
+    // When & Then
+    assertThatThrownBy(() -> sportsDbClient.fetchEventsByDay(
+        LocalDate.of(2026, 7, 1),
+        "Baseball",
+        "4424"
+    )).isInstanceOfSatisfying(ContentException.class, exception ->
+        assertThat(exception.getErrorCode())
+            .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
+    );
+
+    server.verify();
   }
 }
