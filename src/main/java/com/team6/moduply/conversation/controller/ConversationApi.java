@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
+
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
@@ -279,7 +281,7 @@ public interface ConversationApi {
       )
   })
   ResponseEntity<CursorResponse<ConversationDto>> findConversations(
-      ConversationFindAllRequest request,
+      @ParameterObject ConversationFindAllRequest request,
       @Parameter(hidden = true) UUID currentUserId
   );
 }

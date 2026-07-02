@@ -8,6 +8,7 @@ import com.team6.moduply.conversation.service.ConversationService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -53,10 +54,13 @@ public class ConversationController implements ConversationApi {
     return ResponseEntity.ok(conversationService.findById(conversationId, currentUserId));
   }
 
+  /// @ModelAttribute는 springdoc-openai가 잘 풀지 못해서
+  /// swagger에 request: ConversationFindAllRequest 이렇게 나올 수 있다.
+  /// @ParameterObject를 붙여서 ConversationFindAllRequest내 필드가 swagger에 잘 풀어서 나오도록 해준다.
   @GetMapping
   @Override
   public ResponseEntity<CursorResponse<ConversationDto>> findConversations(
-      @ModelAttribute @Valid ConversationFindAllRequest request,
+      @ParameterObject @ModelAttribute @Valid ConversationFindAllRequest request,
       @AuthenticationPrincipal(expression = "userDto.id") UUID currentUserId
   ) {
     return ResponseEntity.ok(conversationService.findAll(request, currentUserId));
