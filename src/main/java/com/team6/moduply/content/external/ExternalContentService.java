@@ -162,10 +162,13 @@ public class ExternalContentService {
       List<Content> contents,
       Map<String, ExternalContentItem> itemByExternalApiId
   ) {
+    Map<String, Tag> tagByName = getOrCreateTagsByName(itemByExternalApiId.values());
+
     List<ContentTag> contentTags = contents.stream()
         .flatMap(content -> {
           ExternalContentItem item = itemByExternalApiId.get(content.getExternalApiId());
-          return getOrCreateTags(item.tags()).stream()
+          return normalizeTags(item.tags()).stream()
+              .map(tagByName::get)
               .map(tag -> new ContentTag(content, tag));
         })
         .toList();
@@ -173,6 +176,17 @@ public class ExternalContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
+  }
+
+  private Map<String, Tag> getOrCreateTagsByName(Collection<ExternalContentItem> items) {
+    List<String> allTagNames = items.stream()
+        .flatMap(item -> normalizeTags(item.tags()).stream())
+        .collect(Collectors.toCollection(LinkedHashSet::new))
+        .stream()
+        .toList();
+
+    return getOrCreateTags(allTagNames).stream()
+        .collect(Collectors.toMap(Tag::getTagName, Function.identity()));
   }
 
   private List<Tag> getOrCreateTags(List<String> tagNames) {

@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
@@ -130,6 +131,60 @@ class ExternalContentServiceTest {
     ArgumentCaptor<List<ContentTag>> contentTagCaptor = ArgumentCaptor.forClass(List.class);
     verify(contentTagRepository).saveAll(contentTagCaptor.capture());
     assertThat(contentTagCaptor.getValue()).hasSize(2);
+  }
+
+  @Test
+  @DisplayName("외부 콘텐츠 여러 건 저장 시 태그를 한 번만 조회한다.")
+  void importTmdbMovies_success_with_bulk_tag_lookup() {
+    // Given
+    TmdbMovieResponse firstMovie = new TmdbMovieResponse(
+        27205L,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        null,
+        null,
+        "2010-07-15"
+    );
+    TmdbMovieResponse secondMovie = new TmdbMovieResponse(
+        155L,
+        "The Dark Knight",
+        "배트맨과 조커의 대결",
+        null,
+        null,
+        "2008-07-18"
+    );
+    TmdbMovieResponse thirdMovie = new TmdbMovieResponse(
+        603L,
+        "The Matrix",
+        "가상 현실과 현실의 경계",
+        null,
+        null,
+        "1999-03-31"
+    );
+    Tag tmdbTag = new Tag("TMDB");
+    Tag movieTag = new Tag("movie");
+
+    given(contentRepository.findAllByExternalApiIdIn(anyCollection()))
+        .willReturn(List.of());
+    given(contentRepository.saveAll(anyList()))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(tagRepository.findAllByTagNameIn(anyCollection()))
+        .willReturn(List.of(tmdbTag, movieTag));
+
+    // When
+    ExternalContentImportResult result = externalContentService.importTmdbMovies(
+        List.of(firstMovie, secondMovie, thirdMovie)
+    );
+
+    // Then
+    assertThat(result.requestedCount()).isEqualTo(3);
+    assertThat(result.savedCount()).isEqualTo(3);
+    verify(tagRepository, times(1)).findAllByTagNameIn(anyCollection());
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<ContentTag>> contentTagCaptor = ArgumentCaptor.forClass(List.class);
+    verify(contentTagRepository).saveAll(contentTagCaptor.capture());
+    assertThat(contentTagCaptor.getValue()).hasSize(6);
   }
 
   @Test
