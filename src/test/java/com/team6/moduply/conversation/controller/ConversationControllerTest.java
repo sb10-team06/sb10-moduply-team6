@@ -179,6 +179,18 @@ class ConversationControllerTest {
   }
 
   @Test
+  @DisplayName("대화 목록 조회 요청 시 필수 쿼리 파라미터가 없으면 400 응답을 반환한다.")
+  void findConversations_fail_when_required_query_parameters_are_missing() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/conversations")
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isBadRequest());
+
+    verify(conversationService, never()).findAll(any(), eq(currentUserId));
+  }
+
+  @Test
   @DisplayName("특정 사용자와의 대화 조회 요청 시 사용자 ID가 없으면 400 응답을 반환한다.")
   void findConversationWithUser_fail_when_user_id_is_missing() throws Exception {
     UUID currentUserId = UUID.randomUUID();
