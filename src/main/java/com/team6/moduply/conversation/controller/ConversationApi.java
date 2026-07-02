@@ -325,6 +325,14 @@ public interface ConversationApi {
           )
       ),
       @ApiResponse(
+          responseCode = "404",
+          description = "대화방을 찾을 수 없음",
+          content = @Content(
+              mediaType = MediaType.ALL_VALUE,
+              schema = @Schema(implementation = ErrorResponse.class)
+          )
+      ),
+      @ApiResponse(
           responseCode = "500",
           description = "서버 오류",
           content = @Content(
