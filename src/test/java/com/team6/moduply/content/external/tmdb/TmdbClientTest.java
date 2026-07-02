@@ -35,9 +35,10 @@ class TmdbClientTest {
     properties.setImageBaseUrl("https://image.tmdb.org/t/p");
     properties.setReadAccessToken("test-token");
 
-    RestClient.Builder builder = RestClient.builder();
+    RestClient.Builder builder = RestClient.builder()
+        .baseUrl(properties.getBaseUrl());
     server = MockRestServiceServer.bindTo(builder).build();
-    RestClient restClient = new TmdbConfig().tmdbRestClient(builder, properties);
+    RestClient restClient = builder.build();
     tmdbClient = new TmdbClient(restClient, properties);
   }
 

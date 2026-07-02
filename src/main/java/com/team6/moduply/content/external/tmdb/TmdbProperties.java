@@ -14,4 +14,8 @@ public class TmdbProperties {
   private String imageBaseUrl = "https://image.tmdb.org/t/p";
 
   private String readAccessToken;
+
+  private int connectTimeoutMillis = 3000;
+
+  private int readTimeoutMillis = 10000;
 }

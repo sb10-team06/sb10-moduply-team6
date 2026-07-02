@@ -31,9 +31,10 @@ class SportsDbClientTest {
     properties.setBaseUrl("https://www.thesportsdb.com/api/v1/json");
     properties.setApiKey("123");
 
-    RestClient.Builder builder = RestClient.builder();
+    RestClient.Builder builder = RestClient.builder()
+        .baseUrl(properties.getBaseUrl());
     server = MockRestServiceServer.bindTo(builder).build();
-    RestClient restClient = new SportsDbConfig().sportsDbRestClient(builder, properties);
+    RestClient restClient = builder.build();
     sportsDbClient = new SportsDbClient(restClient, properties);
   }
 

@@ -12,4 +12,8 @@ public class SportsDbProperties {
   private String baseUrl = "https://www.thesportsdb.com/api/v1/json";
 
   private String apiKey;
+
+  private int connectTimeoutMillis = 3000;
+
+  private int readTimeoutMillis = 10000;
 }

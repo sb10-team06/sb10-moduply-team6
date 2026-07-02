@@ -6,12 +6,10 @@ import java.net.URI;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-@Component
 public class ExternalImageClient {
 
   private static final String DEFAULT_FILE_NAME = "external-thumbnail";

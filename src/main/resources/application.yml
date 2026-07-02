@@ -64,9 +64,16 @@ moduply:
       base-url: ${TMDB_BASE_URL:https://api.themoviedb.org/3}
       image-base-url: ${TMDB_IMAGE_BASE_URL:https://image.tmdb.org/t/p}
       read-access-token: ${TMDB_READ_ACCESS_TOKEN:}
+      connect-timeout-millis: ${TMDB_CONNECT_TIMEOUT_MILLIS:3000}
+      read-timeout-millis: ${TMDB_READ_TIMEOUT_MILLIS:10000}
     sports-db:
       base-url: ${SPORTS_DB_BASE_URL:https://www.thesportsdb.com/api/v1/json}
       api-key: ${SPORTS_DB_API_KEY:123}
+      connect-timeout-millis: ${SPORTS_DB_CONNECT_TIMEOUT_MILLIS:3000}
+      read-timeout-millis: ${SPORTS_DB_READ_TIMEOUT_MILLIS:10000}
+    image:
+      connect-timeout-millis: ${EXTERNAL_IMAGE_CONNECT_TIMEOUT_MILLIS:3000}
+      read-timeout-millis: ${EXTERNAL_IMAGE_READ_TIMEOUT_MILLIS:10000}
 
 jwt:
   key: ${JWT_SECRET_KEY}
