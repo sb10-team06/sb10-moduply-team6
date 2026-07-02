@@ -68,6 +68,30 @@ class ExternalContentManualImportServiceTest {
   }
 
   @Test
+  @DisplayName("TMDB 영화 응답 results가 null이면 빈 목록으로 저장 서비스를 호출한다.")
+  void importTmdbMovies_success_when_results_is_null() {
+    // Given
+    TmdbPageResponse<TmdbMovieResponse> response = new TmdbPageResponse<>(
+        1,
+        null,
+        10,
+        200
+    );
+    ExternalContentImportResult expected = new ExternalContentImportResult(0, 0, 0, 0, 0);
+
+    given(tmdbClient.fetchPopularMovies(1, "ko-KR")).willReturn(response);
+    given(externalContentService.importTmdbMovies(List.of())).willReturn(expected);
+
+    // When
+    ExternalContentImportResult result = externalContentManualImportService.importTmdbMovies(1, "ko-KR");
+
+    // Then
+    assertThat(result).isEqualTo(expected);
+    verify(tmdbClient).fetchPopularMovies(1, "ko-KR");
+    verify(externalContentService).importTmdbMovies(List.of());
+  }
+
+  @Test
   @DisplayName("TMDB TV 수동 수집 시 TMDB Client 호출 후 외부 콘텐츠 저장 서비스를 호출한다.")
   void importTmdbTvSeries_success_with_client_response() {
     // Given
@@ -118,6 +142,26 @@ class ExternalContentManualImportServiceTest {
     assertThat(result).isEqualTo(expected);
     verify(sportsDbClient).fetchNextLeagueEvents("4328");
     verify(externalContentService).importSportsEvents(response.events());
+  }
+
+  @Test
+  @DisplayName("The Sports DB 리그 경기 응답 events가 null이면 빈 목록으로 저장 서비스를 호출한다.")
+  void importSportsDbLeagueEvents_success_when_events_is_null() {
+    // Given
+    SportsDbEventListResponse response = new SportsDbEventListResponse(null);
+    ExternalContentImportResult expected = new ExternalContentImportResult(0, 0, 0, 0, 0);
+
+    given(sportsDbClient.fetchNextLeagueEvents("4328")).willReturn(response);
+    given(externalContentService.importSportsEvents(List.of())).willReturn(expected);
+
+    // When
+    ExternalContentImportResult result =
+        externalContentManualImportService.importSportsDbLeagueEvents("4328");
+
+    // Then
+    assertThat(result).isEqualTo(expected);
+    verify(sportsDbClient).fetchNextLeagueEvents("4328");
+    verify(externalContentService).importSportsEvents(List.of());
   }
 
   @Test

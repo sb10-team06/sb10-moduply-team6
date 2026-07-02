@@ -23,13 +23,13 @@ public class ExternalContentManualImportService {
   @PreAuthorize("hasRole('ADMIN')")
   public ExternalContentImportResult importTmdbMovies(int page, String language) {
     TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchPopularMovies(page, language);
-    return externalContentService.importTmdbMovies(response.results());
+    return externalContentService.importTmdbMovies(emptyIfNull(response.results()));
   }
 
   @PreAuthorize("hasRole('ADMIN')")
   public ExternalContentImportResult importTmdbTvSeries(int page, String language) {
     TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchPopularTvSeries(page, language);
-    return externalContentService.importTmdbTvSeries(response.results());
+    return externalContentService.importTmdbTvSeries(emptyIfNull(response.results()));
   }
 
   @PreAuthorize("hasRole('ADMIN')")
