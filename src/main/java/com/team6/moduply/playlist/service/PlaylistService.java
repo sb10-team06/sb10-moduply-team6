@@ -18,6 +18,7 @@ import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -215,7 +216,14 @@ public class PlaylistService {
         .subscriberId(subscriberId)
         .build();
 
-    playlistSubscriptionRepository.save(subscription);
+    try {
+      playlistSubscriptionRepository.save(subscription);
+    } catch (DataIntegrityViolationException e) {
+      throw new PlaylistException(
+          PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_ALREADY_EXISTS,
+          Map.of("playlistId", playlistId)
+      );
+    }
   }
 
   @Transactional
