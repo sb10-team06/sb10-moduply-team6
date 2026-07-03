@@ -398,6 +398,146 @@ class ConversationServiceTest {
   }
 
   @Test
+  @DisplayName("DM 목록을 오름차순으로 조회하면 정렬 방향이 응답에 반영된다.")
+  void findDms_success_with_ascending_sort() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    DirectMessageFindAllRequest request = new DirectMessageFindAllRequest(
+        null,
+        null,
+        10,
+        SortDirection.ASCENDING,
+        DirectMessageSortBy.createdAt
+    );
+    DirectMessageDto expected = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        null,
+        null,
+        "hello"
+    );
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
+    given(directMessageRepository.findAllWithCursor(request, conversationId))
+        .willReturn(List.of(directMessage));
+    given(directMessageRepository.countWithCondition(conversationId)).willReturn(1L);
+    given(directMessageMapper.toDto(
+        directMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    ))
+        .willReturn(expected);
+ㅇ
+    CursorResponse<DirectMessageDto> result = conversationService.findDms(
+        conversationId,
+        request,
+        currentUserId
+    );
+
+    assertThat(result.data()).containsExactly(expected);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.totalCount()).isEqualTo(1L);
+    assertThat(result.sortBy()).isEqualTo(DirectMessageSortBy.createdAt.name());
+    assertThat(result.sortDirection()).isEqualTo(SortDirection.ASCENDING);
+    verify(directMessageRepository).findAllWithCursor(request, conversationId);
+  }
+
+  @Test
+  @DisplayName("DM 목록을 커서와 보조 커서로 조회하면 다음 페이지 요청값이 저장소에 전달된다.")
+  void findDms_success_with_cursor_and_idAfter() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    UUID idAfter = UUID.randomUUID();
+    Instant cursor = Instant.parse("2026-01-01T00:00:00Z");
+    Instant createdAt = Instant.parse("2026-01-01T00:01:00Z");
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    DirectMessageFindAllRequest request = new DirectMessageFindAllRequest(
+        cursor.toString(),
+        idAfter,
+        10,
+        SortDirection.DESCENDING,
+        DirectMessageSortBy.createdAt
+    );
+    DirectMessageDto expected = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        null,
+        null,
+        "next page"
+    );
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
+    given(directMessageRepository.findAllWithCursor(request, conversationId))
+        .willReturn(List.of(directMessage));
+    given(directMessageRepository.countWithCondition(conversationId)).willReturn(1L);
+    given(directMessageMapper.toDto(
+        directMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    ))
+        .willReturn(expected);
+
+    CursorResponse<DirectMessageDto> result = conversationService.findDms(
+        conversationId,
+        request,
+        currentUserId
+    );
+
+    assertThat(result.data()).containsExactly(expected);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextIdAfter()).isNull();
+    assertThat(result.totalCount()).isEqualTo(1L);
+    assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+    verify(directMessageRepository).findAllWithCursor(
+        new DirectMessageFindAllRequest(
+            cursor.toString(),
+            idAfter,
+            10,
+            SortDirection.DESCENDING,
+            DirectMessageSortBy.createdAt
+        ),
+        conversationId
+    );
+  }
+
+  @Test
   @DisplayName("대화방 참여자가 아닌 사용자가 대화방을 조회하면 예외가 발생한다.")
   void findById_fail_when_not_participant() {
     UUID user1Id = UUID.randomUUID();
