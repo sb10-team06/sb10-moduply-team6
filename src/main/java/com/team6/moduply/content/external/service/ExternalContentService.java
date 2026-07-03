@@ -16,6 +16,7 @@ import com.team6.moduply.content.external.tmdb.dto.TmdbTvResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -140,6 +141,7 @@ public class ExternalContentService {
   ) {
     int imageSavedCount = 0;
     int imageFailedCount = 0;
+    List<Content> contentsWithImages = new ArrayList<>();
 
     for (Content content : contents) {
       ExternalContentItem item = itemByExternalApiId.get(content.getExternalApiId());
@@ -157,7 +159,8 @@ public class ExternalContentService {
             imageFile.contentType(),
             null
         );
-        linkContentImage(content, contentImg);
+        content.updateContentImg(contentImg);
+        contentsWithImages.add(content);
         imageSavedCount++;
       } catch (RuntimeException e) {
         imageFailedCount++;
@@ -170,15 +173,14 @@ public class ExternalContentService {
       }
     }
 
-    return new ExternalImageSaveResult(imageSavedCount, imageFailedCount);
-  }
+    if (!contentsWithImages.isEmpty()) {
+      transactionTemplate.execute(status -> {
+        contentRepository.saveAll(contentsWithImages);
+        return null;
+      });
+    }
 
-  private void linkContentImage(Content content, BinaryContent contentImg) {
-    transactionTemplate.execute(status -> {
-      content.updateContentImg(contentImg);
-      contentRepository.save(content);
-      return null;
-    });
+    return new ExternalImageSaveResult(imageSavedCount, imageFailedCount);
   }
 
   private void saveContentTags(
@@ -212,9 +214,7 @@ public class ExternalContentService {
         .collect(Collectors.toMap(Tag::getTagName, Function.identity()));
   }
 
-  private List<Tag> getOrCreateTags(List<String> tagNames) {
-    List<String> normalizedTagNames = normalizeTags(tagNames);
-
+  private List<Tag> getOrCreateTags(List<String> normalizedTagNames) {
     if (normalizedTagNames.isEmpty()) {
       return List.of();
     }
