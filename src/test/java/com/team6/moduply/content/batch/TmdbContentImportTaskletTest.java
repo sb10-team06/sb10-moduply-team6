@@ -2,6 +2,7 @@ package com.team6.moduply.content.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.content.external.dto.ExternalContentImportResult;
@@ -52,5 +53,31 @@ class TmdbContentImportTaskletTest {
     verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
     verify(externalContentImportService).importTmdbMovies(3, "ko-KR");
     verify(externalContentImportService).importTmdbTvSeries(3, "ko-KR");
+  }
+
+  @Test
+  @DisplayName("TMDB 콘텐츠 수집 중 일부 페이지가 실패해도 다음 페이지 수집을 계속한다.")
+  void execute_success_continue_when_tmdb_page_fails() throws Exception {
+    // Given
+    ExternalContentImportResult result = new ExternalContentImportResult(1, 1, 0, 1, 0);
+    given(properties.getTmdbPageStart()).willReturn(1);
+    given(properties.getTmdbPageEnd()).willReturn(2);
+    given(properties.getTmdbLanguage()).willReturn("ko-KR");
+    willThrow(new RuntimeException("tmdb movie failed"))
+        .given(externalContentImportService)
+        .importTmdbMovies(1, "ko-KR");
+    given(externalContentImportService.importTmdbTvSeries(1, "ko-KR")).willReturn(result);
+    given(externalContentImportService.importTmdbMovies(2, "ko-KR")).willReturn(result);
+    given(externalContentImportService.importTmdbTvSeries(2, "ko-KR")).willReturn(result);
+
+    // When
+    RepeatStatus status = tasklet.execute(null, null);
+
+    // Then
+    assertThat(status).isEqualTo(RepeatStatus.FINISHED);
+    verify(externalContentImportService).importTmdbMovies(1, "ko-KR");
+    verify(externalContentImportService).importTmdbTvSeries(1, "ko-KR");
+    verify(externalContentImportService).importTmdbMovies(2, "ko-KR");
+    verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
   }
 }

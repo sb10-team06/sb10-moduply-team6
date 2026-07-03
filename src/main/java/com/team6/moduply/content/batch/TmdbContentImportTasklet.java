@@ -28,19 +28,27 @@ public class TmdbContentImportTasklet implements Tasklet {
     int tvSkippedCount = 0;
 
     for (int page = pageStart; page <= pageEnd; page++) {
-      ExternalContentImportResult movieResult = externalContentImportService.importTmdbMovies(
-          page,
-          properties.getTmdbLanguage()
-      );
-      ExternalContentImportResult tvResult = externalContentImportService.importTmdbTvSeries(
-          page,
-          properties.getTmdbLanguage()
-      );
+      try {
+        ExternalContentImportResult movieResult = externalContentImportService.importTmdbMovies(
+            page,
+            properties.getTmdbLanguage()
+        );
+        movieSavedCount += movieResult.savedCount();
+        movieSkippedCount += movieResult.skippedCount();
+      } catch (RuntimeException e) {
+        log.warn("TMDB 영화 수집 실패. page={}, language={}", page, properties.getTmdbLanguage(), e);
+      }
 
-      movieSavedCount += movieResult.savedCount();
-      movieSkippedCount += movieResult.skippedCount();
-      tvSavedCount += tvResult.savedCount();
-      tvSkippedCount += tvResult.skippedCount();
+      try {
+        ExternalContentImportResult tvResult = externalContentImportService.importTmdbTvSeries(
+            page,
+            properties.getTmdbLanguage()
+        );
+        tvSavedCount += tvResult.savedCount();
+        tvSkippedCount += tvResult.skippedCount();
+      } catch (RuntimeException e) {
+        log.warn("TMDB TV 수집 실패. page={}, language={}", page, properties.getTmdbLanguage(), e);
+      }
     }
 
     log.info("TMDB 콘텐츠 수집 배치 완료: pageStart={}, pageEnd={}, movieSaved={}, "

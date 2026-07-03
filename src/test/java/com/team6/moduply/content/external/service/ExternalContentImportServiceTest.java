@@ -126,6 +126,31 @@ class ExternalContentImportServiceTest {
   }
 
   @Test
+  @DisplayName("TMDB TV 응답 results가 null이면 빈 목록으로 저장 서비스를 호출한다.")
+  void importTmdbTvSeries_success_when_results_is_null() {
+    // Given
+    TmdbPageResponse<TmdbTvResponse> response = new TmdbPageResponse<>(
+        1,
+        null,
+        10,
+        200
+    );
+    ExternalContentImportResult expected = new ExternalContentImportResult(0, 0, 0, 0, 0);
+
+    given(tmdbClient.fetchPopularTvSeries(1, "ko-KR")).willReturn(response);
+    given(externalContentService.importTmdbTvSeries(List.of())).willReturn(expected);
+
+    // When
+    ExternalContentImportResult result =
+        externalContentImportService.importTmdbTvSeries(1, "ko-KR");
+
+    // Then
+    assertThat(result).isEqualTo(expected);
+    verify(tmdbClient).fetchPopularTvSeries(1, "ko-KR");
+    verify(externalContentService).importTmdbTvSeries(List.of());
+  }
+
+  @Test
   @DisplayName("The Sports DB 리그 경기 수집 시 저장 서비스를 호출한다.")
   void importSportsDbLeagueEvents_success_with_client_response() {
     // Given

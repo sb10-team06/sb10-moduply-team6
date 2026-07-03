@@ -30,19 +30,30 @@ public class SportsDbContentImportTasklet implements Tasklet {
     List<Integer> dayOffsets = properties.getSportsDbDayOffsets();
 
     for (String leagueId : leagueIds) {
-      ExternalContentImportResult leagueResult =
-          externalContentImportService.importSportsDbLeagueEvents(leagueId);
-      leagueSavedCount += leagueResult.savedCount();
-      leagueSkippedCount += leagueResult.skippedCount();
+      try {
+        ExternalContentImportResult leagueResult =
+            externalContentImportService.importSportsDbLeagueEvents(leagueId);
+        leagueSavedCount += leagueResult.savedCount();
+        leagueSkippedCount += leagueResult.skippedCount();
+      } catch (RuntimeException e) {
+        log.warn("The Sports DB 리그 경기 수집 실패. leagueId={}", leagueId, e);
+      }
 
       for (Integer dayOffset : dayOffsets) {
-        ExternalContentImportResult dayResult = externalContentImportService.importSportsDbDayEvents(
-            LocalDate.now().plusDays(dayOffset),
-            properties.getSportsDbSport(),
-            leagueId
-        );
-        daySavedCount += dayResult.savedCount();
-        daySkippedCount += dayResult.skippedCount();
+        LocalDate targetDate = LocalDate.now().plusDays(dayOffset);
+        try {
+          ExternalContentImportResult dayResult =
+              externalContentImportService.importSportsDbDayEvents(
+                  targetDate,
+                  properties.getSportsDbSport(),
+                  leagueId
+              );
+          daySavedCount += dayResult.savedCount();
+          daySkippedCount += dayResult.skippedCount();
+        } catch (RuntimeException e) {
+          log.warn("The Sports DB 일별 경기 수집 실패. date={}, sport={}, leagueId={}",
+              targetDate, properties.getSportsDbSport(), leagueId, e);
+        }
       }
     }
 
