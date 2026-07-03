@@ -1,12 +1,15 @@
 package com.team6.moduply.common.config;
 
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
-import com.team6.moduply.auth.handler.JwtLoginSuccessHandler;
-import com.team6.moduply.auth.handler.JwtLogoutHandler;
-import com.team6.moduply.auth.handler.ModuPlyAccessDeniedHandler;
-import com.team6.moduply.auth.handler.ModuPlyAuthenticationEntryPoint;
-import com.team6.moduply.auth.handler.ModuPlyLoginFailureHandler;
-import com.team6.moduply.auth.handler.SpaCsrfTokenRequestHandler;
+import com.team6.moduply.auth.handler.login.JwtLoginSuccessHandler;
+import com.team6.moduply.auth.handler.logout.JwtLogoutHandler;
+import com.team6.moduply.auth.handler.exception.ModuPlyAccessDeniedHandler;
+import com.team6.moduply.auth.handler.exception.ModuPlyAuthenticationEntryPoint;
+import com.team6.moduply.auth.handler.login.ModuPlyLoginFailureHandler;
+import com.team6.moduply.auth.handler.csrf.SpaCsrfTokenRequestHandler;
+import com.team6.moduply.auth.oauth2.handler.OAuth2FailureHandler;
+import com.team6.moduply.auth.oauth2.handler.OAuth2SuccessHandler;
+import com.team6.moduply.auth.oauth2.ModuplyOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,7 +38,9 @@ public class SecurityConfig {
   private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
   private final CsrfTokenRepository csrfTokenRepository;
   private final SpaCsrfTokenRequestHandler spaCsrfTokenRequestHandler;
-
+  private final ModuplyOAuth2UserService moduplyOAuth2UserService;
+  private final OAuth2SuccessHandler oAuth2SuccessHandler;
+  private final OAuth2FailureHandler oAuth2FailureHandler;
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.
@@ -84,6 +89,11 @@ public class SecurityConfig {
                 // 그외는 모두 인증 요구
                 .anyRequest().authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .oauth2Login(oauth2 -> oauth2
+            .userInfoEndpoint(userInfo -> userInfo
+                .userService(moduplyOAuth2UserService))
+            .successHandler(oAuth2SuccessHandler)
+            .failureHandler(oAuth2FailureHandler))
         .exceptionHandling(exception ->
             exception.accessDeniedHandler(moduPlyAccessDeniedHandler)
                     .authenticationEntryPoint(moduPlyAuthenticationEntryPoint));

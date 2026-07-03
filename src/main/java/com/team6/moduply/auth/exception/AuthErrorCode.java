@@ -21,7 +21,9 @@ public enum AuthErrorCode implements ErrorCode {
       "JWT 비밀키는 HS256 서명에 필요한 최소 길이를 충족해야 합니다."),
   INVALID_TEMP_PASSWORD_EXCEPTION(HttpStatus.INTERNAL_SERVER_ERROR, "auth11",
       "임시 비밀번호의 길이는 최소 8자리 이상이어야 합니다."),
-  COMPROMISED_TOKEN_EXCEPTION(HttpStatus.UNAUTHORIZED, "auth12", "인증에 실패했거나 유효하지 않은 토큰입니다");
+  COMPROMISED_TOKEN_EXCEPTION(HttpStatus.UNAUTHORIZED, "auth12", "인증에 실패했거나 유효하지 않은 토큰입니다"),
+  INVALID_PROVIDER_EXCEPTION(HttpStatus.BAD_REQUEST, "auth13", "지원하지 않는 소셜 로그인 제공자입니다."),
+  DUPLICATED_ACCOUNT_EXCEPTION(HttpStatus.BAD_REQUEST, "auth14", "이미 가입된 계정입니다.");
 
   private final HttpStatus httpStatus;
   private final String code;

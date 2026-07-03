@@ -190,7 +190,7 @@ public class UserService {
             "userId", userId
         )));
 
-    String newEncodedPassword = passwordEncoder.encode(request.getNewPassword());
+    String newEncodedPassword = passwordEncoder.encode(request.getPassword());
     user.updateEncodedPassword(newEncodedPassword);
 
     redisUtil.deleteData(RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail()));

@@ -1,8 +1,9 @@
 package com.team6.moduply.user.entity;
 
-import com.team6.moduply.common.baseentity.BaseEntity;
+import com.team6.moduply.auth.exception.AuthErrorCode;
+import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
-import com.team6.moduply.user.enums.Provider;
+import com.team6.moduply.auth.oauth2.enums.Provider;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.Map;
 import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -42,7 +44,9 @@ public class SocialAccount extends BaseUpdatableEntity {
     this.user = Objects.requireNonNull(user, "user must not be null");
     // 추후 커스텀 예외로 변경
     if (!StringUtils.hasText(providerId)) {
-      throw new IllegalArgumentException("providerId must not be blank");
+      throw new AuthException(AuthErrorCode.INVALID_PROVIDER_EXCEPTION, Map.of(
+          "reason", "providerId must not be blank"
+      ));
     }
 
     this.providerId = providerId;

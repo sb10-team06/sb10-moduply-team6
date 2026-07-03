@@ -45,6 +45,12 @@ public class ModuPlyLoginFailureHandler implements AuthenticationFailureHandler 
   }
 
   private AuthException resolveAuthException(AuthenticationException authenticationException) {
+    Throwable cause = authenticationException.getCause();
+
+    if (authenticationException instanceof LockedException || cause instanceof LockedException) {
+      return new AuthException(AuthErrorCode.ACCOUNT_LOCKED_EXCEPTION, Collections.emptyMap());
+    }
+
     if (authenticationException instanceof BadCredentialsException) {
       return new AuthException(AuthErrorCode.BAD_CREDENTIALS_EXCEPTION, Collections.emptyMap());
     }
@@ -52,10 +58,6 @@ public class ModuPlyLoginFailureHandler implements AuthenticationFailureHandler 
     if (authenticationException instanceof UsernameNotFoundException
         || authenticationException instanceof InternalAuthenticationServiceException) {
       return new AuthException(AuthErrorCode.USERNAME_NOT_FOUND_EXCEPTION, Collections.emptyMap());
-    }
-
-    if (authenticationException instanceof LockedException) {
-      return new AuthException(AuthErrorCode.ACCOUNT_LOCKED_EXCEPTION, Collections.emptyMap());
     }
 
     return new AuthException(AuthErrorCode.BAD_CREDENTIALS_EXCEPTION, Map.of(
