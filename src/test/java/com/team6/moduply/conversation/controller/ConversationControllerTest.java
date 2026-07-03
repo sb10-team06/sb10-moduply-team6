@@ -332,6 +332,28 @@ class ConversationControllerTest {
 
     verify(conversationService).findDms(eq(conversationId), any(), eq(currentUserId));
   }
+  @Test
+  @DisplayName("DM 목록 조회 요청 시 대화방이 존재하지 않으면 404 응답을 반환한다.")
+  void findDms_fail_when_conversation_not_found() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+
+    given(conversationService.findDms(eq(conversationId), any(), eq(currentUserId)))
+            .willThrow(new ConversationException(
+                    ConversationErrorCode.CONVERSATION_NOT_FOUND,
+                    Map.of("conversationId", conversationId)
+            ));
+
+    mockMvc.perform(get("/api/conversations/{conversationId}/direct-messages", conversationId)
+                    .queryParam("limit", "10")
+                    .queryParam("sortDirection", "DESCENDING")
+                    .queryParam("sortBy", "createdAt")
+                    .with(user(userDetails(currentUserId))))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value(ConversationErrorCode.CONVERSATION_NOT_FOUND.getCode()));
+
+    verify(conversationService).findDms(eq(conversationId), any(), eq(currentUserId));
+  }
 
   @Test
   @DisplayName("특정 사용자와의 대화 조회 요청 시 사용자 ID가 없으면 400 응답을 반환한다.")
