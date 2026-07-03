@@ -80,4 +80,30 @@ class TmdbContentImportTaskletTest {
     verify(externalContentImportService).importTmdbMovies(2, "ko-KR");
     verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
   }
+
+  @Test
+  @DisplayName("TMDB TV 수집이 실패해도 다음 페이지 수집을 계속한다.")
+  void execute_success_continue_when_tmdb_tv_fails() throws Exception {
+    // Given
+    ExternalContentImportResult result = new ExternalContentImportResult(1, 1, 0, 1, 0);
+    given(properties.getTmdbPageStart()).willReturn(1);
+    given(properties.getTmdbPageEnd()).willReturn(2);
+    given(properties.getTmdbLanguage()).willReturn("ko-KR");
+    given(externalContentImportService.importTmdbMovies(1, "ko-KR")).willReturn(result);
+    willThrow(new RuntimeException("tmdb tv failed"))
+        .given(externalContentImportService)
+        .importTmdbTvSeries(1, "ko-KR");
+    given(externalContentImportService.importTmdbMovies(2, "ko-KR")).willReturn(result);
+    given(externalContentImportService.importTmdbTvSeries(2, "ko-KR")).willReturn(result);
+
+    // When
+    RepeatStatus status = tasklet.execute(null, null);
+
+    // Then
+    assertThat(status).isEqualTo(RepeatStatus.FINISHED);
+    verify(externalContentImportService).importTmdbMovies(1, "ko-KR");
+    verify(externalContentImportService).importTmdbTvSeries(1, "ko-KR");
+    verify(externalContentImportService).importTmdbMovies(2, "ko-KR");
+    verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
+  }
 }

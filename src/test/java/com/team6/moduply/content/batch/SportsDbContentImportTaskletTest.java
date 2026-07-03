@@ -109,4 +109,38 @@ class SportsDbContentImportTaskletTest {
     verify(externalContentImportService).importSportsDbLeagueEvents("4335");
     verify(externalContentImportService).importSportsDbDayEvents(today, "Soccer", "4335");
   }
+
+  @Test
+  @DisplayName("The Sports DB 일별 수집이 실패해도 다음 일자와 리그 수집을 계속한다.")
+  void execute_success_continue_when_sports_db_day_fails() throws Exception {
+    // Given
+    ExternalContentImportResult result = new ExternalContentImportResult(1, 1, 0, 1, 0);
+    LocalDate today = LocalDate.now();
+    given(properties.getSportsDbLeagueIds()).willReturn(List.of("4328", "4335"));
+    given(properties.getSportsDbDayOffsets()).willReturn(List.of(0, 1));
+    given(properties.getSportsDbSport()).willReturn("Soccer");
+    given(externalContentImportService.importSportsDbLeagueEvents("4328")).willReturn(result);
+    willThrow(new RuntimeException("sports day failed"))
+        .given(externalContentImportService)
+        .importSportsDbDayEvents(today, "Soccer", "4328");
+    given(externalContentImportService.importSportsDbDayEvents(today.plusDays(1), "Soccer", "4328"))
+        .willReturn(result);
+    given(externalContentImportService.importSportsDbLeagueEvents("4335")).willReturn(result);
+    given(externalContentImportService.importSportsDbDayEvents(today, "Soccer", "4335"))
+        .willReturn(result);
+    given(externalContentImportService.importSportsDbDayEvents(today.plusDays(1), "Soccer", "4335"))
+        .willReturn(result);
+
+    // When
+    RepeatStatus status = tasklet.execute(null, null);
+
+    // Then
+    assertThat(status).isEqualTo(RepeatStatus.FINISHED);
+    verify(externalContentImportService).importSportsDbLeagueEvents("4328");
+    verify(externalContentImportService).importSportsDbDayEvents(today, "Soccer", "4328");
+    verify(externalContentImportService).importSportsDbDayEvents(today.plusDays(1), "Soccer", "4328");
+    verify(externalContentImportService).importSportsDbLeagueEvents("4335");
+    verify(externalContentImportService).importSportsDbDayEvents(today, "Soccer", "4335");
+    verify(externalContentImportService).importSportsDbDayEvents(today.plusDays(1), "Soccer", "4335");
+  }
 }
