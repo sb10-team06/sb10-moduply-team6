@@ -446,7 +446,6 @@ class ConversationServiceTest {
         withUserSummary
     ))
         .willReturn(expected);
-ㅇ
     CursorResponse<DirectMessageDto> result = conversationService.findDms(
         conversationId,
         request,
