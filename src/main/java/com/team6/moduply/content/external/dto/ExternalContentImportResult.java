@@ -1,4 +1,4 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.dto;
 
 public record ExternalContentImportResult(
     int requestedCount,

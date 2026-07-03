@@ -8,8 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
-import com.team6.moduply.content.external.ExternalContentManualImportService;
-import com.team6.moduply.content.external.ExternalContentService;
+import com.team6.moduply.content.external.service.ExternalContentManualImportService;
+import com.team6.moduply.content.external.service.ExternalContentService;
 import com.team6.moduply.content.external.sportsdb.SportsDbClient;
 import com.team6.moduply.content.external.tmdb.TmdbClient;
 import org.junit.jupiter.api.DisplayName;

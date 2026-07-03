@@ -1,4 +1,4 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.image;
 
 import lombok.Getter;
 import lombok.Setter;

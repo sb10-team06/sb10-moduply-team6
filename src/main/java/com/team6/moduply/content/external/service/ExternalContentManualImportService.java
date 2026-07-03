@@ -1,5 +1,6 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.service;
 
+import com.team6.moduply.content.external.dto.ExternalContentImportResult;
 import com.team6.moduply.content.external.sportsdb.SportsDbClient;
 import com.team6.moduply.content.external.sportsdb.dto.SportsDbEventListResponse;
 import com.team6.moduply.content.external.tmdb.TmdbClient;

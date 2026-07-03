@@ -1,7 +1,8 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.image;
 
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
+import com.team6.moduply.content.external.dto.ExternalImageFile;
 import java.net.URI;
 import java.util.Map;
 import java.util.Set;

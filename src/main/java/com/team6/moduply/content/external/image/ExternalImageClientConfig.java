@@ -1,4 +1,4 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.image;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

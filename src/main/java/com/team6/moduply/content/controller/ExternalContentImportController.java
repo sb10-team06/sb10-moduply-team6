@@ -1,7 +1,7 @@
 package com.team6.moduply.content.controller;
 
-import com.team6.moduply.content.external.ExternalContentImportResult;
-import com.team6.moduply.content.external.ExternalContentManualImportService;
+import com.team6.moduply.content.external.dto.ExternalContentImportResult;
+import com.team6.moduply.content.external.service.ExternalContentManualImportService;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;

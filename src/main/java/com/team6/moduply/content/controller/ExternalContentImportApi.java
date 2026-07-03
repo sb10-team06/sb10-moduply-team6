@@ -1,7 +1,7 @@
 package com.team6.moduply.content.controller;
 
 import com.team6.moduply.common.error.ErrorResponse;
-import com.team6.moduply.content.external.ExternalContentImportResult;
+import com.team6.moduply.content.external.dto.ExternalContentImportResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

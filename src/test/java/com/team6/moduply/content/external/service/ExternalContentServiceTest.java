@@ -1,4 +1,4 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,6 +21,10 @@ import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
+import com.team6.moduply.content.external.dto.ExternalContentImportResult;
+import com.team6.moduply.content.external.dto.ExternalImageFile;
+import com.team6.moduply.content.external.image.ExternalImageClient;
+import com.team6.moduply.content.external.mapper.ExternalContentMapper;
 import com.team6.moduply.content.external.tmdb.TmdbProperties;
 import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
 import com.team6.moduply.content.repository.ContentRepository;

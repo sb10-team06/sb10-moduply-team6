@@ -1,8 +1,9 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.mapper;
 
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
+import com.team6.moduply.content.external.dto.ExternalContentItem;
 import com.team6.moduply.content.external.sportsdb.dto.SportsDbEventResponse;
 import com.team6.moduply.content.external.tmdb.TmdbProperties;
 import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;

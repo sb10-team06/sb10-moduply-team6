@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
-import com.team6.moduply.content.external.ExternalContentImportResult;
-import com.team6.moduply.content.external.ExternalContentManualImportService;
+import com.team6.moduply.content.external.dto.ExternalContentImportResult;
+import com.team6.moduply.content.external.service.ExternalContentManualImportService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

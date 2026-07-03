@@ -1,10 +1,15 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
+import com.team6.moduply.content.external.dto.ExternalContentImportResult;
+import com.team6.moduply.content.external.dto.ExternalContentItem;
+import com.team6.moduply.content.external.dto.ExternalImageFile;
+import com.team6.moduply.content.external.image.ExternalImageClient;
+import com.team6.moduply.content.external.mapper.ExternalContentMapper;
 import com.team6.moduply.content.external.sportsdb.dto.SportsDbEventResponse;
 import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
 import com.team6.moduply.content.external.tmdb.dto.TmdbTvResponse;

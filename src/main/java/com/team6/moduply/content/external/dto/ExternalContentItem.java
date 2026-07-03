@@ -1,4 +1,4 @@
-package com.team6.moduply.content.external;
+package com.team6.moduply.content.external.dto;
 
 import com.team6.moduply.content.enums.ContentType;
 import java.util.List;
