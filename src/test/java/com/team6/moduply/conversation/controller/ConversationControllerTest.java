@@ -126,6 +126,28 @@ class ConversationControllerTest {
   }
 
   @Test
+  @DisplayName("존재하지 않는 대화방을 조회하면 404 응답을 반환한다.")
+  void findConversationById_fail_when_conversation_not_found() throws Exception {
+    UUID currentUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+
+    given(conversationService.findById(eq(conversationId), eq(currentUserId)))
+        .willThrow(new ConversationException(
+            ConversationErrorCode.CONVERSATION_NOT_FOUND,
+            Map.of("conversationId", conversationId)
+        ));
+
+    mockMvc.perform(get("/api/conversations/{conversationId}", conversationId)
+            .with(user(userDetails(currentUserId))))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value(ConversationErrorCode.CONVERSATION_NOT_FOUND.getCode()))
+        .andExpect(jsonPath("$.message").value(
+            ConversationErrorCode.CONVERSATION_NOT_FOUND.getMessage()));
+
+    verify(conversationService).findById(conversationId, currentUserId);
+  }
+
+  @Test
   @DisplayName("특정 사용자와의 대화 조회 요청 시 인증 사용자 ID와 대상 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
   void findConversationWithUser_success_with_authenticated_principal() throws Exception {
     UUID currentUserId = UUID.randomUUID();
