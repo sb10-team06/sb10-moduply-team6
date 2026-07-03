@@ -1,5 +1,6 @@
 package com.team6.moduply.common.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Duration;
 import org.springframework.cache.CacheManager;
@@ -68,7 +69,7 @@ public class CacheConfig {
     return cacheManager;
   }
 
-  private com.github.benmanes.caffeine.cache.Cache<Object, Object> cache(
+  private Cache<Object, Object> cache(
       Duration ttl,
       long maximumSize
   ) {
