@@ -6,8 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
@@ -21,13 +23,19 @@ import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.conversation.service.ConversationService;
 import com.team6.moduply.directmessage.entity.DirectMessage;
+import com.team6.moduply.directmessage.dto.DirectMessageDto;
+import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
+import com.team6.moduply.directmessage.dto.DirectMessageSortBy;
 import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
 import com.team6.moduply.directmessage.exception.DirectMessageException;
+import com.team6.moduply.directmessage.mapper.DirectMessageMapper;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
+import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +67,15 @@ class ConversationServiceTest {
 
   @Mock
   private ConversationMapper conversationMapper;
+
+  @Mock
+  private DirectMessageMapper directMessageMapper;
+
+  @Mock
+  private BinaryContentService binaryContentService;
+
+  @Mock
+  private UserMapper userMapper;
 
   @Test
   @DisplayName("대화 상대가 존재하고 기존 대화방이 없으면 새 대화방을 생성한다.")
@@ -306,6 +323,216 @@ class ConversationServiceTest {
     verify(directMessageRepository, never()).existsByConversationIdAndSenderIdNotAndReadFalse(
         any(),
         any()
+    );
+  }
+
+  @Test
+  @DisplayName("DM 목록을 조회하면 대화 참여자의 DM 목록을 커서 응답으로 반환한다.")
+  void findDms_success_with_participant() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    DirectMessage sentinelDirectMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    DirectMessageFindAllRequest request = new DirectMessageFindAllRequest(
+        null,
+        null,
+        1,
+        SortDirection.DESCENDING,
+        DirectMessageSortBy.createdAt
+    );
+    DirectMessageDto expected = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        null,
+        null,
+        "hello"
+    );
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
+    given(directMessageRepository.findAllWithCursor(request, conversationId))
+        .willReturn(List.of(directMessage, sentinelDirectMessage));
+    given(directMessageRepository.countWithCondition(conversationId)).willReturn(2L);
+    given(directMessage.getId()).willReturn(directMessageId);
+    given(directMessage.getCreatedAt()).willReturn(createdAt);
+    given(directMessageMapper.toDto(
+        directMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    ))
+        .willReturn(expected);
+
+    CursorResponse<DirectMessageDto> result = conversationService.findDms(
+        conversationId,
+        request,
+        currentUserId
+    );
+
+    assertThat(result.data()).containsExactly(expected);
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo(createdAt.toString());
+    assertThat(result.nextIdAfter()).isEqualTo(directMessageId);
+    assertThat(result.totalCount()).isEqualTo(2L);
+    assertThat(result.sortBy()).isEqualTo(DirectMessageSortBy.createdAt.name());
+    assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+    verify(binaryContentService, times(2)).generateUrl(null);
+    verify(userMapper).toSummaryDto(currentUser, null);
+    verify(userMapper).toSummaryDto(withUser, null);
+  }
+
+  @Test
+  @DisplayName("DM 목록을 오름차순으로 조회하면 정렬 방향이 응답에 반영된다.")
+  void findDms_success_with_ascending_sort() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    DirectMessageFindAllRequest request = new DirectMessageFindAllRequest(
+        null,
+        null,
+        10,
+        SortDirection.ASCENDING,
+        DirectMessageSortBy.createdAt
+    );
+    DirectMessageDto expected = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        null,
+        null,
+        "hello"
+    );
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
+    given(directMessageRepository.findAllWithCursor(request, conversationId))
+        .willReturn(List.of(directMessage));
+    given(directMessageRepository.countWithCondition(conversationId)).willReturn(1L);
+    given(directMessageMapper.toDto(
+        directMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    ))
+        .willReturn(expected);
+    CursorResponse<DirectMessageDto> result = conversationService.findDms(
+        conversationId,
+        request,
+        currentUserId
+    );
+
+    assertThat(result.data()).containsExactly(expected);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.totalCount()).isEqualTo(1L);
+    assertThat(result.sortBy()).isEqualTo(DirectMessageSortBy.createdAt.name());
+    assertThat(result.sortDirection()).isEqualTo(SortDirection.ASCENDING);
+    verify(directMessageRepository).findAllWithCursor(request, conversationId);
+  }
+
+  @Test
+  @DisplayName("DM 목록을 커서와 보조 커서로 조회하면 다음 페이지 요청값이 저장소에 전달된다.")
+  void findDms_success_with_cursor_and_idAfter() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    UUID idAfter = UUID.randomUUID();
+    Instant cursor = Instant.parse("2026-01-01T00:00:00Z");
+    Instant createdAt = Instant.parse("2026-01-01T00:01:00Z");
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    DirectMessageFindAllRequest request = new DirectMessageFindAllRequest(
+        cursor.toString(),
+        idAfter,
+        10,
+        SortDirection.DESCENDING,
+        DirectMessageSortBy.createdAt
+    );
+    DirectMessageDto expected = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        null,
+        null,
+        "next page"
+    );
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
+    given(directMessageRepository.findAllWithCursor(request, conversationId))
+        .willReturn(List.of(directMessage));
+    given(directMessageRepository.countWithCondition(conversationId)).willReturn(1L);
+    given(directMessageMapper.toDto(
+        directMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    ))
+        .willReturn(expected);
+
+    CursorResponse<DirectMessageDto> result = conversationService.findDms(
+        conversationId,
+        request,
+        currentUserId
+    );
+
+    assertThat(result.data()).containsExactly(expected);
+    assertThat(result.hasNext()).isFalse();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextIdAfter()).isNull();
+    assertThat(result.totalCount()).isEqualTo(1L);
+    assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
+    verify(directMessageRepository).findAllWithCursor(
+        new DirectMessageFindAllRequest(
+            cursor.toString(),
+            idAfter,
+            10,
+            SortDirection.DESCENDING,
+            DirectMessageSortBy.createdAt
+        ),
+        conversationId
     );
   }
 

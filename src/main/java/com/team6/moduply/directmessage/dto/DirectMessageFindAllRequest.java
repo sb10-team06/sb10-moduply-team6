@@ -1,4 +1,4 @@
-package com.team6.moduply.conversation.dto;
+package com.team6.moduply.directmessage.dto;
 
 import com.team6.moduply.common.pagination.SortDirection;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -10,11 +10,8 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
-@Schema(description = "대화 목록 조회 요청")
-public record ConversationFindAllRequest(
-    @Schema(description = "검색 키워드")
-    String keywordLike,
-
+@Schema(description = "DM 목록 조회 요청")
+public record DirectMessageFindAllRequest(
     @Schema(description = "커서")
     String cursor,
 
@@ -33,7 +30,7 @@ public record ConversationFindAllRequest(
 
     @NotNull
     @Schema(description = "정렬 기준")
-    ConversationSortBy sortBy
+    DirectMessageSortBy sortBy
 ) {
 
   @AssertTrue(message = "cursor와 idAfter는 함께 전달해야 합니다.")

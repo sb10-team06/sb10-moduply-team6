@@ -1,6 +1,7 @@
 package com.team6.moduply.conversation.service;
 
 import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
 import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
@@ -10,12 +11,17 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.directmessage.entity.DirectMessage;
+import com.team6.moduply.directmessage.dto.DirectMessageDto;
+import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
 import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
 import com.team6.moduply.directmessage.exception.DirectMessageException;
+import com.team6.moduply.directmessage.mapper.DirectMessageMapper;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
+import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.Collections;
 import java.util.HashSet;
@@ -40,6 +46,9 @@ public class ConversationService {
   private final DirectMessageRepository directMessageRepository;
   private final UserRepository userRepository;
   private final ConversationMapper conversationMapper;
+  private final DirectMessageMapper directMessageMapper;
+  private final BinaryContentService binaryContentService;
+  private final UserMapper userMapper;
 
   @Transactional
   public ConversationDto create(ConversationCreateRequest request, UUID currentUserId) {
@@ -235,14 +244,82 @@ public class ConversationService {
     log.debug("DM 읽음 처리 완료. directMessageId={}", directMessageId);
   }
 
-  /// 대화방 돌면서 대화에 참여하고있는 상대방 ID들를 Set으로 return
+  @Transactional(readOnly = true)
+  public CursorResponse<DirectMessageDto> findDms(
+      UUID conversationId,
+      DirectMessageFindAllRequest request,
+      UUID currentUserId
+  ) {
+    log.debug(
+        "DM 목록 조회 처리 시작. conversationId={}, currentUserId={}, cursor={}, idAfter={}, limit={}, sortBy={}, sortDirection={}",
+        conversationId,
+        currentUserId,
+        request.cursor(),
+        request.idAfter(),
+        request.limit(),
+        request.sortBy(),
+        request.sortDirection()
+    );
+    Conversation conversation = conversationRepository.findById(conversationId)
+        .orElseThrow(() -> new ConversationException(
+            ConversationErrorCode.CONVERSATION_NOT_FOUND,
+            Map.of("conversationId", conversationId)
+        ));
+    validateParticipant(conversation, currentUserId);
+
+    User currentUser = findUser(currentUserId);
+    User withUser = findUser(resolveWithUserId(conversation, currentUserId));
+    UserSummaryDto currentUserSummary = toUserSummaryDto(currentUser);
+    UserSummaryDto withUserSummary = toUserSummaryDto(withUser);
+    List<DirectMessage> directMessages = directMessageRepository.findAllWithCursor(
+        request,
+        conversationId
+    );
+    long totalCount = directMessageRepository.countWithCondition(conversationId);
+    boolean hasNext = directMessages.size() > request.limit();
+
+    if (hasNext) {
+      directMessages = directMessages.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      DirectMessage last = directMessages.get(directMessages.size() - 1);
+      nextCursor = last.getCreatedAt().toString();
+      nextIdAfter = last.getId();
+    }
+
+    List<DirectMessageDto> data = directMessages.stream()
+        .map(directMessage -> directMessageMapper.toDto(
+            directMessage,
+            conversation,
+            currentUserId,
+            currentUserSummary,
+            withUserSummary
+        ))
+        .toList();
+
+    CursorResponse<DirectMessageDto> response = new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
+    log.debug("DM 목록 조회 처리 완료. count={}, hasNext={}", data.size(), hasNext);
+    return response;
+  }
+
   private Set<UUID> resolveWithUserIds(List<Conversation> conversations, UUID currentUserId) {
     return conversations.stream()
         .map(conversation -> resolveWithUserId(conversation, currentUserId))
         .collect(Collectors.toSet());
   }
 
-  ///
   private Map<UUID, User> findUsersById(Set<UUID> userIds) {
     if (userIds.isEmpty()) {
       return Collections.emptyMap();
@@ -312,6 +389,10 @@ public class ConversationService {
             UserErrorCode.USER_NOT_FOUND_EXCEPTION,
             Map.of("userId", userId)
         ));
+  }
+
+  private UserSummaryDto toUserSummaryDto(User user) {
+    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
   }
 
   private void validateParticipant(Conversation conversation, UUID userId) {
