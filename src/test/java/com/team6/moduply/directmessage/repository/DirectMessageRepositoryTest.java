@@ -16,7 +16,6 @@ import com.team6.moduply.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
 import java.lang.reflect.Constructor;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -196,20 +195,28 @@ class DirectMessageRepositoryTest extends RepositoryTestSupport {
         "later",
         Instant.parse("2026-01-02T00:00:00Z")
     );
-    List<DirectMessage> sortedSameMessages = List.of(firstSameCreatedAt, secondSameCreatedAt)
-        .stream()
-        .sorted(Comparator.comparing(DirectMessage::getId))
-        .toList();
+    List<DirectMessage> firstPage = directMessageRepository.findAllWithCursor(
+        request(null, null, 10, SortDirection.ASCENDING),
+        conversation.getId()
+    );
+    DirectMessage cursorMessage = firstPage.get(0);
+    DirectMessage nextSameCreatedAtMessage = firstPage.get(1);
 
     List<DirectMessage> result = directMessageRepository.findAllWithCursor(
-        request(sameCreatedAt.toString(), sortedSameMessages.get(0).getId(), 10,
+        request(sameCreatedAt.toString(), cursorMessage.getId(), 10,
             SortDirection.ASCENDING),
         conversation.getId()
     );
 
+    assertThat(List.of(firstSameCreatedAt.getId(), secondSameCreatedAt.getId()))
+        .containsExactlyInAnyOrder(cursorMessage.getId(), nextSameCreatedAtMessage.getId());
+    assertThat(firstPage)
+        .extracting(DirectMessage::getId)
+        .containsExactly(cursorMessage.getId(), nextSameCreatedAtMessage.getId(),
+            laterMessage.getId());
     assertThat(result)
         .extracting(DirectMessage::getId)
-        .containsExactly(sortedSameMessages.get(1).getId(), laterMessage.getId());
+        .containsExactly(nextSameCreatedAtMessage.getId(), laterMessage.getId());
   }
 
   @Test
