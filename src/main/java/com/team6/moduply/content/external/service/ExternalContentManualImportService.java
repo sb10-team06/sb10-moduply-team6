@@ -1,14 +1,7 @@
 package com.team6.moduply.content.external.service;
 
 import com.team6.moduply.content.external.dto.ExternalContentImportResult;
-import com.team6.moduply.content.external.sportsdb.SportsDbClient;
-import com.team6.moduply.content.external.sportsdb.dto.SportsDbEventListResponse;
-import com.team6.moduply.content.external.tmdb.TmdbClient;
-import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
-import com.team6.moduply.content.external.tmdb.dto.TmdbPageResponse;
-import com.team6.moduply.content.external.tmdb.dto.TmdbTvResponse;
 import java.time.LocalDate;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -17,26 +10,21 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ExternalContentManualImportService {
 
-  private final TmdbClient tmdbClient;
-  private final SportsDbClient sportsDbClient;
-  private final ExternalContentService externalContentService;
+  private final ExternalContentImportService externalContentImportService;
 
   @PreAuthorize("hasRole('ADMIN')")
   public ExternalContentImportResult importTmdbMovies(int page, String language) {
-    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchPopularMovies(page, language);
-    return externalContentService.importTmdbMovies(emptyIfNull(response.results()));
+    return externalContentImportService.importTmdbMovies(page, language);
   }
 
   @PreAuthorize("hasRole('ADMIN')")
   public ExternalContentImportResult importTmdbTvSeries(int page, String language) {
-    TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchPopularTvSeries(page, language);
-    return externalContentService.importTmdbTvSeries(emptyIfNull(response.results()));
+    return externalContentImportService.importTmdbTvSeries(page, language);
   }
 
   @PreAuthorize("hasRole('ADMIN')")
   public ExternalContentImportResult importSportsDbLeagueEvents(String leagueId) {
-    SportsDbEventListResponse response = sportsDbClient.fetchNextLeagueEvents(leagueId);
-    return externalContentService.importSportsEvents(emptyIfNull(response.events()));
+    return externalContentImportService.importSportsDbLeagueEvents(leagueId);
   }
 
   @PreAuthorize("hasRole('ADMIN')")
@@ -45,11 +33,6 @@ public class ExternalContentManualImportService {
       String sport,
       String leagueId
   ) {
-    SportsDbEventListResponse response = sportsDbClient.fetchEventsByDay(date, sport, leagueId);
-    return externalContentService.importSportsEvents(emptyIfNull(response.events()));
-  }
-
-  private <T> List<T> emptyIfNull(List<T> values) {
-    return values == null ? List.of() : values;
+    return externalContentImportService.importSportsDbDayEvents(date, sport, leagueId);
   }
 }
