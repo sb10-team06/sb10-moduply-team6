@@ -80,6 +80,9 @@ dependencies {
     // emailSender
     implementation 'org.springframework.boot:spring-boot-starter-mail'
 
+    //Guava
+    implementation 'com.google.guava:guava:33.2.1-jre'
+
     // OAuth 2.0
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 }

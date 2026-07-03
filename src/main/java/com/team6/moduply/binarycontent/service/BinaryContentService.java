@@ -80,6 +80,20 @@ public class BinaryContentService {
 
   }
 
+  @Transactional
+  public BinaryContent createContentImage(
+      UUID contentId,
+      String fileName,
+      byte[] bytes,
+      String contentType,
+      BinaryContent oldContentImg
+  ) {
+    validateImage(fileName, bytes, contentType);
+    String storageKey = createContentStorageKey(contentId, fileName);
+
+    return create(fileName, (long) bytes.length, contentType, bytes, storageKey, null, contentId, oldContentImg);
+  }
+
   /// 공통
   private BinaryContent create(
           MultipartFile image,
@@ -88,10 +102,32 @@ public class BinaryContentService {
           UUID contentId,
           BinaryContent oldBinaryContent
   ) throws IOException {
+    return create(
+        image.getOriginalFilename(),
+        image.getSize(),
+        image.getContentType(),
+        image.getBytes(),
+        storageKey,
+        userId,
+        contentId,
+        oldBinaryContent
+    );
+  }
+
+  private BinaryContent create(
+          String fileName,
+          Long size,
+          String contentType,
+          byte[] bytes,
+          String storageKey,
+          UUID userId,
+          UUID contentId,
+          BinaryContent oldBinaryContent
+  ) {
     BinaryContent binaryContent = BinaryContent.create(
-            image.getOriginalFilename(),
-            image.getSize(),
-            image.getContentType(),
+            fileName,
+            size,
+            contentType,
             storageKey
     );
     /// 메타데이터 저장
@@ -106,7 +142,7 @@ public class BinaryContentService {
     /// event 발행: S3 비동기 업로드
     eventPublisher.publishEvent(new BinaryContentCreatedEvent(
             savedBinaryContent.getId(),
-            image.getBytes(),
+            bytes,
             userId,
             contentId,
             oldBinaryContentId,
@@ -220,6 +256,24 @@ public class BinaryContentService {
 
     log.debug("이미지 검증 완료. fileName={}, size={}, contentType={}",
         image.getOriginalFilename(), image.getSize(), image.getContentType());
+  }
+
+  private void validateImage(String fileName, byte[] bytes, String contentType) {
+    if (bytes == null || bytes.length == 0) {
+      log.warn("이미지 검증 실패. 파일이 비어 있음");
+      throw new BinaryContentException(BinaryContentErrorCode.EMPTY_FILE, Map.of());
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.contains(contentType)) {
+      log.warn("이미지 검증 실패. fileName={}, contentType={}", fileName, contentType);
+      throw new BinaryContentException(
+          BinaryContentErrorCode.UNSUPPORTED_IMAGE_TYPE,
+          Map.of("fileName", fileName, "contentType", contentType)
+      );
+    }
+
+    log.debug("이미지 검증 완료. fileName={}, size={}, contentType={}",
+        fileName, bytes.length, contentType);
   }
 
   /// user프로필 경로로 image S3 경로값 생성

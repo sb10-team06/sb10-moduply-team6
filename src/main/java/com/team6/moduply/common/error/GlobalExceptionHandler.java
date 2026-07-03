@@ -1,6 +1,7 @@
 package com.team6.moduply.common.error;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,9 +12,11 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.List;
 import java.util.Map;
@@ -59,6 +62,17 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, details, ex));
   }
 
+  // @RequestParam, @PathVariable 등 컨트롤러 메서드 파라미터 검증 실패
+  @ExceptionHandler({
+      HandlerMethodValidationException.class,
+      ConstraintViolationException.class
+  })
+  public ResponseEntity<ErrorResponse> handleHandlerMethodValidation(Exception ex) {
+    log.warn("[{}] {}", ex.getClass().getSimpleName(), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
+  }
+
   /*
   Monew-Request-User-Id 헤더 -> 인증 목적으로 사용하기에 UNAUTHORIZED가 맞다고 판단
   - 로그인 이후 Monew-Request-User-ID 헤더로 로그인한 유저 식별
@@ -89,7 +103,16 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
   }
 
-  // 클라이언트가 지원하지 않는 Content-Type으로 요청한 경우
+  /// @RequestParam 누락된경우
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<ErrorResponse> handleMissingRequestParameter(
+      MissingServletRequestParameterException ex
+  ) {
+    log.warn("[MissingServletRequestParameterException] {}", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.from(HttpStatus.BAD_REQUEST, ex));
+  }
+
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
   public ResponseEntity<ErrorResponse> handleMediaType(HttpMediaTypeNotSupportedException ex) {
     log.warn("[HttpMediaTypeNotSupportedException] {}", ex.getMessage());

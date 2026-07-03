@@ -8,14 +8,17 @@ import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistUpdateRequest;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.entity.PlaylistContent;
+import com.team6.moduply.playlist.entity.PlaylistSubscription;
 import com.team6.moduply.playlist.exception.PlaylistErrorCode;
 import com.team6.moduply.playlist.exception.PlaylistException;
 import com.team6.moduply.playlist.mapper.PlaylistMapper;
 import com.team6.moduply.playlist.repository.PlaylistContentRepository;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
+import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +33,7 @@ public class PlaylistService {
   private final PlaylistQDSLRepository playlistQDSLRepository;
   private final ContentRepository contentRepository;
   private final PlaylistContentRepository playlistContentRepository;
+  private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -183,5 +187,61 @@ public class PlaylistService {
           Map.of("playlistId", playlistId)
       );
     }
+  }
+
+  @Transactional
+  public void subscribe(UUID playlistId, UUID subscriberId) {
+    Playlist playlist = playlistRepository.findById(playlistId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
+
+    if (playlist.getOwnerId().equals(subscriberId)) {
+      throw new PlaylistException(
+          PlaylistErrorCode.PLAYLIST_SELF_SUBSCRIPTION,
+          Map.of("playlistId", playlistId)
+      );
+    }
+
+    if (playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, subscriberId)) {
+      throw new PlaylistException(
+          PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_ALREADY_EXISTS,
+          Map.of("playlistId", playlistId)
+      );
+    }
+
+    PlaylistSubscription subscription = PlaylistSubscription.builder()
+        .playlist(playlist)
+        .subscriberId(subscriberId)
+        .build();
+
+    try {
+      playlistSubscriptionRepository.save(subscription);
+    } catch (DataIntegrityViolationException e) {
+      throw new PlaylistException(
+          PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_ALREADY_EXISTS,
+          Map.of("playlistId", playlistId),
+          e
+      );
+    }
+  }
+
+  @Transactional
+  public void unsubscribe(UUID playlistId, UUID subscriberId) {
+    Playlist playlist = playlistRepository.findById(playlistId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
+
+    PlaylistSubscription subscription = playlistSubscriptionRepository
+        .findByPlaylistAndSubscriberId(playlist, subscriberId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_NOT_FOUND,
+            Map.of("playlistId", playlistId)
+        ));
+
+    playlistSubscriptionRepository.delete(subscription);
   }
 }
