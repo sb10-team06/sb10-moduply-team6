@@ -27,6 +27,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final ModuPlyAuthenticationEntryPoint moduPlyAuthenticationEntryPoint;
   private final ModuPlyAccessDeniedHandler moduPlyAccessDeniedHandler;
@@ -54,7 +55,7 @@ public class SecurityConfig {
             .csrfTokenRequestHandler(spaCsrfTokenRequestHandler)
         )
         .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .formLogin(login -> login
             .loginProcessingUrl("/api/auth/sign-in")
             .usernameParameter("username")
@@ -63,7 +64,8 @@ public class SecurityConfig {
             .failureHandler(moduPlyLoginFailureHandler))
         .logout(logout -> logout
             .logoutUrl("/api/auth/sign-out")
-            .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
+            .logoutSuccessHandler(
+                new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
             .addLogoutHandler(jwtLogoutHandler))
         .authorizeHttpRequests(auth ->
             // 인증,인가 관련된 api 인증 불필요
@@ -71,7 +73,7 @@ public class SecurityConfig {
                 // 회원가입 인증 불필요
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 // 문서 관련 api 인증 불필요
-                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // 정적 리소스 접근 인증 불필요
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**").permitAll()
                 // 로컬 저장소 업로드 파일 접근 인증 불필요
@@ -86,7 +88,7 @@ public class SecurityConfig {
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .exceptionHandling(exception ->
             exception.accessDeniedHandler(moduPlyAccessDeniedHandler)
-                    .authenticationEntryPoint(moduPlyAuthenticationEntryPoint));
+                .authenticationEntryPoint(moduPlyAuthenticationEntryPoint));
 
     return http.build();
   }
