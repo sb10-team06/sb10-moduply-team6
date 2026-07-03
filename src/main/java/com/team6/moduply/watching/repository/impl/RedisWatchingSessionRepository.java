@@ -1,9 +1,17 @@
 package com.team6.moduply.watching.repository.impl;
 
+import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.watching.dto.WatchingSessionQueryCondition;
+import com.team6.moduply.watching.enums.WatchingSessionSortBy;
 import com.team6.moduply.watching.model.WatchingSession;
 import com.team6.moduply.watching.model.WatchingSessionResult;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,6 +31,7 @@ import org.springframework.data.redis.core.RedisTemplate;
  * @author 김민형
  * @since 26. 6. 24.
  */
+// TODO: [김민형] 향후 루아 스크립트 및 레디스 서치로 개선 예정
 public class RedisWatchingSessionRepository implements WatchingSessionRepository {
 
   private final RedisTemplate<String, WatchingSession> watchingSessionRedisTemplate;
@@ -127,6 +136,100 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     String contentKey = CONTENT_KEY_PREFIX + contentId.toString();
     Long count = sessionIdAndUserIdRedisTemplate.opsForSet().size(contentKey);
     return count == null ? 0 : count;
+  }
+
+  @Override
+  public SliceResult findAllByContentIdWithConditions(UUID contentId,
+      WatchingSessionQueryCondition condition) {
+
+    String contentKey = CONTENT_KEY_PREFIX + contentId.toString();
+
+    Comparator<WatchingSession> comparator = getComparator(condition.sortBy(),
+        condition.sortDirection());
+
+    Set<String> watcherIds = sessionIdAndUserIdRedisTemplate.opsForSet().members(contentKey);
+
+    if (watcherIds == null || watcherIds.isEmpty()) {
+      return new SliceResult(List.of(), 0, false);
+    }
+
+    List<WatchingSession> contentSessions = new ArrayList<>();
+    for (String watcherId : watcherIds) {
+      String watcherKey = WATCHER_KEY_PREFIX + watcherId;
+      WatchingSession session = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
+      if (session != null) {
+        contentSessions.add(session);
+      }
+    }
+
+    List<WatchingSession> filteredData = contentSessions.stream()
+        .filter(s -> filterByWatcherNameLike(s, condition.watcherNameLike()))
+        .toList();
+
+    long totalCount = filteredData.size();
+
+    List<WatchingSession> sortedData = filteredData.stream()
+        .sorted(comparator)
+        .filter(
+            s -> filterAfterCursor(s, condition.cursor(), condition.idAfter(), condition.sortBy(),
+                condition.sortDirection()))
+        .limit(condition.limit() + 1)
+        .toList();
+
+    boolean hasNext = sortedData.size() > condition.limit();
+
+    return new SliceResult(
+        hasNext ? sortedData.subList(0, condition.limit()) : sortedData,
+        totalCount,
+        hasNext
+    );
+  }
+
+  private boolean filterByWatcherNameLike(WatchingSession watchingSession, String watcherNameLike) {
+    if (watcherNameLike == null || watcherNameLike.isBlank()) {
+      return true;
+    }
+    return watchingSession.getWatcher().name().toLowerCase()
+        .contains(watcherNameLike.toLowerCase());
+  }
+
+  private boolean filterAfterCursor(WatchingSession watchingSession, String cursor, UUID idAfter,
+      WatchingSessionSortBy sortBy, SortDirection sortDirection) {
+    if (cursor == null || cursor.isBlank()) {
+      return true;
+    }
+    switch (sortBy) {
+      case createdAt:
+        Instant cursorTime = Instant.parse(cursor);
+        Instant targetTime = watchingSession.getCreatedAt();
+        if (sortDirection == SortDirection.ASCENDING) {
+          if (targetTime.isAfter(cursorTime)) {
+            return true;
+          }
+          if (targetTime.equals(cursorTime)) {
+            return watchingSession.getId().compareTo(idAfter) > 0;
+          }
+        } else {
+          if (targetTime.isBefore(cursorTime)) {
+            return true;
+          }
+          if (targetTime.equals(cursorTime)) {
+            return watchingSession.getId().compareTo(idAfter) < 0;
+          }
+        }
+    }
+    return true;
+  }
+
+  private Comparator<WatchingSession> getComparator(WatchingSessionSortBy sortBy,
+      SortDirection sortDirection) {
+    Comparator<WatchingSession> comparator = switch (sortBy) {
+      case createdAt -> Comparator.comparing(WatchingSession::getCreatedAt);
+    };
+    if (sortDirection == SortDirection.DESCENDING) {
+      comparator = comparator.reversed();
+    }
+    return comparator.thenComparing(WatchingSession::getId);
   }
 
 }
