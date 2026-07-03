@@ -22,4 +22,11 @@ public record UserSummary(
     Objects.requireNonNull(name);
   }
 
+  public static UserSummary from(UserDto dto) {
+    return new UserSummary(
+        dto.getId(),
+        dto.getName(),
+        dto.getProfileImageUrl()
+    );
+  }
 }
