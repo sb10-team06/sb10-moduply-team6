@@ -11,10 +11,12 @@ import com.team6.moduply.auth.oauth2.handler.OAuth2FailureHandler;
 import com.team6.moduply.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.team6.moduply.auth.oauth2.ModuplyOAuth2UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -39,9 +41,10 @@ public class SecurityConfig {
   private final JwtLoginSuccessHandler jwtLoginSuccessHandler;
   private final CsrfTokenRepository csrfTokenRepository;
   private final SpaCsrfTokenRequestHandler spaCsrfTokenRequestHandler;
-  private final ModuplyOAuth2UserService moduplyOAuth2UserService;
-  private final OAuth2SuccessHandler oAuth2SuccessHandler;
-  private final OAuth2FailureHandler oAuth2FailureHandler;
+  private final ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository;
+  private final ObjectProvider<ModuplyOAuth2UserService> moduplyOAuth2UserService;
+  private final ObjectProvider<OAuth2SuccessHandler> oAuth2SuccessHandler;
+  private final ObjectProvider<OAuth2FailureHandler> oAuth2FailureHandler;
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.
@@ -91,15 +94,33 @@ public class SecurityConfig {
                 // 그외는 모두 인증 요구
                 .anyRequest().authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-        .oauth2Login(oauth2 -> oauth2
-            .userInfoEndpoint(userInfo -> userInfo
-                .userService(moduplyOAuth2UserService))
-            .successHandler(oAuth2SuccessHandler)
-            .failureHandler(oAuth2FailureHandler))
         .exceptionHandling(exception ->
             exception.accessDeniedHandler(moduPlyAccessDeniedHandler)
                 .authenticationEntryPoint(moduPlyAuthenticationEntryPoint));
 
+    configureOAuth2LoginIfAvailable(http);
+
     return http.build();
+  }
+
+  // 필터체인에 Oauth설정을 넣으면 항상 작동하므로 clientRegistrationRepository가 떠있을때만 작동하도록 함 (테스트 시에는 작동 X)
+  private void configureOAuth2LoginIfAvailable(HttpSecurity http) throws Exception {
+    if (clientRegistrationRepository.getIfAvailable() == null) {
+      return;
+    }
+
+    ModuplyOAuth2UserService userService = moduplyOAuth2UserService.getIfAvailable();
+    OAuth2SuccessHandler successHandler = oAuth2SuccessHandler.getIfAvailable();
+    OAuth2FailureHandler failureHandler = oAuth2FailureHandler.getIfAvailable();
+
+    if (userService == null || successHandler == null || failureHandler == null) {
+      return;
+    }
+
+    http.oauth2Login(oauth2 -> oauth2
+        .userInfoEndpoint(userInfo -> userInfo
+            .userService(userService))
+        .successHandler(successHandler)
+        .failureHandler(failureHandler));
   }
 }
