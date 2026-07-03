@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler {
+  private static final String OAUTH_FAILED = "oauth_failed";
 
   @Value("${jwt.oauth-failure-url}")
   private String redirectUrl;
@@ -34,8 +35,10 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
     // 만약 리다이랙션 URI에 이미 다른 파라미터가 있을걸 대비
     String separator = redirectUrl.contains("?") ? "&" : "?";
-    String targetUrl = redirectUrl + separator + "error="
-        + URLEncoder.encode(errorCode, StandardCharsets.UTF_8);
+    String targetUrl = redirectUrl + separator
+        + "error=" + URLEncoder.encode(OAUTH_FAILED, StandardCharsets.UTF_8)
+        + "&error_message=" + URLEncoder.encode(errorCode, StandardCharsets.UTF_8);
+
     getRedirectStrategy().sendRedirect(request, response, targetUrl);
   }
 }

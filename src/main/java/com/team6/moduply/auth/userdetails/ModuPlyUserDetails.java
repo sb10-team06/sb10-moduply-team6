@@ -19,7 +19,7 @@ public class ModuPlyUserDetails implements UserDetails, OAuth2User {
   public ModuPlyUserDetails(UserDto userDto, String password) {
     this.userDto = userDto;
     this.password = password;
-    this.attributes = null;
+    this.attributes = Collections.emptyMap();
   }
 
   public ModuPlyUserDetails(UserDto userDto, Map<String, Object> attributes) {

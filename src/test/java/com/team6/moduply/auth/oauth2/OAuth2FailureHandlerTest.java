@@ -16,7 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class OAuth2FailureHandlerTest {
 
   @Test
-  @DisplayName("OAuth2 잠금 계정 예외는 로그인 화면에 잠금 에러 코드로 리다이렉트한다")
+  @DisplayName("OAuth2 잠금 계정 예외는 로그인 화면에 OAuth 실패 정보로 리다이렉트한다")
   void oauth2_locked_account_failure_redirects_to_sign_in_with_error_code() throws Exception {
     // Given
     OAuth2FailureHandler handler = new OAuth2FailureHandler();
@@ -38,11 +38,11 @@ class OAuth2FailureHandlerTest {
     // Then
     assertThat(response.getStatus()).isEqualTo(302);
     assertThat(response.getRedirectedUrl())
-        .isEqualTo("http://localhost:8080/#/sign-in?error=auth03");
+        .isEqualTo("http://localhost:8080/#/sign-in?error=oauth_failed&error_message=auth03");
   }
 
   @Test
-  @DisplayName("OAuth2 외 인증 예외는 기본 로그인 실패 에러 코드로 리다이렉트한다")
+  @DisplayName("OAuth2 외 인증 예외는 로그인 화면에 기본 OAuth 실패 정보로 리다이렉트한다")
   void non_oauth2_failure_redirects_to_sign_in_with_bad_credentials_code() throws Exception {
     // Given
     OAuth2FailureHandler handler = new OAuth2FailureHandler();
@@ -57,6 +57,6 @@ class OAuth2FailureHandlerTest {
     // Then
     assertThat(response.getStatus()).isEqualTo(302);
     assertThat(response.getRedirectedUrl())
-        .isEqualTo("http://localhost:8080/#/sign-in?error=auth02");
+        .isEqualTo("http://localhost:8080/#/sign-in?error=oauth_failed&error_message=auth02");
   }
 }
