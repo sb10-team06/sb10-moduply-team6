@@ -1,9 +1,11 @@
 package com.team6.moduply.watching.service;
 
 import com.team6.moduply.content.dto.ContentSummary;
-import com.team6.moduply.content.service.ContentQueryService;
+import com.team6.moduply.content.service.ContentService;
+import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserSummary;
-import com.team6.moduply.user.service.UserQueryService;
+import com.team6.moduply.user.service.UserService;
+import com.team6.moduply.watching.command.CreateWatchingSessionCommand;
 import com.team6.moduply.watching.dto.WatchingSessionDto;
 import com.team6.moduply.watching.event.WatchingSessionChangedEvent;
 import com.team6.moduply.watching.enums.ChangeType;
@@ -23,10 +25,17 @@ public class WatchingSessionService {
   private final WatchingSessionRepository watchingSessionRepository;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final WatchingSessionMapper watchingSessionMapper;
-  private final UserQueryService userQueryService;
-  private final ContentQueryService contentQueryService;
+  private final ContentService contentService;
+  private final UserService userService;
 
-  public WatchingSession create(WatchingSession watchingSession) {
+  public WatchingSession create(CreateWatchingSessionCommand command) {
+    contentService.validateExists(command.contentId());
+    UserDto userDto = userService.getUser(command.userId());
+    WatchingSession watchingSession = WatchingSession.create(
+        command.sessionId(),
+        UserSummary.from(userDto),
+        command.contentId()
+    );
     WatchingSessionResult savedWatchingSession = watchingSessionRepository.save(watchingSession);
     applicationEventPublisher.publishEvent(
         new WatchingSessionChangedEvent(ChangeType.JOIN, savedWatchingSession.watchingSession(),
@@ -42,12 +51,12 @@ public class WatchingSessionService {
   }
 
   public WatchingSessionDto findByUserId(UUID userId) {
-    UserSummary watcher = userQueryService.findById(userId);
     WatchingSession watchingSession = watchingSessionRepository.findByUserId(userId).orElse(null);
     if (watchingSession == null) {
       return null;
     }
-    ContentSummary content = contentQueryService.find(watchingSession.getContentId());
-    return watchingSessionMapper.toDto(watchingSession, watcher, content);
+    ContentSummary content = ContentSummary.from(
+        contentService.find(watchingSession.getContentId()));
+    return watchingSessionMapper.toDto(watchingSession, content);
   }
 }

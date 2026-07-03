@@ -4,7 +4,6 @@ import com.google.common.util.concurrent.Striped;
 import com.team6.moduply.watching.model.WatchingSession;
 import com.team6.moduply.watching.model.WatchingSessionResult;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -47,11 +46,12 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
     lock.lock();
 
     try {
-      watchingSessionStorage.compute(watchingSession.getWatcherId(), (watcherId, previous) -> {
+      UUID watcherId = watchingSession.getWatcher().userId();
+      watchingSessionStorage.compute(watcherId, (userId, previous) -> {
         if (previous != null) {
           sessionIdAndUserIdMap.remove(previous.getSessionId());
         }
-        sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watchingSession.getWatcherId());
+        sessionIdAndUserIdMap.put(watchingSession.getSessionId(), watcherId);
         return watchingSession;
       });
       return new WatchingSessionResult(watchingSession,

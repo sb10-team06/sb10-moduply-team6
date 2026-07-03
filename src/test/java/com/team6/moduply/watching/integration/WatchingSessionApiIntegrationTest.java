@@ -8,6 +8,7 @@ import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.user.dto.UserSummary;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
@@ -80,13 +81,16 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
     String sessionId3 = UUID.randomUUID().toString();
 
     //user1-content1, user2,user3-content2
-    WatchingSession watchingSession1 = WatchingSession.create(sessionId1, user1Id, content1Id);
+    UserSummary watcher1 = new UserSummary(user1.getId(), user1.getName(), null);
+    UserSummary watcher2 = new UserSummary(user2.getId(), user2.getName(), null);
+    UserSummary watcher3 = new UserSummary(user3.getId(), user3.getName(), null);
+    WatchingSession watchingSession1 = WatchingSession.create(sessionId1, watcher1, content1Id);
     watchingSessionRepository.save(watchingSession1);
     watchingSessionId1 = watchingSession1.getId();
-    WatchingSession watchingSession2 = WatchingSession.create(sessionId2, user2Id, content2Id);
+    WatchingSession watchingSession2 = WatchingSession.create(sessionId2, watcher2, content2Id);
     watchingSessionRepository.save(watchingSession2);
     watchingSessionId2 = watchingSession2.getId();
-    WatchingSession watchingSession3 = WatchingSession.create(sessionId3, user3Id, content2Id);
+    WatchingSession watchingSession3 = WatchingSession.create(sessionId3, watcher3, content2Id);
     watchingSessionRepository.save(watchingSession3);
     watchingSessionId3 = watchingSession3.getId();
   }
@@ -117,13 +121,14 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
 
   @Test
   @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
-  @DisplayName("존재하지 않는 사용자의 시청 세션 조회에 실패합니다.")
-  void find_fail_by_wrong_watcher_id() throws Exception {
+  @DisplayName("존재하지 않는 콘텐츠의 시청 세션 조회에 실패합니다.")
+  void find_fail_when_content_removed() throws Exception {
+    contentRepository.deleteById(content1Id);
     //when & then
-    mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", UUID.randomUUID())
+    mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", user1Id)
             .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.exceptionType").value("UserException"));
+        .andExpect(jsonPath("$.exceptionType").value("ContentException"));
   }
 
   @Test

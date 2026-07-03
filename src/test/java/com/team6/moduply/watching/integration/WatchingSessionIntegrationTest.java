@@ -165,7 +165,7 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     WatchingSession found = awaitSessionPresenceByUserId(userId1, true);
     assertThat(found).isNotNull();
     assertThat(found.getContentId()).isEqualTo(contentId);
-    assertThat(found.getWatcherId()).isEqualTo(userId1);
+    assertThat(found.getWatcher().userId()).isEqualTo(userId1);
     WatchingSession found2 = awaitSessionPresence(found.getSessionId(), true);
     assertThat(found).isEqualTo(found2);
 
@@ -186,7 +186,7 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
 
     assertThat(found).isNotNull();
     assertThat(found.getContentId()).isEqualTo(contentId);
-    assertThat(found.getWatcherId()).isEqualTo(userId1);
+    assertThat(found.getWatcher().userId()).isEqualTo(userId1);
     WatchingSession found2 = awaitSessionPresence(found.getSessionId(), true);
     assertThat(found).isEqualTo(found2);
 

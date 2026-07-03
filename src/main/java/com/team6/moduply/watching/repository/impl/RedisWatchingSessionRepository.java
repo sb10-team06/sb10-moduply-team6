@@ -43,7 +43,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
 
   @Override
   public WatchingSessionResult save(WatchingSession watchingSession) {
-    UUID watcherId = watchingSession.getWatcherId();
+    UUID watcherId = watchingSession.getWatcher().userId();
     String watcherKey = WATCHER_KEY_PREFIX + watcherId.toString();
     String sessionKey = SESSION_KEY_PREFIX + watchingSession.getSessionId();
     String contentKey = CONTENT_KEY_PREFIX + watchingSession.getContentId().toString();
@@ -68,7 +68,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     sessionIdAndUserIdRedisTemplate.opsForValue()
         .set(sessionKey, watcherId.toString(), EXPIRED_HOURS, TimeUnit.HOURS);
     sessionIdAndUserIdRedisTemplate.opsForSet()
-        .add(contentKey, watchingSession.getWatcherId().toString());
+        .add(contentKey, watchingSession.getWatcher().userId().toString());
 
     sessionIdAndUserIdRedisTemplate.expire(contentKey, EXPIRED_HOURS, TimeUnit.HOURS);
     return new WatchingSessionResult(watchingSession,
@@ -109,7 +109,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
       sessionIdAndUserIdRedisTemplate.delete(sessionKey);
       watchingSessionRedisTemplate.delete(watcherKey);
       sessionIdAndUserIdRedisTemplate.opsForSet()
-          .remove(contentKey, session.getWatcherId().toString());
+          .remove(contentKey, session.getWatcher().userId().toString());
 
       long currentCount = countByContentId(session.getContentId());
       if (currentCount == 0) {
