@@ -1,0 +1,127 @@
+package com.team6.moduply.content.external.image;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
+import com.team6.moduply.content.external.dto.ExternalImageFile;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
+
+class ExternalImageClientTest {
+
+  private MockRestServiceServer server;
+
+  private ExternalImageClient externalImageClient;
+
+  @BeforeEach
+  void setUp() {
+    RestClient.Builder builder = RestClient.builder();
+    server = MockRestServiceServer.bindTo(builder).build();
+    externalImageClient = new ExternalImageClient(builder);
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL 다운로드에 성공하면 파일명과 타입과 bytes를 반환한다.")
+  void download_success_with_external_image_url() {
+    // Given
+    byte[] bytes = "image-bytes".getBytes();
+    String imageUrl = "https://image.tmdb.org/t/p/w500/poster.jpg";
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(bytes, MediaType.IMAGE_JPEG));
+
+    // When
+    ExternalImageFile result = externalImageClient.download(imageUrl);
+
+    // Then
+    assertThat(result.fileName()).isEqualTo("poster.jpg");
+    assertThat(result.contentType()).isEqualTo("image/jpeg");
+    assertThat(result.bytes()).isEqualTo(bytes);
+    assertThat(result.size()).isEqualTo(bytes.length);
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("The Sports DB 이미지 URL 다운로드에 성공한다.")
+  void download_success_with_sports_db_image_url() {
+    // Given
+    byte[] bytes = "image-bytes".getBytes();
+    String imageUrl = "https://r2.thesportsdb.com/images/media/event/thumb/poster.jpg";
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(bytes, MediaType.IMAGE_JPEG));
+
+    // When
+    ExternalImageFile result = externalImageClient.download(imageUrl);
+
+    // Then
+    assertThat(result.fileName()).isEqualTo("poster.jpg");
+    assertThat(result.contentType()).isEqualTo("image/jpeg");
+    assertThat(result.bytes()).isEqualTo(bytes);
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL이 비어 있으면 다운로드에 실패한다.")
+  void download_fail_when_image_url_is_blank() {
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download(" "))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL이 HTTPS가 아니면 다운로드에 실패한다.")
+  void download_fail_when_image_url_scheme_is_not_https() {
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download("http://image.tmdb.org/t/p/w500/poster.jpg"))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL 호스트가 허용 목록에 없으면 다운로드에 실패한다.")
+  void download_fail_when_image_url_host_is_not_allowed() {
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download("https://example.com/poster.jpg"))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 다운로드 중 HTTP 오류가 발생하면 ContentException으로 변환한다.")
+  void download_fail_when_http_error_occurs() {
+    // Given
+    String imageUrl = "https://image.tmdb.org/t/p/w500/poster.jpg";
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withServerError());
+
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download(imageUrl))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+
+    server.verify();
+  }
+}
