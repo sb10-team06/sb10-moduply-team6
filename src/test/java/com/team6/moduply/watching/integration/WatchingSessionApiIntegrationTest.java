@@ -355,7 +355,6 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
         .filter(entry -> entry.getValue() != null)
         .forEach(entry -> params.add(entry.getKey(), entry.getValue()));
 
-    params.setAll(map);
     return params;
   }
 }
