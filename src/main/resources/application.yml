@@ -79,6 +79,9 @@ jwt:
   key: ${JWT_SECRET_KEY}
   access-token-expiration-minutes: 30
   refresh-token-expiration-minutes: 420
+  oauth-success-url: http://localhost:8080/#/contents
+  oauth-failure-url: http://localhost:8080/#/sign-in
+
 admin:
   init:
     email: ${ADMIN_EMAIL}

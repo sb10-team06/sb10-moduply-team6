@@ -434,7 +434,7 @@ public class UserServiceTest {
     User user = new User("test@example.com", "old-encoded-password", "tester", Role.USER);
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(passwordEncoder.encode(request.getNewPassword())).willReturn("new-encoded-password");
+    given(passwordEncoder.encode(request.getPassword())).willReturn("new-encoded-password");
 
     // When
     userService.updateUserPassword(userId, request);
@@ -443,7 +443,7 @@ public class UserServiceTest {
     assertThat(user.getEncodedPassword()).isEqualTo("new-encoded-password");
 
     verify(userRepository).findById(userId);
-    verify(passwordEncoder).encode(request.getNewPassword());
+    verify(passwordEncoder).encode(request.getPassword());
     verify(redisUtil).deleteData(RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail()));
   }
 
@@ -478,7 +478,7 @@ public class UserServiceTest {
     String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(user.getEmail());
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(passwordEncoder.encode(request.getNewPassword())).willReturn("new-encoded-password");
+    given(passwordEncoder.encode(request.getPassword())).willReturn("new-encoded-password");
     doThrow(new DataAccessResourceFailureException("redis down"))
         .when(redisUtil).deleteData(redisKey);
 
@@ -597,9 +597,9 @@ public class UserServiceTest {
     verify(redisUtil, never()).deleteData(anyString());
   }
 
-  private ChangePasswordRequest changePasswordRequest(String newPassword) {
+  private ChangePasswordRequest changePasswordRequest(String password) {
     ChangePasswordRequest request = new ChangePasswordRequest();
-    ReflectionTestUtils.setField(request, "newPassword", newPassword);
+    ReflectionTestUtils.setField(request, "password", password);
     return request;
   }
 

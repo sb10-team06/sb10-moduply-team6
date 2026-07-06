@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.handler.logout.JwtLogoutHandler;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.servlet.http.Cookie;
