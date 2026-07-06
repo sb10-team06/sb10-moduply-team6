@@ -220,9 +220,18 @@ public class ContentService {
     return response;
   }
 
+  @Transactional(readOnly = true)
+  public void validateExists(UUID contentId) {
+    if (!contentRepository.existsById(contentId)) {
+      throw new ContentException(ContentErrorCode.CONTENT_NOT_FOUND,
+          Map.of("contentId", contentId));
+    }
+  }
+
   private BinaryContent createContentImage(Content content, MultipartFile thumbnail) {
     try {
-      return binaryContentService.createContentImage(content.getId(), thumbnail, content.getContentImg());
+      return binaryContentService.createContentImage(content.getId(), thumbnail,
+          content.getContentImg());
     } catch (IOException e) {
       throw new BinaryContentException(
           BinaryContentErrorCode.FILE_READ_FAILED,

@@ -289,7 +289,7 @@ class UserControllerMethodSecurityTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
-                  "newPassword": "newPassword1!"
+                  "password": "newPassword1!"
                 }
                 """))
         .andExpect(status().isNoContent());
@@ -312,7 +312,7 @@ class UserControllerMethodSecurityTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
-                  "newPassword": "newPassword1!"
+                  "password": "newPassword1!"
                 }
                 """))
         .andExpect(status().isForbidden());
@@ -332,7 +332,7 @@ class UserControllerMethodSecurityTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
-                  "newPassword": "newPassword1!"
+                  "password": "newPassword1!"
                 }
                 """))
         .andExpect(status().isForbidden());

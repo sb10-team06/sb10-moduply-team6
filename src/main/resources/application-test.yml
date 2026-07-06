@@ -49,11 +49,19 @@ moduply:
       bucket: test-bucket
       presigned-url-expiration: 600
 
+  external:
+    tmdb:
+      read-access-token: test-tmdb-token
+    sports-db:
+      api-key: test-sports-db-api-key
+
 #컨텍스트 로딩 통과용.
 jwt:
   key: bW9kdXBseS10ZWFtNi10ZXN0LWVudmlyb25tZW50LWp3dC1zZWNyZXQta2V5LTIwMjYtdmVyeS1zZWN1cmU=
   access-token-expiration-minutes: 30
   refresh-token-expiration-minutes: 420
+  oauth-success-url: http://localhost:8080/#/contents
+  oauth-failure-url: http://localhost:8080/#/sign-in
 admin:
   init:
     email: admin@test.com

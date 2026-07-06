@@ -11,6 +11,10 @@ public class ContentException extends ModuPlyException {
     super(errorCode, details);
   }
 
+  public ContentException(ErrorCode errorCode, Map<String, Object> details, Throwable cause) {
+    super(errorCode, details, cause);
+  }
+
   public ContentException(ErrorCode errorCode, UUID id) {
     super(errorCode, id);
   }
