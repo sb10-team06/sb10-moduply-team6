@@ -228,10 +228,13 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     Comparator<WatchingSession> comparator = switch (sortBy) {
       case createdAt -> Comparator.comparing(WatchingSession::getCreatedAt);
     };
+
+    comparator = comparator.thenComparing(WatchingSession::getId);
+
     if (sortDirection == SortDirection.DESCENDING) {
       comparator = comparator.reversed();
     }
-    return comparator.thenComparing(WatchingSession::getId);
+    return comparator;
   }
 
 }

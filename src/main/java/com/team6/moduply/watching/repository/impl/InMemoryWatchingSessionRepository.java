@@ -195,10 +195,13 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
     Comparator<WatchingSession> comparator = switch (sortBy) {
       case createdAt -> Comparator.comparing(WatchingSession::getCreatedAt);
     };
+
+    comparator = comparator.thenComparing(WatchingSession::getId);
+
     if (sortDirection == SortDirection.DESCENDING) {
       comparator = comparator.reversed();
     }
-    return comparator.thenComparing(WatchingSession::getId);
+    return comparator;
   }
 
   @Scheduled(fixedRate = SCHEDULED_MINUTES, timeUnit = TimeUnit.MINUTES)
