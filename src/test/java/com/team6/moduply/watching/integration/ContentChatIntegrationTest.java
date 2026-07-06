@@ -1,9 +1,9 @@
 package com.team6.moduply.watching.integration;
 
-import static org.aspectj.bridge.MessageUtil.fail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.JwtTokenProvider;
@@ -268,7 +268,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     ContentChatDto receivedMessage = messageExpectation.get(3, TimeUnit.SECONDS);
 
     assertThat(receivedMessage).isNotNull();
-    assertThat(receivedMessage.content().equals(request.content())).isTrue();
+    assertThat(receivedMessage.content()).isEqualTo(request.content());
     assertThat(receivedMessage.sender().userId()).isEqualTo(user1Id);
     assertThat(receivedMessage.sender().name()).isEqualTo("test1");
   }
@@ -336,7 +336,10 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
       if (System.currentTimeMillis() - startTime > 3000) {
         fail("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.");
       }
-      Thread.sleep(50); // 커넥션 상태 체크 간격
+      await()
+          .atMost(3, TimeUnit.SECONDS)
+          .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
+          .until(() -> !stompSession2.isConnected());
     }
 
     // 최종적으로 세션이 완전히 닫혔는지(isConnected == false) 확인합니다.
@@ -354,7 +357,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
 
     // when
     // 잘못된 경로로 구독 요청 (이 패킷이 서버에 도달하면 리스너에서 MessagingException이 터집니다)
-    stompSession2.subscribe(incorrectChatDestination, new StompFrameHandler() {
+    stompSession1.subscribe(incorrectChatDestination, new StompFrameHandler() {
       @Override
       public java.lang.reflect.Type getPayloadType(StompHeaders headers) {
         return Object.class; // 어떤 클래스든 무관
@@ -369,15 +372,18 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     // then
     // 서버가 예외를 인지하고 세션을 강제로 drop할 때까지 최대 3초간 대기하며 검증합니다.
     long startTime = System.currentTimeMillis();
-    while (stompSession2.isConnected()) {
+    while (stompSession1.isConnected()) {
       if (System.currentTimeMillis() - startTime > 3000) {
         fail("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.");
       }
-      Thread.sleep(50); // 커넥션 상태 체크 간격
+      await()
+          .atMost(3, TimeUnit.SECONDS)
+          .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
+          .until(() -> !stompSession1.isConnected());
     }
 
     // 최종적으로 세션이 완전히 닫혔는지(isConnected == false) 확인합니다.
-    assertThat(stompSession2.isConnected()).isFalse();
+    assertThat(stompSession1.isConnected()).isFalse();
   }
 
   @Test
