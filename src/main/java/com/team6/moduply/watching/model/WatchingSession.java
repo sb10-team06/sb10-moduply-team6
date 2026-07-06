@@ -2,6 +2,7 @@ package com.team6.moduply.watching.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.team6.moduply.user.dto.UserSummary;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -12,14 +13,14 @@ public class WatchingSession {
 
   private final UUID id;
   private final String sessionId; // websocket session ID
-  private final UUID watcherId;
+  private final UserSummary watcher;
   private final UUID contentId;
   private final Instant createdAt;
 
-  private WatchingSession(String sessionId, UUID watcherId, UUID contentId) {
+  private WatchingSession(String sessionId, UserSummary watcher, UUID contentId) {
     this.id = UUID.randomUUID();
     this.sessionId = sessionId;
-    this.watcherId = watcherId;
+    this.watcher = watcher;
     this.contentId = contentId;
     this.createdAt = Instant.now();
   }
@@ -28,19 +29,19 @@ public class WatchingSession {
   private WatchingSession(
       @JsonProperty("id") UUID id,
       @JsonProperty("sessionId") String sessionId,
-      @JsonProperty("watcherId") UUID watcherId,
+      @JsonProperty("watcher") UserSummary watcher,
       @JsonProperty("contentId") UUID contentId,
       @JsonProperty("createdAt") Instant createdAt
   ) {
     this.id = id;
     this.sessionId = sessionId;
-    this.watcherId = watcherId;
+    this.watcher = watcher;
     this.contentId = contentId;
     this.createdAt = createdAt;
   }
 
-  public static WatchingSession create(String sessionId, UUID watcherId, UUID contentId) {
-    return new WatchingSession(sessionId, watcherId, contentId);
+  public static WatchingSession create(String sessionId, UserSummary watcher, UUID contentId) {
+    return new WatchingSession(sessionId, watcher, contentId);
   }
 
   @Override

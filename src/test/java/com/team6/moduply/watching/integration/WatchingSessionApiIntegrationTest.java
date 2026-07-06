@@ -1,19 +1,27 @@
 package com.team6.moduply.watching.integration;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.user.dto.UserSummary;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
+import com.team6.moduply.watching.dto.WatchingSessionQueryCondition;
+import com.team6.moduply.watching.enums.WatchingSessionSortBy;
 import com.team6.moduply.watching.model.WatchingSession;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +32,8 @@ import org.springframework.security.test.context.support.TestExecutionEvent;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 @Transactional
 public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
@@ -37,6 +47,8 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
   private UserRepository userRepository;
   @Autowired
   private ContentRepository contentRepository;
+  @Autowired
+  private ObjectMapper objectMapper;
 
   private UUID user1Id;
   private UUID user2Id;
@@ -48,7 +60,8 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
   private UUID watchingSessionId1;
   private UUID watchingSessionId2;
   private UUID watchingSessionId3;
-  // TODO: [김민형] 목록 조회 테스트 추가 예정으로, 아직 사용되지 않은 변수가 있을 수 있습니다.
+  private WatchingSession watchingSession2;
+  private WatchingSession watchingSession3;
 
   @BeforeEach
   void setUp() {
@@ -80,13 +93,21 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
     String sessionId3 = UUID.randomUUID().toString();
 
     //user1-content1, user2,user3-content2
-    WatchingSession watchingSession1 = WatchingSession.create(sessionId1, user1Id, content1Id);
+    UserSummary watcher1 = new UserSummary(user1.getId(), user1.getName(), null);
+    UserSummary watcher2 = new UserSummary(user2.getId(), user2.getName(), null);
+    UserSummary watcher3 = new UserSummary(user3.getId(), user3.getName(), null);
+    WatchingSession watchingSession1 = WatchingSession.create(sessionId1, watcher1, content1Id);
     watchingSessionRepository.save(watchingSession1);
     watchingSessionId1 = watchingSession1.getId();
-    WatchingSession watchingSession2 = WatchingSession.create(sessionId2, user2Id, content2Id);
+    watchingSession2 = WatchingSession.create(sessionId2, watcher2, content2Id);
     watchingSessionRepository.save(watchingSession2);
     watchingSessionId2 = watchingSession2.getId();
-    WatchingSession watchingSession3 = WatchingSession.create(sessionId3, user3Id, content2Id);
+    try {
+      Thread.sleep(1);//시간차
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+    watchingSession3 = WatchingSession.create(sessionId3, watcher3, content2Id);
     watchingSessionRepository.save(watchingSession3);
     watchingSessionId3 = watchingSession3.getId();
   }
@@ -117,21 +138,223 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
 
   @Test
   @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
-  @DisplayName("존재하지 않는 사용자의 시청 세션 조회에 실패합니다.")
-  void find_fail_by_wrong_watcher_id() throws Exception {
+  @DisplayName("존재하지 않는 콘텐츠의 시청 세션 조회에 실패합니다.")
+  void find_fail_when_content_removed() throws Exception {
+    contentRepository.deleteById(content1Id);
     //when & then
-    mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", UUID.randomUUID())
+    mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", user1Id)
             .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.exceptionType").value("UserException"));
+        .andExpect(jsonPath("$.exceptionType").value("ContentException"));
   }
 
   @Test
-  @DisplayName("인증되지 않은 요청은 401을 반환합니다.")
+  @DisplayName("시청세션 단건 조회에서 인증되지 않은 요청은 401을 반환합니다.")
   void find_fail_by_unauthenticated_request() throws Exception {
     mockMvc.perform(get("/api/users/{watcherId}/watching-sessions", user1Id)
             .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isUnauthorized());
   }
 
+  @Test
+  @DisplayName("시청세션 목록 조회에서 인증되지 않은 요청은 401을 반환합니다.")
+  void find_all_fail_by_unauthenticated_request() throws Exception {
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content1Id)
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isUnauthorized());
+  }
+
+
+  @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
+  @DisplayName("존재하지 않는 콘텐츠의 시청 세션 목록 조회에 실패합니다.")
+  void find_all_fail_when_content_removed() throws Exception {
+    contentRepository.deleteById(content1Id);
+
+    WatchingSessionQueryCondition condition = new WatchingSessionQueryCondition(
+        null,
+        null,
+        null,
+        1,
+        SortDirection.ASCENDING,
+        WatchingSessionSortBy.createdAt
+    );
+
+    //when & then
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content1Id)
+            .params(convertToParams(condition))
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.exceptionType").value("ContentException"));
+  }
+
+  @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
+  @DisplayName("필수 쿼리 조건으로 시청 세션 목록 조회에 성공합니다.(다음 목록이 없는 경우)")
+  void find_all_success_with_required_condition() throws Exception {
+
+    WatchingSessionQueryCondition condition = new WatchingSessionQueryCondition(
+        null,
+        null,
+        null,
+        2,
+        SortDirection.ASCENDING,
+        WatchingSessionSortBy.createdAt
+    );
+
+    //when & then
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content2Id)
+            .params(convertToParams(condition))
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.size()").value(2))
+        .andExpect(jsonPath("$.data[0].id").value(watchingSessionId2.toString()))
+        .andExpect(jsonPath("$.data[1].id").value(watchingSessionId3.toString()))
+        .andExpect(jsonPath("$.data[0].content.id").value(content2Id.toString()))
+        .andExpect(jsonPath("$.data[0].watcher.userId").value(user2Id.toString()))
+        .andExpect(jsonPath("$.data[1].watcher.userId").value(user3Id.toString()))
+        .andExpect(jsonPath("$.nextCursor").value(nullValue()))
+        .andExpect(jsonPath("$.nextIdAfter").value(nullValue()))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(2))
+        .andExpect(jsonPath("$.sortBy").value(condition.sortBy().toString()))
+        .andExpect(jsonPath("$.sortDirection").value(condition.sortDirection().toString()));
+  }
+
+  @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
+  @DisplayName("필수 쿼리 조건으로 시청 세션 목록 조회에 성공합니다.(다음 목록이 있는 경우)")
+  void find_all_success_with_required_condition_and_return_next_cursor() throws Exception {
+
+    WatchingSessionQueryCondition condition = new WatchingSessionQueryCondition(
+        null,
+        null,
+        null,
+        1,
+        SortDirection.DESCENDING,
+        WatchingSessionSortBy.createdAt
+    );
+
+    //when & then
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content2Id)
+            .params(convertToParams(condition))
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.size()").value(1))
+        .andExpect(jsonPath("$.data[0].id").value(watchingSessionId3.toString()))
+        .andExpect(jsonPath("$.data[0].content.id").value(content2Id.toString()))
+        .andExpect(jsonPath("$.data[0].watcher.userId").value(user3Id.toString()))
+        .andExpect(jsonPath("$.nextCursor").value(watchingSession3.getCreatedAt().toString()))
+        .andExpect(jsonPath("$.nextIdAfter").value(watchingSessionId3.toString()))
+        .andExpect(jsonPath("$.hasNext").value(true))
+        .andExpect(jsonPath("$.totalCount").value(2))
+        .andExpect(jsonPath("$.sortBy").value(condition.sortBy().toString()))
+        .andExpect(jsonPath("$.sortDirection").value(condition.sortDirection().toString()));
+  }
+
+  @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
+  @DisplayName("커서 조건으로 시청 세션 목록 조회에 성공합니다")
+  void find_all_success_with_cursor() throws Exception {
+
+    WatchingSessionQueryCondition condition = new WatchingSessionQueryCondition(
+        null,
+        watchingSession3.getCreatedAt().toString(),
+        watchingSessionId3,
+        1,
+        SortDirection.DESCENDING,
+        WatchingSessionSortBy.createdAt
+    );
+
+    //when & then
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content2Id)
+            .params(convertToParams(condition))
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.size()").value(1))
+        .andExpect(jsonPath("$.data[0].id").value(watchingSessionId2.toString()))
+        .andExpect(jsonPath("$.data[0].content.id").value(content2Id.toString()))
+        .andExpect(jsonPath("$.data[0].watcher.userId").value(user2Id.toString()))
+        .andExpect(jsonPath("$.nextCursor").value(nullValue()))
+        .andExpect(jsonPath("$.nextIdAfter").value(nullValue()))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(2))
+        .andExpect(jsonPath("$.sortBy").value(condition.sortBy().toString()))
+        .andExpect(jsonPath("$.sortDirection").value(condition.sortDirection().toString()));
+  }
+
+  @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
+  @DisplayName("이름 조건으로 시청 세션 목록 조회에 성공합니다")
+  void find_all_success_with_watcher_name_like() throws Exception {
+
+    WatchingSessionQueryCondition condition = new WatchingSessionQueryCondition(
+        "t2",
+        null,
+        null,
+        10,
+        SortDirection.ASCENDING,
+        WatchingSessionSortBy.createdAt
+    );
+
+    //when & then
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content2Id)
+            .params(convertToParams(condition))
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.size()").value(1))
+        .andExpect(jsonPath("$.data[0].id").value(watchingSessionId2.toString()))
+        .andExpect(jsonPath("$.data[0].content.id").value(content2Id.toString()))
+        .andExpect(jsonPath("$.data[0].watcher.userId").value(user2Id.toString()))
+        .andExpect(jsonPath("$.nextCursor").value(nullValue()))
+        .andExpect(jsonPath("$.nextIdAfter").value(nullValue()))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(1))
+        .andExpect(jsonPath("$.sortBy").value(condition.sortBy().toString()))
+        .andExpect(jsonPath("$.sortDirection").value(condition.sortDirection().toString()));
+  }
+
+  @Test
+  @WithUserDetails(value = "test1@test.com", setupBefore = TestExecutionEvent.TEST_EXECUTION)
+  @DisplayName("이름 조건과 커서조건으로 시청 세션 목록 조회에 성공합니다")
+  void find_all_success_with_watcher_name_like_and_cursor() throws Exception {
+
+    WatchingSessionQueryCondition condition = new WatchingSessionQueryCondition(
+        "test",
+        watchingSession2.getCreatedAt().toString(),
+        watchingSessionId2,
+        10,
+        SortDirection.ASCENDING,
+        WatchingSessionSortBy.createdAt
+    );
+
+    //when & then
+    mockMvc.perform(get("/api/contents/{contentId}/watching-sessions", content2Id)
+            .params(convertToParams(condition))
+            .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.size()").value(1))
+        .andExpect(jsonPath("$.data[0].id").value(watchingSessionId3.toString()))
+        .andExpect(jsonPath("$.data[0].content.id").value(content2Id.toString()))
+        .andExpect(jsonPath("$.data[0].watcher.userId").value(user3Id.toString()))
+        .andExpect(jsonPath("$.nextCursor").value(nullValue()))
+        .andExpect(jsonPath("$.nextIdAfter").value(nullValue()))
+        .andExpect(jsonPath("$.hasNext").value(false))
+        .andExpect(jsonPath("$.totalCount").value(2))
+        .andExpect(jsonPath("$.sortBy").value(condition.sortBy().toString()))
+        .andExpect(jsonPath("$.sortDirection").value(condition.sortDirection().toString()));
+  }
+
+  private MultiValueMap<String, String> convertToParams(Object dto) {
+    MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+    Map<String, String> map = objectMapper.convertValue(dto,
+        new TypeReference<>() {
+        });
+    //null 제외
+    map.entrySet().stream()
+        .filter(entry -> entry.getValue() != null)
+        .forEach(entry -> params.add(entry.getKey(), entry.getValue()));
+
+    return params;
+  }
 }

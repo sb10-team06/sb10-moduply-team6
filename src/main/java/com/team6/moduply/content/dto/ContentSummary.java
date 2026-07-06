@@ -40,4 +40,17 @@ public record ContentSummary(
     Objects.requireNonNull(title);
     Objects.requireNonNull(tags);
   }
+
+  public static ContentSummary from(ContentDto dto) {
+    return new ContentSummary(
+        dto.id(),
+        dto.type(),
+        dto.title(),
+        dto.description(),
+        dto.thumbnailUrl(),
+        dto.tags(),
+        dto.averageRating().doubleValue(),
+        dto.reviewCount()
+    );
+  }
 }

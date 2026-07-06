@@ -2,7 +2,7 @@ package com.team6.moduply.watching.listener;
 
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
 import com.team6.moduply.common.websocket.events.StompUnSubscribeEvent;
-import com.team6.moduply.watching.model.WatchingSession;
+import com.team6.moduply.watching.command.CreateWatchingSessionCommand;
 import com.team6.moduply.watching.service.WatchingSessionService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ public class WatchingSessionEventListener {
         log.debug("[EVENT TRACE] WatchingSessionService 호출: userId={}, contentId: {}",
             event.userId(),
             contentId);
-        watchingSessionService.create(WatchingSession.create(
+        watchingSessionService.create(new CreateWatchingSessionCommand(
             event.sessionId(),
             event.userId(),
             contentId
