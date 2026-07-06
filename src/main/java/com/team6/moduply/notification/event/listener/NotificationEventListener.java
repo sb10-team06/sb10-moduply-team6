@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -22,6 +23,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @RequiredArgsConstructor
 public class NotificationEventListener {
+
+  private static final int FOLLOW_ACTIVITY_NOTIFICATION_BATCH_SIZE = 500;
 
   private final NotificationService notificationService;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
@@ -102,14 +105,25 @@ public class NotificationEventListener {
   public void handleFollowActivity(FollowActivityEvent event) {
     log.info("[알림 저장] 팔로우 활동 - actorId={}", event.getActorId());
     try {
-      List<UUID> followerIds = followRepository.findFollowerIdsByFolloweeId(event.getActorId());
-      if (!followerIds.isEmpty()) {
-        notificationService.sendFollowActivityNotification(
-            followerIds,
-            event.getActorName(),
-            event.getActivityContent()
+      int page = 0;
+      List<UUID> followerIds;
+      do {
+        followerIds = followRepository.findFollowerIdsByFolloweeId(
+            event.getActorId(),
+            // 팔로워 수 많은 계정을 위해 Page 적용
+            // 500명씩 잘라서 조회
+            PageRequest.of(page, FOLLOW_ACTIVITY_NOTIFICATION_BATCH_SIZE)
         );
-      }
+        if (!followerIds.isEmpty()) {
+          // 500명씩 알림 저장..
+          notificationService.sendFollowActivityNotification(
+              followerIds,
+              event.getActorName(),
+              event.getActivityContent()
+          );
+        }
+        page++;
+      } while (followerIds.size() == FOLLOW_ACTIVITY_NOTIFICATION_BATCH_SIZE);
     } catch (Exception e) {
       log.error("[알림 저장 실패] 팔로우 활동 알림 - actorId={}", event.getActorId(), e);
     }
