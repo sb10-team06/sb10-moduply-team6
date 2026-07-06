@@ -58,7 +58,6 @@ public interface WatchingSessionApi {
   )
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "성공"),
-      @ApiResponse(responseCode = "204", description = "성공(nullable)"),
       @ApiResponse(responseCode = "400", description = "잘못된 요청",
           content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
       @ApiResponse(responseCode = "500", description = "서버 오류",
