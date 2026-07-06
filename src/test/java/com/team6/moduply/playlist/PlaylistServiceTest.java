@@ -19,6 +19,9 @@ import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.service.PlaylistService;
+import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.repository.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -64,6 +67,9 @@ class PlaylistServiceTest {
   private PlaylistSubscriptionRepository playlistSubscriptionRepository;
 
   @Mock
+  private UserRepository userRepository;
+
+  @Mock
   private ApplicationEventPublisher eventPublisher;
 
   @Test
@@ -86,6 +92,7 @@ class PlaylistServiceTest {
 
     given(playlistRepository.save(any(Playlist.class))).willReturn(savedPlaylist);
     given(playlistMapper.toDto(savedPlaylist)).willReturn(expectedDto);
+    given(userRepository.findById(ownerId)).willReturn(Optional.of(user("owner")));
 
     // when
     PlaylistDto result = playlistService.create(request, ownerId);
@@ -403,6 +410,7 @@ class PlaylistServiceTest {
     given(contentRepository.existsById(contentId)).willReturn(true);
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
     given(playlistContentRepository.existsByPlaylistAndContentId(playlist, contentId)).willReturn(false);
+    given(userRepository.findById(ownerId)).willReturn(Optional.of(user("owner")));
 
     // when
     playlistService.addContent(playlistId, contentId, ownerId);
@@ -688,5 +696,9 @@ class PlaylistServiceTest {
         .isInstanceOf(PlaylistException.class)
         .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
             .isEqualTo(PlaylistErrorCode.PLAYLIST_NOT_FOUND));
+  }
+
+  private User user(String name) {
+    return new User(name + "@example.com", "password", name, Role.USER);
   }
 }
