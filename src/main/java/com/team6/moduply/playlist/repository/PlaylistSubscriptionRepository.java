@@ -13,6 +13,6 @@ public interface PlaylistSubscriptionRepository extends JpaRepository<PlaylistSu
 
   Optional<PlaylistSubscription> findByPlaylistAndSubscriberId(Playlist playlist, UUID subscriberId);
 
-  List<PlaylistSubscription> findAllByPlaylist(Playlist playlist);
+  List<PlaylistSubscription> findAllByPlaylistId(UUID playlistId);
 
 }

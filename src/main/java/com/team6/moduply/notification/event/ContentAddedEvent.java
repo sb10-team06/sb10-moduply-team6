@@ -11,5 +11,4 @@ public class ContentAddedEvent {
   private final UUID playlistId;
   private final String playlistTitle;
   private final String contentTitle;
-  private final List<UUID> subscriberIds;
 }

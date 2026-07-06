@@ -163,21 +163,11 @@ public class PlaylistService {
 
     playlistContentRepository.save(playlistContent);
 
-    // 구독자 목록 조회 후 이벤트 발행
-    List<UUID> subscriberIds = playlistSubscriptionRepository
-        .findAllByPlaylist(playlist)
-        .stream()
-        .map(PlaylistSubscription::getSubscriberId)
-        .toList();
-
-    if (!subscriberIds.isEmpty()) {
-      eventPublisher.publishEvent(new ContentAddedEvent(
-          playlistId,
-          playlist.getTitle(),
-          String.valueOf(contentId),
-          subscriberIds
-      ));
-    }
+    eventPublisher.publishEvent(new ContentAddedEvent(
+        playlistId,
+        playlist.getTitle(),
+        String.valueOf(contentId)
+    ));
   }
 
   @Transactional
