@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import java.util.Objects;
 import java.util.UUID;
 
 @Schema(description = "특정 콘텐츠의 시청 세션 목록 조회 (커서 페이지네이션)을 위한 조회 조건")
