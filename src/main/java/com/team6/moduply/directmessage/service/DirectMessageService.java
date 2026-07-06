@@ -58,7 +58,7 @@ public class DirectMessageService {
     User withUser = findUser(resolveWithUserId(conversation, currentUserId));
     UserSummaryDto currentUserSummary = toUserSummaryDto(currentUser);
     UserSummaryDto withUserSummary = toUserSummaryDto(withUser);
-    DirectMessage directMessage = directMessageRepository.saveAndFlush(
+    DirectMessage directMessage = directMessageRepository.save(
         DirectMessage.create(conversation, currentUser, request.content())
     );
 
