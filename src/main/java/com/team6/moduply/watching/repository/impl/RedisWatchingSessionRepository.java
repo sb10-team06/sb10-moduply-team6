@@ -153,14 +153,15 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
       return new SliceResult(List.of(), 0, false);
     }
 
-    List<WatchingSession> contentSessions = new ArrayList<>();
-    for (String watcherId : watcherIds) {
-      String watcherKey = WATCHER_KEY_PREFIX + watcherId;
-      WatchingSession session = watchingSessionRedisTemplate.opsForValue().get(watcherKey);
-      if (session != null) {
-        contentSessions.add(session);
-      }
-    }
+    List<String> watcherKeys = watcherIds.stream()
+        .map(watcherId -> WATCHER_KEY_PREFIX + watcherId)
+        .toList();
+
+    //multi Get으로 한 번에 조회
+    List<WatchingSession> contentSessions = watchingSessionRedisTemplate.opsForValue()
+        .multiGet(watcherKeys).stream()
+        .filter(session -> session != null && contentId.equals(session.getContentId()))
+        .toList();
 
     List<WatchingSession> filteredData = contentSessions.stream()
         .filter(s -> filterByWatcherNameLike(s, condition.watcherNameLike()))
@@ -206,17 +207,18 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
           if (targetTime.isAfter(cursorTime)) {
             return true;
           }
-          if (targetTime.equals(cursorTime)) {
+          if (targetTime.equals(cursorTime) && idAfter != null) {
             return watchingSession.getId().compareTo(idAfter) > 0;
           }
         } else {
           if (targetTime.isBefore(cursorTime)) {
             return true;
           }
-          if (targetTime.equals(cursorTime)) {
+          if (targetTime.equals(cursorTime) && idAfter != null) {
             return watchingSession.getId().compareTo(idAfter) < 0;
           }
         }
+        return false;
     }
     return true;
   }

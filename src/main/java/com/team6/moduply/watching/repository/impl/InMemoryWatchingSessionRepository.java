@@ -174,17 +174,18 @@ public class InMemoryWatchingSessionRepository implements WatchingSessionReposit
           if (targetTime.isAfter(cursorTime)) {
             return true;
           }
-          if (targetTime.equals(cursorTime)) {
+          if (targetTime.equals(cursorTime) && idAfter != null) {
             return watchingSession.getId().compareTo(idAfter) > 0;
           }
         } else {
           if (targetTime.isBefore(cursorTime)) {
             return true;
           }
-          if (targetTime.equals(cursorTime)) {
+          if (targetTime.equals(cursorTime) && idAfter != null) {
             return watchingSession.getId().compareTo(idAfter) < 0;
           }
         }
+        return false;
     }
     return true;
   }
