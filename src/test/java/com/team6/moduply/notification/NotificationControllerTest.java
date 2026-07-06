@@ -90,4 +90,13 @@ class NotificationControllerTest {
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.totalCount").value(0));
   }
+
+  @Test
+  @DisplayName("limit 없이 알림 목록을 조회하면 400을 반환한다.")
+  void getNotifications_fail_with_no_limit() throws Exception {
+    mockMvc.perform(get("/api/notifications")
+            .param("sortDirection", "DESCENDING")
+            .param("sortBy", "createdAt"))
+        .andExpect(status().isBadRequest());
+  }
 }

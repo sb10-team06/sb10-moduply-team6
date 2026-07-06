@@ -8,6 +8,8 @@ import com.team6.moduply.notification.dto.NotificationSortBy;
 import com.team6.moduply.notification.entity.Notification;
 import com.team6.moduply.notification.enums.NotificationLevel;
 import com.team6.moduply.notification.enums.NotificationType;
+import com.team6.moduply.notification.exception.NotificationErrorCode;
+import com.team6.moduply.notification.exception.NotificationException;
 import com.team6.moduply.notification.mapper.NotificationMapper;
 import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
@@ -24,9 +26,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -113,5 +115,35 @@ class NotificationServiceTest {
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
     assertThat(result.nextIdAfter()).isEqualTo(notificationId);
+  }
+
+  @Test
+  @DisplayName("hasNext가 true인데 마지막 알림의 createdAt이 null이면 예외가 발생한다.")
+  void findAll_fail_with_invalid_state() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    NotificationSearchRequest request = new NotificationSearchRequest(
+        null, null, 1, SortDirection.DESCENDING, NotificationSortBy.createdAt
+    );
+
+    Notification notification1 = Notification.builder()
+        .receiverId(receiverId).type(NotificationType.PLAYLIST_SUBSCRIBED)
+        .title("제목1").content("내용1").level(NotificationLevel.INFO).build();
+    Notification notification2 = Notification.builder()
+        .receiverId(receiverId).type(NotificationType.CONTENT_ADDED)
+        .title("제목2").content("내용2").level(NotificationLevel.INFO).build();
+
+    // createdAt을 null로 유지 (주입 안 함)
+    ReflectionTestUtils.setField(notification1, "id", UUID.randomUUID());
+
+    given(notificationQDSLRepository.findAllWithCursor(request, receiverId))
+        .willReturn(new ArrayList<>(List.of(notification1, notification2)));
+    given(notificationQDSLRepository.countWithCondition(receiverId)).willReturn(2L);
+
+    // when & then
+    assertThatThrownBy(() -> notificationService.findAll(request, receiverId))
+        .isInstanceOf(NotificationException.class)
+        .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
+            .isEqualTo(NotificationErrorCode.NOTIFICATION_INVALID_STATE));
   }
 }
