@@ -41,4 +41,17 @@ public class NotificationService {
         .toList();
     notificationRepository.saveAll(notifications);
   }
+
+  /// 팔로우 알림 전송 메서드.
+  @Transactional
+  public void sendFollowedNotification(UUID receiverId, String followerName) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.FOLLOWED)
+        .title(NotificationType.FOLLOWED.getTitle())
+        .content(String.format(NotificationType.FOLLOWED.getMessageTemplate(), followerName))
+        .level(NotificationLevel.INFO)
+        .build();
+    notificationRepository.save(notification);
+  }
 }
