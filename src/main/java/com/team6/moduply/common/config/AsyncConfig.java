@@ -87,6 +87,10 @@ public class AsyncConfig implements AsyncConfigurer {
     executor.setThreadNamePrefix("notification-");
     executor.setWaitForTasksToCompleteOnShutdown(true);
     executor.setAwaitTerminationSeconds(30);
+    executor.setRejectedExecutionHandler((r, e) -> {
+      log.warn("알림 발송 작업이 거부되었습니다. poolSize={}, activeCount={}, queueSize={}",
+          e.getPoolSize(), e.getActiveCount(), e.getQueue().size());
+    });
     executor.initialize();
     return executor;
   }
