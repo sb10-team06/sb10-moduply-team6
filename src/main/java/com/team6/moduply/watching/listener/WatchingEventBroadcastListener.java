@@ -2,6 +2,7 @@ package com.team6.moduply.watching.listener;
 
 import com.team6.moduply.common.config.AsyncConfig;
 import com.team6.moduply.content.dto.ContentSummary;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.watching.event.WatchingSessionChangedEvent;
 import com.team6.moduply.watching.dto.WatchingSessionChange;
@@ -31,7 +32,7 @@ public class WatchingEventBroadcastListener {
     ContentSummary content;
     try {
       content = ContentSummary.from(contentService.find(event.watchingSession().getContentId()));
-    } catch (Exception e) {
+    } catch (ContentException e) {
       log.info("존재하지 않거나 삭제된 컨텐츠: 변경 메세지를 보내지 않습니다: contentId={}",
           event.watchingSession().getContentId(), e);
       return;
