@@ -159,6 +159,69 @@ class TmdbClientTest {
   }
 
   @Test
+  @DisplayName("TMDB Discover 영화 조회 시 선택 설정값이 비어 있으면 요청 파라미터에서 제외한다.")
+  void fetchDiscoverMovies_success_without_optional_request_parameters() {
+    // Given
+    properties.setMovieRegion(" ");
+    properties.setMovieCertificationCountry(" ");
+    properties.setMovieCertificationLte(" ");
+    properties.setMovieVoteCountGte(" ");
+    properties.setMovieWithoutKeywords(" ");
+    properties.setMovieWithoutGenres(" ");
+    String json = """
+        {
+          "page": 1,
+          "results": [],
+          "total_pages": 0,
+          "total_results": 0
+        }
+        """;
+    server.expect(once(), requestTo(
+            "https://api.themoviedb.org/3/discover/movie?language=ko-KR&page=1"
+                + "&include_adult=false&include_video=false&sort_by=primary_release_date.desc"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+    // When
+    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchDiscoverMovies(1);
+
+    // Then
+    assertThat(response.results()).isEmpty();
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("TMDB Discover TV 조회 시 선택 설정값이 있으면 요청 파라미터에 포함한다.")
+  void fetchDiscoverTvSeries_success_with_optional_request_parameters() {
+    // Given
+    properties.setTvWithoutKeywords("789|101");
+    properties.setTvWithoutGenres("16");
+    String json = """
+        {
+          "page": 1,
+          "results": [],
+          "total_pages": 0,
+          "total_results": 0
+        }
+        """;
+    server.expect(once(), requestTo(
+            "https://api.themoviedb.org/3/discover/tv?language=ko-KR&page=1"
+                + "&include_adult=false&sort_by=first_air_date.desc&vote_count.gte=10"
+                + "&without_keywords=789%7C101&without_genres=16"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+    // When
+    TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchDiscoverTvSeries(1);
+
+    // Then
+    assertThat(response.results()).isEmpty();
+    server.verify();
+  }
+
+  @Test
   @DisplayName("TMDB 이미지 경로와 크기를 조합해 이미지 URL 생성에 성공한다.")
   void buildImageUrl_success_with_image_path_and_size() {
     // Given
