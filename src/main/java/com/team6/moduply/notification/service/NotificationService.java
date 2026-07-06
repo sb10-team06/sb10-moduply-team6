@@ -54,4 +54,38 @@ public class NotificationService {
         .build();
     notificationRepository.save(notification);
   }
+
+  @Transactional
+  public void sendDmReceivedNotification(UUID receiverId, String senderName) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.DM_RECEIVED)
+        .title(NotificationType.DM_RECEIVED.getTitle())
+        .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), senderName))
+        .level(NotificationLevel.INFO)
+        .build();
+    notificationRepository.save(notification);
+  }
+
+  @Transactional
+  public void sendFollowActivityNotification(
+      List<UUID> receiverIds,
+      String actorName,
+      String activityContent
+  ) {
+    List<Notification> notifications = receiverIds.stream()
+        .map(receiverId -> Notification.builder()
+            .receiverId(receiverId)
+            .type(NotificationType.FOLLOW_ACTIVITY)
+            .title(NotificationType.FOLLOW_ACTIVITY.getTitle())
+            .content(String.format(
+                NotificationType.FOLLOW_ACTIVITY.getMessageTemplate(),
+                actorName,
+                activityContent
+            ))
+            .level(NotificationLevel.INFO)
+            .build())
+        .toList();
+    notificationRepository.saveAll(notifications);
+  }
 }

@@ -80,4 +80,38 @@ public class NotificationEventListener {
           event.getFollowerId(), event.getFolloweeId(), e);
     }
   }
+
+  @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  public void handleDirectMessageReceived(DirectMessageReceivedEvent event) {
+    log.info("[알림 저장] DM 수신 - senderId={}, receiverId={}, conversationId={}",
+        event.getSenderId(), event.getReceiverId(), event.getConversationId());
+    try {
+      notificationService.sendDmReceivedNotification(
+          event.getReceiverId(),
+          event.getSenderName()
+      );
+    } catch (Exception e) {
+      log.error("[알림 저장 실패] DM 수신 알림 - senderId={}, receiverId={}, conversationId={}",
+          event.getSenderId(), event.getReceiverId(), event.getConversationId(), e);
+    }
+  }
+
+  @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  public void handleFollowActivity(FollowActivityEvent event) {
+    log.info("[알림 저장] 팔로우 활동 - actorId={}", event.getActorId());
+    try {
+      List<UUID> followerIds = followRepository.findFollowerIdsByFolloweeId(event.getActorId());
+      if (!followerIds.isEmpty()) {
+        notificationService.sendFollowActivityNotification(
+            followerIds,
+            event.getActorName(),
+            event.getActivityContent()
+        );
+      }
+    } catch (Exception e) {
+      log.error("[알림 저장 실패] 팔로우 활동 알림 - actorId={}", event.getActorId(), e);
+    }
+  }
 }

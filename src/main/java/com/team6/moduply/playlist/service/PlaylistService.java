@@ -3,6 +3,7 @@ package com.team6.moduply.playlist.service;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.notification.event.ContentAddedEvent;
+import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
@@ -49,6 +50,11 @@ public class PlaylistService {
         .build();
 
     Playlist saved = playlistRepository.save(playlist);
+    eventPublisher.publishEvent(new FollowActivityEvent(
+        ownerId,
+        "사용자",
+        "새 플레이리스트를 생성했습니다."
+    ));
 
     return playlistMapper.toDto(saved);
   }
@@ -167,6 +173,11 @@ public class PlaylistService {
         playlistId,
         playlist.getTitle(),
         String.valueOf(contentId)
+    ));
+    eventPublisher.publishEvent(new FollowActivityEvent(
+        ownerId,
+        "사용자",
+        String.format("'%s' 플레이리스트에 콘텐츠를 추가했습니다.", playlist.getTitle())
     ));
   }
 
