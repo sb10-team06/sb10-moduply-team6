@@ -46,8 +46,8 @@ class TmdbClientTest {
   }
 
   @Test
-  @DisplayName("TMDB 인기 영화 목록 조회에 성공한다.")
-  void fetchPopularMovies_success_with_valid_request() {
+  @DisplayName("TMDB Discover 영화 목록 조회에 성공한다.")
+  void fetchDiscoverMovies_success_with_valid_request() {
     // Given
     String json = """
         {
@@ -67,13 +67,16 @@ class TmdbClientTest {
         }
         """;
     server.expect(once(), requestTo(
-            "https://api.themoviedb.org/3/movie/popular?language=ko-KR&page=1"))
+            "https://api.themoviedb.org/3/discover/movie?language=ko-KR&page=1"
+                + "&include_adult=false&include_video=false&sort_by=primary_release_date.desc"
+                + "&region=KR&certification_country=KR&certification.lte=15"
+                + "&vote_count.gte=10"))
         .andExpect(method(HttpMethod.GET))
         .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
         .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
 
     // When
-    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchPopularMovies(1);
+    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchDiscoverMovies(1);
 
     // Then
     assertThat(response.page()).isEqualTo(1);
@@ -85,8 +88,8 @@ class TmdbClientTest {
   }
 
   @Test
-  @DisplayName("TMDB 인기 TV 목록 조회에 성공한다.")
-  void fetchPopularTvSeries_success_with_valid_request() {
+  @DisplayName("TMDB Discover TV 목록 조회에 성공한다.")
+  void fetchDiscoverTvSeries_success_with_valid_request() {
     // Given
     String json = """
         {
@@ -106,13 +109,14 @@ class TmdbClientTest {
         }
         """;
     server.expect(once(), requestTo(
-            "https://api.themoviedb.org/3/tv/popular?language=en-US&page=2"))
+            "https://api.themoviedb.org/3/discover/tv?language=en-US&page=2"
+                + "&include_adult=false&sort_by=first_air_date.desc&vote_count.gte=10"))
         .andExpect(method(HttpMethod.GET))
         .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
         .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
 
     // When
-    TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchPopularTvSeries(2, "en-US");
+    TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchDiscoverTvSeries(2, "en-US");
 
     // Then
     assertThat(response.page()).isEqualTo(1);
@@ -120,6 +124,37 @@ class TmdbClientTest {
     assertThat(response.totalResults()).isEqualTo(2000);
     assertThat(response.results()).hasSize(1);
     assertThat(response.results().get(0).name()).isEqualTo("Game of Thrones");
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("TMDB Discover 영화 조회 시 선택 설정값이 있으면 요청 파라미터에 포함한다.")
+  void fetchDiscoverMovies_success_with_optional_request_parameters() {
+    // Given
+    properties.setMovieWithoutKeywords("123|456");
+    properties.setMovieWithoutGenres("27");
+    String json = """
+        {
+          "page": 1,
+          "results": [],
+          "total_pages": 0,
+          "total_results": 0
+        }
+        """;
+    server.expect(once(), requestTo(
+            "https://api.themoviedb.org/3/discover/movie?language=ko-KR&page=1"
+                + "&include_adult=false&include_video=false&sort_by=primary_release_date.desc"
+                + "&region=KR&certification_country=KR&certification.lte=15"
+                + "&vote_count.gte=10&without_keywords=123%7C456&without_genres=27"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+    // When
+    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchDiscoverMovies(1);
+
+    // Then
+    assertThat(response.results()).isEmpty();
     server.verify();
   }
 
@@ -151,13 +186,13 @@ class TmdbClientTest {
   }
 
   @Test
-  @DisplayName("TMDB 읽기 액세스 토큰이 없으면 인기 영화 목록 조회에 실패한다.")
-  void fetchPopularMovies_fail_when_read_access_token_is_blank() {
+  @DisplayName("TMDB 읽기 액세스 토큰이 없으면 Discover 영화 목록 조회에 실패한다.")
+  void fetchDiscoverMovies_fail_when_read_access_token_is_blank() {
     // Given
     properties.setReadAccessToken(" ");
 
     // When & Then
-    assertThatThrownBy(() -> tmdbClient.fetchPopularMovies(1))
+    assertThatThrownBy(() -> tmdbClient.fetchDiscoverMovies(1))
         .isInstanceOfSatisfying(ContentException.class, exception ->
             assertThat(exception.getErrorCode())
                 .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_CONFIG_INVALID)
@@ -166,16 +201,19 @@ class TmdbClientTest {
 
   @Test
   @DisplayName("TMDB API 오류 응답이 발생하면 ContentException으로 변환한다.")
-  void fetchPopularMovies_fail_when_external_api_error_occurs() {
+  void fetchDiscoverMovies_fail_when_external_api_error_occurs() {
     // Given
     server.expect(once(), requestTo(
-            "https://api.themoviedb.org/3/movie/popular?language=ko-KR&page=1"))
+            "https://api.themoviedb.org/3/discover/movie?language=ko-KR&page=1"
+                + "&include_adult=false&include_video=false&sort_by=primary_release_date.desc"
+                + "&region=KR&certification_country=KR&certification.lte=15"
+                + "&vote_count.gte=10"))
         .andExpect(method(HttpMethod.GET))
         .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
         .andRespond(withServerError());
 
     // When & Then
-    assertThatThrownBy(() -> tmdbClient.fetchPopularMovies(1))
+    assertThatThrownBy(() -> tmdbClient.fetchDiscoverMovies(1))
         .isInstanceOfSatisfying(ContentException.class, exception ->
             assertThat(exception.getErrorCode())
                 .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
