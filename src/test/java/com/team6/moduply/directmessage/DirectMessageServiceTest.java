@@ -31,6 +31,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -94,7 +95,7 @@ class DirectMessageServiceTest {
     given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
-    given(directMessageRepository.saveAndFlush(any(DirectMessage.class)))
+    given(directMessageRepository.save(any(DirectMessage.class)))
         .willReturn(savedDirectMessage);
     given(directMessageMapper.toDto(
         savedDirectMessage,
@@ -107,7 +108,14 @@ class DirectMessageServiceTest {
     DirectMessageDto result = directMessageService.create(conversationId, request, currentUserId);
 
     assertThat(result).isEqualTo(expected);
-    verify(directMessageRepository).saveAndFlush(any(DirectMessage.class));
+    ArgumentCaptor<DirectMessage> directMessageCaptor = ArgumentCaptor.forClass(
+        DirectMessage.class
+    );
+    verify(directMessageRepository).save(directMessageCaptor.capture());
+    DirectMessage capturedDirectMessage = directMessageCaptor.getValue();
+    assertThat(capturedDirectMessage.getContent()).isEqualTo(request.content());
+    assertThat(capturedDirectMessage.getConversation()).isEqualTo(conversation);
+    assertThat(capturedDirectMessage.getSender()).isEqualTo(currentUser);
   }
 
   @Test
@@ -130,7 +138,7 @@ class DirectMessageServiceTest {
           assertThat(exception.getDetails().get("userId")).isEqualTo(currentUserId);
         });
 
-    verify(directMessageRepository, never()).saveAndFlush(any(DirectMessage.class));
+    verify(directMessageRepository, never()).save(any(DirectMessage.class));
   }
 
   @Test
@@ -148,7 +156,7 @@ class DirectMessageServiceTest {
           assertThat(exception.getDetails().get("conversationId")).isEqualTo(conversationId);
         });
 
-    verify(directMessageRepository, never()).saveAndFlush(any(DirectMessage.class));
+    verify(directMessageRepository, never()).save(any(DirectMessage.class));
   }
 
   @Test
@@ -170,7 +178,7 @@ class DirectMessageServiceTest {
           assertThat(exception.getDetails().get("userId")).isEqualTo(currentUserId);
         });
 
-    verify(directMessageRepository, never()).saveAndFlush(any(DirectMessage.class));
+    verify(directMessageRepository, never()).save(any(DirectMessage.class));
   }
 
   @Test
@@ -194,7 +202,7 @@ class DirectMessageServiceTest {
           assertThat(exception.getDetails().get("userId")).isEqualTo(withUserId);
         });
 
-    verify(directMessageRepository, never()).saveAndFlush(any(DirectMessage.class));
+    verify(directMessageRepository, never()).save(any(DirectMessage.class));
   }
 
   private User user(UUID userId, String name) {
