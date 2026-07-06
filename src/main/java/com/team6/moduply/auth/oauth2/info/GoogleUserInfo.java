@@ -1,5 +1,6 @@
 package com.team6.moduply.auth.oauth2.info;
 
+import com.team6.moduply.auth.oauth2.enums.Provider;
 import java.util.Map;
 
 public class GoogleUserInfo implements OAuth2UserInfo {
@@ -11,7 +12,7 @@ public class GoogleUserInfo implements OAuth2UserInfo {
 
   @Override
   public String getProvider() {
-    return "google";
+    return Provider.GOOGLE.name();
   }
 
   @Override
