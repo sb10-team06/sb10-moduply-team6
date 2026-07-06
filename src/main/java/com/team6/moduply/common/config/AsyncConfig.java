@@ -17,6 +17,7 @@ public class AsyncConfig implements AsyncConfigurer {
 
   public static final String TEMP_PASSWORD_MAIL_TASK_EXECUTOR = "tempPasswordMailTaskExecutor";
   public static final String WATCHING_EVENT_TASK_EXECUTOR = "watchingEventTaskExecutor";
+  public static final String NOTIFICATION_TASK_EXECUTOR = "notificationTaskExecutor";
 
   @Bean(TEMP_PASSWORD_MAIL_TASK_EXECUTOR)
   public TaskExecutor tempPasswordMailTaskExecutor() {
@@ -76,4 +77,17 @@ public class AsyncConfig implements AsyncConfigurer {
   //  TaskDecorator를 추가해 부모 스레드의 컨텍스트를 복사/정리하는 설정 필요
 
   //TODO: 스레드 풀 상태를 Actuator/Micrometer로 모니터링하는 설정 필요
+
+  @Bean(NOTIFICATION_TASK_EXECUTOR)
+  public TaskExecutor notificationTaskExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(500);
+    executor.setThreadNamePrefix("notification-");
+    executor.setWaitForTasksToCompleteOnShutdown(true);
+    executor.setAwaitTerminationSeconds(30);
+    executor.initialize();
+    return executor;
+  }
 }

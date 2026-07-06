@@ -1,6 +1,5 @@
 package com.team6.moduply.notification.event;
 
-import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

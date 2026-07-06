@@ -1,5 +1,6 @@
 package com.team6.moduply.notification.event.listener;
 
+import com.team6.moduply.common.config.AsyncConfig;
 import com.team6.moduply.notification.event.ContentAddedEvent;
 import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.notification.service.NotificationService;
@@ -22,7 +23,7 @@ public class NotificationEventListener {
   private final NotificationService notificationService;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
 
-  @Async
+  @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handlePlaylistSubscribed(PlaylistSubscribedEvent event) {
     log.info("[알림 발송] 플레이리스트 구독 - playlistId: {}", event.getPlaylistId());
@@ -37,7 +38,7 @@ public class NotificationEventListener {
     }
   }
 
-  @Async
+  @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handleContentAdded(ContentAddedEvent event) {
     log.info("[알림 발송] 콘텐츠 추가 - playlistId: {}", event.getPlaylistId());
