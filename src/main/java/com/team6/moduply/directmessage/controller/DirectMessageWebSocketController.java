@@ -19,8 +19,7 @@ import org.springframework.stereotype.Controller;
 @Controller
 @RequiredArgsConstructor
 public class DirectMessageWebSocketController {
-  // TODO: WebSocket 스레드풀 설정
-  // TODO: DB 커넥션 풀 점검
+
   private static final String DIRECT_MESSAGE_DESTINATION =
       "/sub/conversations/%s/direct-messages";
 
