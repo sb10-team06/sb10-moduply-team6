@@ -28,6 +28,7 @@ public class NotificationService {
     notificationRepository.save(notification);
   }
 
+  @Transactional
   public void sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
     List<Notification> notifications = receiverIds.stream()
         .map(receiverId -> Notification.builder()
