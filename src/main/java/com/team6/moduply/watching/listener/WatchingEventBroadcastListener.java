@@ -2,13 +2,11 @@ package com.team6.moduply.watching.listener;
 
 import com.team6.moduply.common.config.AsyncConfig;
 import com.team6.moduply.content.dto.ContentSummary;
+import com.team6.moduply.content.exception.ContentException;
+import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.watching.event.WatchingSessionChangedEvent;
-import com.team6.moduply.content.service.ContentQueryService;
-import com.team6.moduply.user.dto.UserSummary;
-import com.team6.moduply.user.service.UserQueryService;
 import com.team6.moduply.watching.dto.WatchingSessionChange;
 import com.team6.moduply.watching.dto.WatchingSessionDto;
-import com.team6.moduply.watching.enums.ChangeType;
 import com.team6.moduply.watching.util.mapper.WatchingSessionMapper;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class WatchingEventBroadcastListener {
 
-  private final UserQueryService userQueryService;
-  private final ContentQueryService contentQueryService;
+  private final ContentService contentService;
   private final WatchingSessionMapper watchingSessionMapper;
   private final SimpMessagingTemplate messagingTemplate;
 
@@ -34,24 +31,15 @@ public class WatchingEventBroadcastListener {
 
     ContentSummary content;
     try {
-      content = contentQueryService.find(event.watchingSession().getContentId());
-    } catch (Exception e) {
+      content = ContentSummary.from(contentService.find(event.watchingSession().getContentId()));
+    } catch (ContentException e) {
       log.info("존재하지 않거나 삭제된 컨텐츠: 변경 메세지를 보내지 않습니다: contentId={}",
           event.watchingSession().getContentId(), e);
       return;
     }
-    UserSummary watcher;
-    UUID contentId = content.id();
-    UUID watcherId = event.watchingSession().getWatcherId();
-    if (event.type() == ChangeType.JOIN) {
-      log.debug("시청 세션 JOIN: contentId={}, watcherId={}", contentId, watcherId);
-      watcher = userQueryService.findById(watcherId);
-    } else {
-      log.debug("시청 세션 LEAVE: contentId={}, watcherId={}", contentId, watcherId);
-      watcher = new UserSummary(watcherId, "", null);
-    }
 
-    WatchingSessionDto sessionDto = watchingSessionMapper.toDto(event.watchingSession(), watcher,
+    UUID contentId = content.id();
+    WatchingSessionDto sessionDto = watchingSessionMapper.toDto(event.watchingSession(),
         content);
 
     WatchingSessionChange message = new WatchingSessionChange(
