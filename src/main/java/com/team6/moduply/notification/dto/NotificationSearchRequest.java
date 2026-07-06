@@ -2,9 +2,11 @@ package com.team6.moduply.notification.dto;
 
 import com.team6.moduply.common.pagination.SortDirection;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import java.time.Instant;
 import java.util.UUID;
 
 public record NotificationSearchRequest(
@@ -27,4 +29,20 @@ public record NotificationSearchRequest(
     @NotNull
     @Schema(description = "정렬 기준")
     NotificationSortBy sortBy
-) {}
+) {
+    @AssertTrue(message = "cursor와 idAfter는 함께 제공되어야 합니다.")
+    public boolean isCursorAndIdAfterBothPresent() {
+        return (cursor == null) == (idAfter == null);
+    }
+
+    @AssertTrue(message = "cursor는 ISO-8601 형식이어야 합니다.")
+    public boolean isCursorValid() {
+        if (cursor == null) return true;
+        try {
+            Instant.parse(cursor);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
