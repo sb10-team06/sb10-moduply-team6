@@ -4,7 +4,6 @@ import com.team6.moduply.common.config.AsyncConfig;
 import com.team6.moduply.notification.event.ContentAddedEvent;
 import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.notification.service.NotificationService;
-import com.team6.moduply.playlist.entity.PlaylistSubscription;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import java.util.List;
 import java.util.UUID;
@@ -44,10 +43,8 @@ public class NotificationEventListener {
     log.info("[알림 발송] 콘텐츠 추가 - playlistId: {}", event.getPlaylistId());
     try {
       List<UUID> subscriberIds = playlistSubscriptionRepository
-          .findAllByPlaylistId(event.getPlaylistId())
-          .stream()
-          .map(PlaylistSubscription::getSubscriberId)
-          .toList();
+          .findSubscriberIdsByPlaylistId(event.getPlaylistId());
+
 
       if (!subscriberIds.isEmpty()) {
         notificationService.sendContentAddedNotification(

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PlaylistSubscriptionRepository extends JpaRepository<PlaylistSubscription, UUID> {
 
@@ -13,6 +15,7 @@ public interface PlaylistSubscriptionRepository extends JpaRepository<PlaylistSu
 
   Optional<PlaylistSubscription> findByPlaylistAndSubscriberId(Playlist playlist, UUID subscriberId);
 
-  List<PlaylistSubscription> findAllByPlaylistId(UUID playlistId);
+  @Query("select ps.subscriberId from PlaylistSubscription ps where ps.playlist.id = :playlistId")
+  List<UUID> findSubscriberIdsByPlaylistId(@Param("playlistId") UUID playlistId);
 
 }
