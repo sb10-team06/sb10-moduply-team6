@@ -30,6 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static com.team6.moduply.playlist.dto.PlaylistSortBy.updatedAt;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +62,9 @@ class PlaylistServiceTest {
 
   @Mock
   private PlaylistSubscriptionRepository playlistSubscriptionRepository;
+
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
 
   @Test
   @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")
