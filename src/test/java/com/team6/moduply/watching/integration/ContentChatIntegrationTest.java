@@ -3,7 +3,6 @@ package com.team6.moduply.watching.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.JwtTokenProvider;
@@ -331,16 +330,10 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
 
     // then
     // 서버가 예외를 인지하고 세션을 강제로 drop할 때까지 최대 3초간 대기하며 검증합니다.
-    long startTime = System.currentTimeMillis();
-    while (stompSession2.isConnected()) {
-      if (System.currentTimeMillis() - startTime > 3000) {
-        fail("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.");
-      }
-      await()
-          .atMost(3, TimeUnit.SECONDS)
-          .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
-          .until(() -> !stompSession2.isConnected());
-    }
+    await()
+        .atMost(3, TimeUnit.SECONDS)
+        .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
+        .until(() -> !stompSession2.isConnected());
 
     // 최종적으로 세션이 완전히 닫혔는지(isConnected == false) 확인합니다.
     assertThat(stompSession2.isConnected()).isFalse();
@@ -371,16 +364,10 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
 
     // then
     // 서버가 예외를 인지하고 세션을 강제로 drop할 때까지 최대 3초간 대기하며 검증합니다.
-    long startTime = System.currentTimeMillis();
-    while (stompSession1.isConnected()) {
-      if (System.currentTimeMillis() - startTime > 3000) {
-        fail("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.");
-      }
-      await()
-          .atMost(3, TimeUnit.SECONDS)
-          .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
-          .until(() -> !stompSession1.isConnected());
-    }
+    await()
+        .atMost(3, TimeUnit.SECONDS)
+        .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
+        .until(() -> !stompSession1.isConnected());
 
     // 최종적으로 세션이 완전히 닫혔는지(isConnected == false) 확인합니다.
     assertThat(stompSession1.isConnected()).isFalse();
