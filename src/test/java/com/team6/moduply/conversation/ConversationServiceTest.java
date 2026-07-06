@@ -524,16 +524,7 @@ class ConversationServiceTest {
     assertThat(result.nextIdAfter()).isNull();
     assertThat(result.totalCount()).isEqualTo(1L);
     assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
-    verify(directMessageRepository).findAllWithCursor(
-        new DirectMessageFindAllRequest(
-            cursor.toString(),
-            idAfter,
-            10,
-            SortDirection.DESCENDING,
-            DirectMessageSortBy.createdAt
-        ),
-        conversationId
-    );
+    verify(directMessageRepository).findAllWithCursor(request, conversationId);
   }
 
   @Test

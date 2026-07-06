@@ -199,21 +199,24 @@ class DirectMessageRepositoryTest extends RepositoryTestSupport {
         request(null, null, 10, SortDirection.ASCENDING),
         conversation.getId()
     );
+    DirectMessage cursorMessage = firstPage.get(0);
+    DirectMessage nextSameCreatedAtMessage = firstPage.get(1);
 
     List<DirectMessage> result = directMessageRepository.findAllWithCursor(
-        request(sameCreatedAt.toString(), firstPage.get(0).getId(), 10,
+        request(sameCreatedAt.toString(), cursorMessage.getId(), 10,
             SortDirection.ASCENDING),
         conversation.getId()
     );
 
+    assertThat(List.of(firstSameCreatedAt.getId(), secondSameCreatedAt.getId()))
+        .containsExactlyInAnyOrder(cursorMessage.getId(), nextSameCreatedAtMessage.getId());
     assertThat(firstPage)
         .extracting(DirectMessage::getId)
-        .containsExactly(firstPage.get(0).getId(), firstPage.get(1).getId(), laterMessage.getId());
-    assertThat(List.of(firstPage.get(0).getId(), firstPage.get(1).getId()))
-        .containsExactlyInAnyOrder(firstSameCreatedAt.getId(), secondSameCreatedAt.getId());
+        .containsExactly(cursorMessage.getId(), nextSameCreatedAtMessage.getId(),
+            laterMessage.getId());
     assertThat(result)
         .extracting(DirectMessage::getId)
-        .containsExactly(firstPage.get(1).getId(), laterMessage.getId());
+        .containsExactly(nextSameCreatedAtMessage.getId(), laterMessage.getId());
   }
 
   @Test
