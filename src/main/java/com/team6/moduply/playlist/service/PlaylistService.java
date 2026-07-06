@@ -21,6 +21,11 @@ import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
 import java.util.Map;
+
+import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.exception.UserErrorCode;
+import com.team6.moduply.user.exception.UserException;
+import com.team6.moduply.user.repository.UserRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +44,7 @@ public class PlaylistService {
   private final PlaylistContentRepository playlistContentRepository;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
   private final ApplicationEventPublisher eventPublisher;
+  private final UserRepository userRepository;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -50,9 +56,12 @@ public class PlaylistService {
         .build();
 
     Playlist saved = playlistRepository.save(playlist);
+    String ownerName = userRepository.findById(ownerId)
+                    .map(User::getName)
+                            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of("userId",  ownerId)));
     eventPublisher.publishEvent(new FollowActivityEvent(
         ownerId,
-        "사용자",
+        ownerName,
         "새 플레이리스트를 생성했습니다."
     ));
 
@@ -168,6 +177,9 @@ public class PlaylistService {
         .build();
 
     playlistContentRepository.save(playlistContent);
+    String ownerName = userRepository.findById(ownerId)
+            .map(User::getName)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of("userId",  ownerId)));
 
     eventPublisher.publishEvent(new ContentAddedEvent(
         playlistId,
@@ -175,9 +187,9 @@ public class PlaylistService {
         String.valueOf(contentId)
     ));
     eventPublisher.publishEvent(new FollowActivityEvent(
-        ownerId,
-        "사용자",
-        String.format("'%s' 플레이리스트에 콘텐츠를 추가했습니다.", playlist.getTitle())
+            ownerId,
+            ownerName,
+            "새 플레이리스트를 생성했습니다."
     ));
   }
 
