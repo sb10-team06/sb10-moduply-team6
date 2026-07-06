@@ -189,7 +189,7 @@ public class PlaylistService {
     eventPublisher.publishEvent(new FollowActivityEvent(
             ownerId,
             ownerName,
-            "새 플레이리스트를 생성했습니다."
+            "플레이리스트에 새 콘텐츠를 추가했습니다."
     ));
   }
 
