@@ -1,4 +1,4 @@
-package com.team6.moduply.auth.handler;
+package com.team6.moduply.auth.handler.logout;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.exception.AuthException;
