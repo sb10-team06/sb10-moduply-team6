@@ -35,7 +35,7 @@ public class StompChannelInterceptor implements ChannelInterceptor {
   private final ApplicationEventPublisher applicationEventPublisher;
   private static final String SUBSCRIPTIONS_KEY = "SUBSCRIPTIONS";
   private static final Pattern DIRECT_MESSAGE_SUBSCRIBE_DESTINATION = Pattern.compile(
-      "^/sub/conversations/([0-9a-fA-F\\-]{36})/direct-messages$"
+    "^/sub/conversations/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/direct-messages$"
   );
 
   //JWT 인증
