@@ -18,7 +18,7 @@ public record WatchingSessionQueryCondition(
     @Schema(description = "커서")
     String cursor,
 
-    @Schema(description = "보조 커서(sessionId)")
+    @Schema(description = "보조 커서(watchingSessionId)")
     UUID idAfter,
 
     @Schema(description = "한 번에 가져올 개수", requiredMode = RequiredMode.REQUIRED)
@@ -33,8 +33,4 @@ public record WatchingSessionQueryCondition(
     WatchingSessionSortBy sortBy
 ) {
 
-  public WatchingSessionQueryCondition {
-    sortDirection = Objects.requireNonNullElse(sortDirection, SortDirection.ASCENDING);
-    sortBy = Objects.requireNonNullElse(sortBy, WatchingSessionSortBy.createdAt);
-  }
 }

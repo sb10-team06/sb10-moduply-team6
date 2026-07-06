@@ -5,6 +5,7 @@ import com.team6.moduply.watching.controller.api.WatchingSessionApi;
 import com.team6.moduply.watching.dto.WatchingSessionDto;
 import com.team6.moduply.watching.dto.WatchingSessionQueryCondition;
 import com.team6.moduply.watching.service.WatchingSessionService;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +35,7 @@ public class WatchingSessionController implements WatchingSessionApi {
   @GetMapping("/contents/{contentId}/watching-sessions")
   public ResponseEntity<CursorResponse<WatchingSessionDto>> findWatchingSessionsByContent(
       @PathVariable UUID contentId,
-      @ModelAttribute WatchingSessionQueryCondition condition) {
+      @Valid @ModelAttribute WatchingSessionQueryCondition condition) {
     CursorResponse<WatchingSessionDto> response = watchingSessionService.findAllByContentId(
         contentId, condition);
     return ResponseEntity.ok(response);
