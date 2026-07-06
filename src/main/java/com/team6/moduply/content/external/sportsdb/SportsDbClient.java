@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -28,6 +30,11 @@ public class SportsDbClient {
     this.properties = properties;
   }
 
+  @Retryable(
+      retryFor = ContentException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2)
+  )
   public SportsDbEventListResponse fetchNextLeagueEvents(String leagueId) {
     validateApiKey();
 
@@ -54,6 +61,11 @@ public class SportsDbClient {
     return fetchEventsByDay(date, null, null);
   }
 
+  @Retryable(
+      retryFor = ContentException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2)
+  )
   public SportsDbEventListResponse fetchEventsByDay(
       LocalDate date,
       String sport,

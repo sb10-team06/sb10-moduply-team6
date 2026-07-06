@@ -74,6 +74,20 @@ moduply:
     image:
       connect-timeout-millis: ${EXTERNAL_IMAGE_CONNECT_TIMEOUT_MILLIS:3000}
       read-timeout-millis: ${EXTERNAL_IMAGE_READ_TIMEOUT_MILLIS:10000}
+  content:
+    batch:
+      import:
+        enabled: ${CONTENT_IMPORT_BATCH_ENABLED:true}
+        cron: ${CONTENT_IMPORT_BATCH_CRON:0 0 2 * * *}
+        tmdb-page-start: ${CONTENT_IMPORT_BATCH_TMDB_PAGE_START:1}
+        tmdb-page-end: ${CONTENT_IMPORT_BATCH_TMDB_PAGE_END:3}
+        tmdb-language: ${CONTENT_IMPORT_BATCH_TMDB_LANGUAGE:ko-KR}
+        sports-db-league-ids: ${CONTENT_IMPORT_BATCH_SPORTS_DB_LEAGUE_IDS:4328}
+        sports-db-sport: ${CONTENT_IMPORT_BATCH_SPORTS_DB_SPORT:Soccer}
+        sports-db-day-offsets:
+          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_PREVIOUS:-1}
+          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_TODAY:0}
+          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_NEXT:1}
 
 jwt:
   key: ${JWT_SECRET_KEY}

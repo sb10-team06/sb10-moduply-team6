@@ -9,6 +9,8 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -35,6 +37,11 @@ public class TmdbClient {
     return fetchPopularMovies(page, DEFAULT_LANGUAGE);
   }
 
+  @Retryable(
+      retryFor = ContentException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2)
+  )
   public TmdbPageResponse<TmdbMovieResponse> fetchPopularMovies(int page, String language) {
     return fetchPopular(
         "/movie/popular",
@@ -50,6 +57,11 @@ public class TmdbClient {
     return fetchPopularTvSeries(page, DEFAULT_LANGUAGE);
   }
 
+  @Retryable(
+      retryFor = ContentException.class,
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2)
+  )
   public TmdbPageResponse<TmdbTvResponse> fetchPopularTvSeries(int page, String language) {
     return fetchPopular(
         "/tv/popular",

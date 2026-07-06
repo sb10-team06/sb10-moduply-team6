@@ -8,10 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.team6.moduply.auth.filter.JwtAuthenticationFilter;
+import com.team6.moduply.content.external.service.ExternalContentImportService;
 import com.team6.moduply.content.external.service.ExternalContentManualImportService;
-import com.team6.moduply.content.external.service.ExternalContentService;
-import com.team6.moduply.content.external.sportsdb.SportsDbClient;
-import com.team6.moduply.content.external.tmdb.TmdbClient;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,13 +41,7 @@ class ExternalContentImportMethodSecurityTest {
   private MockMvc mockMvc;
 
   @MockitoBean
-  private TmdbClient tmdbClient;
-
-  @MockitoBean
-  private SportsDbClient sportsDbClient;
-
-  @MockitoBean
-  private ExternalContentService externalContentService;
+  private ExternalContentImportService externalContentImportService;
 
   @Test
   @DisplayName("USER 권한으로 TMDB 영화 수동 수집 API 요청 시 403을 반환한다.")
@@ -59,7 +52,7 @@ class ExternalContentImportMethodSecurityTest {
             .with(csrf().asHeader()))
         .andExpect(status().isForbidden());
 
-    verify(tmdbClient, never()).fetchPopularMovies(1, "ko-KR");
+    verify(externalContentImportService, never()).importTmdbMovies(1, "ko-KR");
   }
 
   @Test
@@ -71,7 +64,7 @@ class ExternalContentImportMethodSecurityTest {
             .with(csrf().asHeader()))
         .andExpect(status().isForbidden());
 
-    verify(tmdbClient, never()).fetchPopularTvSeries(1, "ko-KR");
+    verify(externalContentImportService, never()).importTmdbTvSeries(1, "ko-KR");
   }
 
   @Test
@@ -84,7 +77,7 @@ class ExternalContentImportMethodSecurityTest {
             .with(csrf().asHeader()))
         .andExpect(status().isForbidden());
 
-    verify(sportsDbClient, never()).fetchNextLeagueEvents("4328");
+    verify(externalContentImportService, never()).importSportsDbLeagueEvents("4328");
   }
 
   @Test
@@ -99,8 +92,8 @@ class ExternalContentImportMethodSecurityTest {
             .with(csrf().asHeader()))
         .andExpect(status().isForbidden());
 
-    verify(sportsDbClient, never()).fetchEventsByDay(
-        java.time.LocalDate.of(2026, 7, 2),
+    verify(externalContentImportService, never()).importSportsDbDayEvents(
+        LocalDate.of(2026, 7, 2),
         "Soccer",
         "4328"
     );
