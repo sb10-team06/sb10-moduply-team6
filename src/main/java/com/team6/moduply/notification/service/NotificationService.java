@@ -21,26 +21,23 @@ public class NotificationService {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.PLAYLIST_SUBSCRIBED)
-        .title("플레이리스트 구독 알림")
-        .content("'" + playlistTitle + "' 플레이리스트를 누군가 구독했습니다.")
+        .title(NotificationType.PLAYLIST_SUBSCRIBED.getTitle())
+        .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), playlistTitle))
         .level(NotificationLevel.INFO)
         .build();
-
     notificationRepository.save(notification);
   }
 
-  @Transactional
   public void sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
     List<Notification> notifications = receiverIds.stream()
         .map(receiverId -> Notification.builder()
             .receiverId(receiverId)
             .type(NotificationType.CONTENT_ADDED)
-            .title("새 콘텐츠 추가 알림")
-            .content("'" + playlistTitle + "' 플레이리스트에 '" + contentTitle + "' 콘텐츠가 추가되었습니다.")
+            .title(NotificationType.CONTENT_ADDED.getTitle())
+            .content(String.format(NotificationType.CONTENT_ADDED.getMessageTemplate(), playlistTitle, contentTitle))
             .level(NotificationLevel.INFO)
             .build())
         .toList();
-
     notificationRepository.saveAll(notifications);
   }
 }
