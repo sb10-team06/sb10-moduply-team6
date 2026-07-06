@@ -350,6 +350,11 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
     Map<String, String> map = objectMapper.convertValue(dto,
         new TypeReference<>() {
         });
+    //null 제외
+    map.entrySet().stream()
+        .filter(entry -> entry.getValue() != null)
+        .forEach(entry -> params.add(entry.getKey(), entry.getValue()));
+
     params.setAll(map);
     return params;
   }
