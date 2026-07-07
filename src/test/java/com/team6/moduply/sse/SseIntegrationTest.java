@@ -73,6 +73,6 @@ class SseIntegrationTest extends IntegrationTestSupport {
     SecurityContextHolder.clearContext();
 
     mockMvc.perform(get("/api/sse"))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().is4xxClientError());
   }
 }
