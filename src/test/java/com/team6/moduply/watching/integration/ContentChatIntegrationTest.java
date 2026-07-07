@@ -201,7 +201,9 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
       taskScheduler.destroy();
     }
     await().atMost(5, TimeUnit.SECONDS).until(() ->
-        !stompSession1.isConnected() && !stompSession2.isConnected() && !stompSession3.isConnected()
+        (stompSession1 == null || !stompSession1.isConnected())
+            && (stompSession2 == null || !stompSession2.isConnected())
+            && (stompSession3 == null || !stompSession3.isConnected())
     );
   }
 
