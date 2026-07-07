@@ -20,6 +20,7 @@ import com.team6.moduply.watching.dto.ContentChatSendRequest;
 import com.team6.moduply.watching.model.WatchingSession;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -266,10 +267,8 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
       }
     });
 
-    Thread.sleep(200);
-
     //when
-    stompSession1.send(pd, request);
+    sendUntilReceived(stompSession1, pd, request, messageExpectation);
 
     // then
     ContentChatDto receivedMessage = messageExpectation.get(5, TimeUnit.SECONDS);
@@ -304,9 +303,8 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession3.subscribe(sd, new EmptyFrameHandler() {
     });
 
-    Thread.sleep(200);
     //when
-    stompSession3.send(pd, request);
+    sendUntilReceived(stompSession3, pd, request, messageExpectation);
 
     // then
     ContentChatDto receivedMessage = messageExpectation.get(5, TimeUnit.SECONDS);
@@ -484,5 +482,21 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
       Thread.sleep(100);
     }
     return watchingSessionRepository.findByUserId(userId).orElse(null);
+  }
+
+  private static final Duration SUBSCRIBE_SYNC_TIMEOUT = Duration.ofSeconds(10);
+  private static final Duration SUBSCRIBE_SYNC_POLL_INTERVAL = Duration.ofMillis(100);
+
+  private void sendUntilReceived(StompSession session, String destination,
+      ContentChatSendRequest request, CompletableFuture<?> receivedSignal)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    await().atMost(SUBSCRIBE_SYNC_TIMEOUT)
+        .pollInterval(SUBSCRIBE_SYNC_POLL_INTERVAL)
+        .until(() -> {
+          if (!receivedSignal.isDone()) {
+            session.send(destination, request);
+          }
+          return receivedSignal.isDone();
+        });
   }
 }
