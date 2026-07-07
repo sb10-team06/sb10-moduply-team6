@@ -20,17 +20,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
-@Tag(name = "Notification", description = "알림 관련 API")
-public class NotificationController {
+public class NotificationController implements NotificationApi {
 
   private final NotificationService notificationService;
 
   @GetMapping
-  @Operation(summary = "알림 목록 조회", description = "API 요청자의 알림 목록을 커서 기반 페이지네이션으로 조회합니다.")
   public ResponseEntity<CursorResponse<NotificationDto>> getNotifications(
       @ModelAttribute @Valid NotificationSearchRequest request,
-      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
-    UUID receiverId = userDetails.getUserDto().getId();
+      @AuthenticationPrincipal(expression = "userDto.id") UUID receiverId) {
     return ResponseEntity.ok(notificationService.findAll(request, receiverId));
   }
 }
