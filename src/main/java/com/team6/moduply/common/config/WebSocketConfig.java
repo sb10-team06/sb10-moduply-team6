@@ -3,15 +3,18 @@ package com.team6.moduply.common.config;
 import com.team6.moduply.common.websocket.CorsProperties;
 import com.team6.moduply.common.websocket.StompChannelInterceptor;
 import com.team6.moduply.user.enums.Role;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.messaging.access.intercept.AuthorizationChannelInterceptor;
 import org.springframework.security.messaging.access.intercept.MessageMatcherDelegatingAuthorizationManager;
+import org.springframework.security.messaging.context.AuthenticationPrincipalArgumentResolver;
 import org.springframework.security.messaging.context.SecurityContextChannelInterceptor;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -71,6 +74,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         new SecurityContextChannelInterceptor(),
         authorizationChannelInterceptor()
     );
+  }
+
+  @Override
+  public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
+    argumentResolvers.add(new AuthenticationPrincipalArgumentResolver());
   }
 
   private AuthorizationChannelInterceptor authorizationChannelInterceptor() {
