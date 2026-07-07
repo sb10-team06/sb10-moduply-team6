@@ -18,6 +18,7 @@ import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.directmessage.mapper.DirectMessageMapper;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
 import com.team6.moduply.directmessage.service.DirectMessageService;
+import com.team6.moduply.notification.event.DirectMessageReceivedEvent;
 import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
@@ -35,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +62,9 @@ class DirectMessageServiceTest {
 
   @Mock
   private UserMapper userMapper;
+
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
 
   @Test
   @DisplayName("대화방 참여자가 DM을 생성하면 메시지를 저장하고 DTO를 반환한다.")
@@ -116,6 +121,15 @@ class DirectMessageServiceTest {
     assertThat(capturedDirectMessage.getContent()).isEqualTo(request.content());
     assertThat(capturedDirectMessage.getConversation()).isEqualTo(conversation);
     assertThat(capturedDirectMessage.getSender()).isEqualTo(currentUser);
+    ArgumentCaptor<DirectMessageReceivedEvent> eventCaptor = ArgumentCaptor.forClass(
+        DirectMessageReceivedEvent.class
+    );
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    DirectMessageReceivedEvent event = eventCaptor.getValue();
+    assertThat(event.getReceiverId()).isEqualTo(withUserId);
+    assertThat(event.getSenderId()).isEqualTo(currentUserId);
+    assertThat(event.getSenderName()).isEqualTo(currentUser.getName());
+    assertThat(event.getConversationId()).isEqualTo(conversationId);
   }
 
   @Test

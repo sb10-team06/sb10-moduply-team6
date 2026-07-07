@@ -26,8 +26,9 @@ public class NotificationService {
   private final NotificationQDSLRepository notificationQDSLRepository;
   private final NotificationMapper notificationMapper;
 
+  /// 플레이리스트 알림 전송 메서드
   @Transactional
-  public void sendPlaylistSubscribedNotification(UUID receiverId, String playlistTitle) {
+  public NotificationDto sendPlaylistSubscribedNotification(UUID receiverId, String playlistTitle) {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.PLAYLIST_SUBSCRIBED)
@@ -35,11 +36,12 @@ public class NotificationService {
         .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), playlistTitle))
         .level(NotificationLevel.INFO)
         .build();
-    notificationRepository.save(notification);
+    Notification saved = notificationRepository.save(notification);
+    return notificationMapper.toDto(saved);
   }
 
   @Transactional
-  public void sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
+  public List<NotificationDto> sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
     List<Notification> notifications = receiverIds.stream()
         .map(receiverId -> Notification.builder()
             .receiverId(receiverId)
@@ -49,7 +51,8 @@ public class NotificationService {
             .level(NotificationLevel.INFO)
             .build())
         .toList();
-    notificationRepository.saveAll(notifications);
+    List<Notification> saved = notificationRepository.saveAll(notifications);
+    return saved.stream().map(notificationMapper::toDto).toList();
   }
 
   @Transactional(readOnly = true)
@@ -91,5 +94,52 @@ public class NotificationService {
         request.sortBy().name(),
         request.sortDirection()
     );
+  }
+
+  /// 팔로우 알림 전송 메서드.
+  @Transactional
+  public void sendFollowedNotification(UUID receiverId, String followerName) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.FOLLOWED)
+        .title(NotificationType.FOLLOWED.getTitle())
+        .content(String.format(NotificationType.FOLLOWED.getMessageTemplate(), followerName))
+        .level(NotificationLevel.INFO)
+        .build();
+    notificationRepository.save(notification);
+  }
+
+  @Transactional
+  public void sendDmReceivedNotification(UUID receiverId, String senderName) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.DM_RECEIVED)
+        .title(NotificationType.DM_RECEIVED.getTitle())
+        .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), senderName))
+        .level(NotificationLevel.INFO)
+        .build();
+    notificationRepository.save(notification);
+  }
+
+  @Transactional
+  public void sendFollowActivityNotification(
+      List<UUID> receiverIds,
+      String actorName,
+      String activityContent
+  ) {
+    List<Notification> notifications = receiverIds.stream()
+        .map(receiverId -> Notification.builder()
+            .receiverId(receiverId)
+            .type(NotificationType.FOLLOW_ACTIVITY)
+            .title(NotificationType.FOLLOW_ACTIVITY.getTitle())
+            .content(String.format(
+                NotificationType.FOLLOW_ACTIVITY.getMessageTemplate(),
+                actorName,
+                activityContent
+            ))
+            .level(NotificationLevel.INFO)
+            .build())
+        .toList();
+    notificationRepository.saveAll(notifications);
   }
 }

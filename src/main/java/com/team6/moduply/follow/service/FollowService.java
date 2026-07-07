@@ -7,10 +7,12 @@ import com.team6.moduply.follow.exception.FollowErrorCode;
 import com.team6.moduply.follow.exception.FollowException;
 import com.team6.moduply.follow.mapper.FollowMapper;
 import com.team6.moduply.follow.repository.FollowRepository;
+import com.team6.moduply.notification.event.FollowedEvent;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +28,7 @@ public class FollowService {
   private final FollowRepository followRepository;
   private final UserRepository userRepository;
   private final FollowMapper followMapper;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public FollowDto createFollow(FollowRequest request, UUID followerId) {
@@ -40,15 +43,22 @@ public class FollowService {
     validate(followerId, followeeId);
 
     try {
+      // 팔로우 저장
       Follow saved = followRepository.saveAndFlush(new Follow(follower, followee));
-      return followMapper.toDto(saved);
+      FollowDto response = followMapper.toDto(saved);
+      // 팔로우 이벤트 발행
+      eventPublisher.publishEvent(new FollowedEvent(
+          followerId,
+          follower.getName(),
+          followeeId
+      ));
+      return response;
 
     } catch (DataIntegrityViolationException e) {
       /// A가 B 팔로우를 동시 요청할시,
       /// existsByFollowerIdAndFolloweeId통과해서 DataIntegrityViolationException 예외일어날 수 있음 방어.
       throw new FollowException(FollowErrorCode.FOLLOW_ALREADY_EXISTS, Map.of("followerId", followerId, "followeeId", followeeId));
     }
-    // TODO: SSE용 팔로우 알림 이벤트를 발행한다.
 
   }
 

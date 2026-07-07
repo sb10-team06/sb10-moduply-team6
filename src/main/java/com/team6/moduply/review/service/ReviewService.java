@@ -3,6 +3,7 @@ package com.team6.moduply.review.service;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
 import com.team6.moduply.review.dto.ReviewSearchRequest;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class ReviewService {
   private final ReviewQDSLRepository reviewQDSLRepository;
   private final UserRepository userRepository;
   private final UserMapper userMapper;
+  private final ApplicationEventPublisher eventPublisher;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
     if (!review.getAuthorId().equals(authorId)) {
@@ -74,6 +77,11 @@ public class ReviewService {
         .build();
 
     Review saved = reviewRepository.save(review);
+    eventPublisher.publishEvent(new FollowActivityEvent(
+        authorId,
+        userDetails.getUserDto().getName(),
+        "새 리뷰를 작성했습니다."
+    ));
 
     // TODO: S3 이미지 저장 로직 완성 후 profileImageUrl 실제 URL로 교체 필요 (현재 null 반환)
     ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
