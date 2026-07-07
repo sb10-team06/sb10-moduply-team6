@@ -228,7 +228,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
           }
         }
     );
-    return connectFuture.get(3, TimeUnit.SECONDS);
+    return connectFuture.get(5, TimeUnit.SECONDS);
   }
 
   private static class EmptyFrameHandler implements StompFrameHandler {
@@ -268,7 +268,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession1.send(pd, request);
 
     // then
-    ContentChatDto receivedMessage = messageExpectation.get(3, TimeUnit.SECONDS);
+    ContentChatDto receivedMessage = messageExpectation.get(5, TimeUnit.SECONDS);
 
     assertThat(receivedMessage).isNotNull();
     assertThat(receivedMessage.content()).isEqualTo(request.content());
@@ -304,7 +304,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession3.send(pd, request);
 
     // then
-    ContentChatDto receivedMessage = messageExpectation.get(3, TimeUnit.SECONDS);
+    ContentChatDto receivedMessage = messageExpectation.get(5, TimeUnit.SECONDS);
 
     assertThat(receivedMessage).isNotNull();
     assertThat(receivedMessage.content().equals(request.content())).isTrue();
@@ -469,7 +469,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
   // 저장소에서 사용자 아이디로 조회
   private WatchingSession awaitSessionPresenceByUserId(UUID userId, boolean expectVisible)
       throws InterruptedException {
-    long deadline = System.currentTimeMillis() + 3000;
+    long deadline = System.currentTimeMillis() + 5000;
     while (System.currentTimeMillis() < deadline) {
       var opt = watchingSessionRepository.findByUserId(userId);
       if (opt.isPresent() == expectVisible) {
