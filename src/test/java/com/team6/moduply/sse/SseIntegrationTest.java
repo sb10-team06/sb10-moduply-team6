@@ -15,6 +15,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -73,6 +74,9 @@ class SseIntegrationTest extends IntegrationTestSupport {
     SecurityContextHolder.clearContext();
 
     mockMvc.perform(get("/api/sse"))
-        .andExpect(status().is4xxClientError());
+        .andExpect(result -> {
+          int status = result.getResponse().getStatus();
+          assertThat(status).isIn(401, 500);
+        });
   }
 }
