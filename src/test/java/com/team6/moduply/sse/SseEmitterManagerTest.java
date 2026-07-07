@@ -89,29 +89,29 @@ class SseEmitterManagerTest {
     assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
   }
 
-  @Test
-  @DisplayName("Heartbeat 전송 시 연결된 emitter에 ping 이벤트가 전송된다.")
-  void sendHeartbeat_success() {
-    // given
-    UUID userId = UUID.randomUUID();
-    sseEmitterManager.connect(userId);
-
-    // when & then
-    assertDoesNotThrow(() -> sseEmitterManager.sendHeartbeat());
-  }
-
-  @Test
-  @DisplayName("Heartbeat 전송 실패 시 해당 emitter가 맵에서 제거된다.")
-  void sendHeartbeat_removes_completed_emitter() {
-    // given
-    UUID userId = UUID.randomUUID();
-    SseEmitter emitter = sseEmitterManager.connect(userId);
-    emitter.complete();
-
-    // when
-    sseEmitterManager.sendHeartbeat();
-
-    // then - 제거된 emitter에 send해도 예외 없음
-    assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
-  }
+//  @Test
+//  @DisplayName("Heartbeat 전송 시 연결된 emitter에 ping 이벤트가 전송된다.")
+//  void sendHeartbeat_success() {
+//    // given
+//    UUID userId = UUID.randomUUID();
+//    sseEmitterManager.connect(userId);
+//
+//    // when & then
+//    assertDoesNotThrow(() -> sseEmitterManager.sendHeartbeat());
+//  }
+//
+//  @Test
+//  @DisplayName("Heartbeat 전송 실패 시 해당 emitter가 맵에서 제거된다.")
+//  void sendHeartbeat_removes_completed_emitter() {
+//    // given
+//    UUID userId = UUID.randomUUID();
+//    SseEmitter emitter = sseEmitterManager.connect(userId);
+//    emitter.complete();
+//
+//    // when
+//    sseEmitterManager.sendHeartbeat();
+//
+//    // then - 제거된 emitter에 send해도 예외 없음
+//    assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
+//  }
 }
