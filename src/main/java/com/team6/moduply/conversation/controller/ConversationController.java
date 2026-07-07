@@ -76,7 +76,7 @@ public class ConversationController implements ConversationApi {
       @AuthenticationPrincipal(expression = "userDto.id") UUID currentUserId
   ) {
     conversationService.read(conversationId, directMessageId, currentUserId);
-    return ResponseEntity.ok().build();
+    return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/{conversationId}/direct-messages")
