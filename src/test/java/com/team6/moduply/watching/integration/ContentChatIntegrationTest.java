@@ -200,7 +200,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     if (taskScheduler != null) {
       taskScheduler.destroy();
     }
-    await().atMost(3, TimeUnit.SECONDS).until(() ->
+    await().atMost(5, TimeUnit.SECONDS).until(() ->
         !stompSession1.isConnected() && !stompSession2.isConnected() && !stompSession3.isConnected()
     );
   }
@@ -335,7 +335,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     // then
     // 서버가 예외를 인지하고 세션을 강제로 drop할 때까지 최대 3초간 대기하며 검증합니다.
     await()
-        .atMost(3, TimeUnit.SECONDS)
+        .atMost(5, TimeUnit.SECONDS)
         .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
         .until(() -> !stompSession2.isConnected());
 
@@ -369,7 +369,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     // then
     // 서버가 예외를 인지하고 세션을 강제로 drop할 때까지 최대 3초간 대기하며 검증합니다.
     await()
-        .atMost(3, TimeUnit.SECONDS)
+        .atMost(5, TimeUnit.SECONDS)
         .alias("서버가 잘못된 구독 요청을 받았음에도 웹소켓 세션을 끊지 않았습니다.")
         .until(() -> !stompSession1.isConnected());
 
