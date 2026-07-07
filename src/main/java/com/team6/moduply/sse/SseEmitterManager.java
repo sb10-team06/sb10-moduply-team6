@@ -64,6 +64,14 @@ public class SseEmitterManager {
     }
   }
 
+  public void removeAllEmitters(UUID userId) {
+    SseEmitter emitter = emitters.get(userId);
+    if (emitter != null) {
+      emitter.complete();
+      emitters.remove(userId);
+    }
+  }
+
   @Scheduled(fixedDelay = 30000) // 30초마다
   public void sendHeartbeat() {
     if (emitters.isEmpty()) {
