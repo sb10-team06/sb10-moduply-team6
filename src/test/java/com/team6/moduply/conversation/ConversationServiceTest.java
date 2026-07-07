@@ -78,6 +78,18 @@ class ConversationServiceTest {
   private UserMapper userMapper;
 
   @Test
+  @DisplayName("대화방 생성 시 PostgreSQL UUID 정렬 기준에 맞게 사용자 ID 순서를 고정한다.")
+  void create_success_orders_user_ids_by_database_uuid_order() {
+    UUID largerByDatabaseOrder = UUID.fromString("ff4847dc-1885-4bf3-aa11-99587cb236b2");
+    UUID smallerByDatabaseOrder = UUID.fromString("77d36ffc-87d5-410d-82dc-e960c8c096e5");
+
+    Conversation conversation = Conversation.create(largerByDatabaseOrder, smallerByDatabaseOrder);
+
+    assertThat(conversation.getUser1Id()).isEqualTo(smallerByDatabaseOrder);
+    assertThat(conversation.getUser2Id()).isEqualTo(largerByDatabaseOrder);
+  }
+
+  @Test
   @DisplayName("대화 상대가 존재하고 기존 대화방이 없으면 새 대화방을 생성한다.")
   void create_success_with_valid_users() {
     UUID currentUserId = UUID.randomUUID();
