@@ -8,6 +8,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class SseEmitterManagerTest {
 
@@ -52,8 +53,39 @@ class SseEmitterManagerTest {
     UUID userId = UUID.randomUUID();
 
     // when & then
-    org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+    assertDoesNotThrow(
         () -> sseEmitterManager.send(userId, "test")
     );
+  }
+
+  @Test
+  @DisplayName("재연결 후 구 emitter의 onCompletion 콜백이 새 emitter를 제거하지 않는다.")
+  void old_emitter_callback_does_not_remove_new_emitter() {
+    // given
+    UUID userId = UUID.randomUUID();
+    SseEmitter first = sseEmitterManager.connect(userId);
+    SseEmitter second = sseEmitterManager.connect(userId);
+
+    // when - 구 emitter의 complete 호출 (onCompletion 콜백 트리거)
+    first.complete();
+
+    // then - 새 emitter는 여전히 맵에 남아있어야 함
+    // send가 예외 없이 실행되면 새 emitter가 살아있다는 것
+    assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
+  }
+
+  @Test
+  @DisplayName("재연결 후 구 emitter의 onTimeout 콜백이 새 emitter를 제거하지 않는다.")
+  void old_emitter_timeout_does_not_remove_new_emitter() {
+    // given
+    UUID userId = UUID.randomUUID();
+    SseEmitter first = sseEmitterManager.connect(userId);
+    SseEmitter second = sseEmitterManager.connect(userId);
+
+    // when - 구 emitter 타임아웃 강제 트리거
+    first.completeWithError(new RuntimeException("timeout simulation"));
+
+    // then
+    assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
   }
 }
