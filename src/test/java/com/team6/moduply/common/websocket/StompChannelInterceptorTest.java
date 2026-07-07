@@ -85,7 +85,6 @@ class StompChannelInterceptorTest {
   @Test
   @DisplayName("인증 사용자 정보가 없으면 구독 이벤트를 발행하지 않는다.")
   void preSend_fail_without_user_id() {
-    UUID userId = UUID.randomUUID();
     Map<String, Object> sessionAttributes = new ConcurrentHashMap<>();
     Message<?> message = subscribeMessage("/sub/watching-sessions/session-1", sessionAttributes);
 
