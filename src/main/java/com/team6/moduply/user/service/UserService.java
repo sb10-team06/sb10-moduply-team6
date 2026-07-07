@@ -162,14 +162,13 @@ public class UserService {
       user.updateName(request.getName());
     }
 
-    String presignedUrl = null;
-
-    if(profileImg != null){
+    if (profileImg != null) {
       BinaryContent oldImg = user.getProfileImg();
-      try{
+      try {
         BinaryContent newImg = binaryContentService.createUserProfile(userId, profileImg, oldImg);
         user.updateProfileImg(newImg);
-        presignedUrl = binaryContentService.generateUrl(newImg);
+        String profileImageUrl = binaryContentService.generateUrl(newImg);
+        return userMapper.toDto(user, profileImageUrl);
 
       } catch (IOException e) {
         throw new UserException(
@@ -179,7 +178,8 @@ public class UserService {
       }
     }
 
-    return userMapper.toDto(user, presignedUrl);
+    String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+    return userMapper.toDto(user, profileImageUrl);
   }
 
   @Transactional
