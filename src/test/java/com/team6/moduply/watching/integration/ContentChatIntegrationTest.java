@@ -167,6 +167,10 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession3 = connectStompSession(accessToken3);
     stompSession3.subscribe(destination2, new EmptyFrameHandler());
 
+    assertThat(awaitSessionPresenceByUserId(user1Id, true)).isNotNull();
+    assertThat(awaitSessionPresenceByUserId(user2Id, true)).isNotNull();
+    assertThat(awaitSessionPresenceByUserId(user3Id, true)).isNotNull();
+
   }
 
   @AfterEach
@@ -196,7 +200,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     if (taskScheduler != null) {
       taskScheduler.destroy();
     }
-    await().atMost(1, TimeUnit.SECONDS).until(() ->
+    await().atMost(3, TimeUnit.SECONDS).until(() ->
         !stompSession1.isConnected() && !stompSession2.isConnected() && !stompSession3.isConnected()
     );
   }
