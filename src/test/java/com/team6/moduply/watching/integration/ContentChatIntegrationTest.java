@@ -310,7 +310,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     ContentChatDto receivedMessage = messageExpectation.get(5, TimeUnit.SECONDS);
 
     assertThat(receivedMessage).isNotNull();
-    assertThat(receivedMessage.content().equals(request.content())).isTrue();
+    assertThat(receivedMessage.content()).isEqualTo(request.content());
     assertThat(receivedMessage.sender().userId()).isEqualTo(user3Id);
     assertThat(receivedMessage.sender().name()).isEqualTo("test3");
   }
