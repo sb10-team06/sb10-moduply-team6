@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -61,5 +62,23 @@ public class SseEmitterManager {
       log.error("[SSE] 초기 이벤트 전송 실패 - userId: {}", userId, e);
       emitters.remove(userId, emitter);
     }
+  }
+
+  @Scheduled(fixedDelay = 30000) // 30초마다
+  public void sendHeartbeat() {
+    if (emitters.isEmpty()) {
+      return;
+    }
+    log.debug("[SSE] Heartbeat 전송 - 연결 수: {}", emitters.size());
+    emitters.forEach((userId, emitter) -> {
+      try {
+        emitter.send(SseEmitter.event()
+            .name("heartbeat")
+            .data("ping"));
+      } catch (IOException e) {
+        log.error("[SSE] Heartbeat 전송 실패 - userId={}", userId, e);
+        emitters.remove(userId, emitter);
+      }
+    });
   }
 }
