@@ -75,7 +75,7 @@ public class SseEmitterManager {
         emitter.send(SseEmitter.event()
             .name("heartbeat")
             .data("ping"));
-      } catch (IOException e) {
+      } catch (IOException | IllegalStateException e) {
         log.error("[SSE] Heartbeat 전송 실패 - userId={}", userId, e);
         emitters.remove(userId, emitter);
       }
