@@ -49,7 +49,7 @@ public record ReviewSearchRequest(
             Double.parseDouble(cursor.substring(0, colonIndex));
             Instant.parse(cursor.substring(colonIndex + 1));
             return true;
-        } catch (Exception e) {
+        } catch (NumberFormatException | java.time.format.DateTimeParseException e) {
             return false;
         }
     }
@@ -60,7 +60,7 @@ public record ReviewSearchRequest(
         try {
             Instant.parse(cursor);
             return true;
-        } catch (Exception e) {
+        } catch (java.time.format.DateTimeParseException e) {
             return false;
         }
     }
