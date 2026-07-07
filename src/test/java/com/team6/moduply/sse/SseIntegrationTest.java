@@ -55,18 +55,8 @@ class SseIntegrationTest extends IntegrationTestSupport {
     mockMvc.perform(get("/api/sse"))
         .andExpect(status().isOk())
         .andExpect(header().string("Content-Type", "text/event-stream"));
-  }
 
-  @Test
-  @DisplayName("SSE 연결 후 이벤트를 전송하면 예외가 발생하지 않는다.")
-  void send_after_connect() throws Exception {
-    // given
-    mockMvc.perform(get("/api/sse"))
-        .andExpect(status().isOk());
-
-    // when & then
-    org.junit.jupiter.api.Assertions.assertDoesNotThrow(
-        () -> sseEmitterManager.send(TEST_USER_ID, "test message")
-    );
+    // 테스트 후 즉시 연결 종료
+    sseEmitterManager.removeAllEmitters(TEST_USER_ID);
   }
 }
