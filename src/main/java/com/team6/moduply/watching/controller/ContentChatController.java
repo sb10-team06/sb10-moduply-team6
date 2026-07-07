@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 
 @Controller
@@ -22,9 +22,8 @@ public class ContentChatController {
   @MessageMapping("/contents/{contentId}/chat")
   public void chat(@Valid ContentChatSendRequest request,
       @DestinationVariable UUID contentId,
-      Authentication authentication) {
+      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
 
-    ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
     UUID userId = userDetails.getUserDto().getId();
     contentChatService.sendChatMessage(request, contentId, userId);
     log.info("실시간 채팅 전송: userId={}, contentId={}", userId, contentId);
