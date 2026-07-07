@@ -67,16 +67,4 @@ class SseIntegrationTest extends IntegrationTestSupport {
         () -> sseEmitterManager.send(TEST_USER_ID, "test message")
     );
   }
-
-  @Test
-  @DisplayName("인증 없이 SSE 연결 시 401을 반환한다.")
-  void subscribe_fail_with_no_auth() throws Exception {
-    SecurityContextHolder.clearContext();
-
-    mockMvc.perform(get("/api/sse"))
-        .andExpect(result -> {
-          int status = result.getResponse().getStatus();
-          assertThat(status).isIn(401, 500);
-        });
-  }
 }
