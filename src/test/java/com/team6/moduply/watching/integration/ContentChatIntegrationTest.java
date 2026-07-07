@@ -264,6 +264,8 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
       }
     });
 
+    Thread.sleep(200);
+
     //when
     stompSession1.send(pd, request);
 
@@ -300,6 +302,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession3.subscribe(sd, new EmptyFrameHandler() {
     });
 
+    Thread.sleep(200);
     //when
     stompSession3.send(pd, request);
 
@@ -348,6 +351,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
   void subscribe_chat_fail_without_session() throws Exception {
     // given
     stompSession1.disconnect();
+    assertThat(awaitSessionPresenceByUserId(user1Id, false)).isNull();
     stompSession1 = connectStompSession(accessToken1);//다시 연결
 
     String incorrectChatDestination = makeDestination(content1Id, "sub");
