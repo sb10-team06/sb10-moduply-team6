@@ -21,12 +21,12 @@ public class ExternalContentImportService {
   private final ExternalContentService externalContentService;
 
   public ExternalContentImportResult importTmdbMovies(int page, String language) {
-    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchPopularMovies(page, language);
+    TmdbPageResponse<TmdbMovieResponse> response = tmdbClient.fetchDiscoverMovies(page, language);
     return externalContentService.importTmdbMovies(emptyIfNull(response.results()));
   }
 
   public ExternalContentImportResult importTmdbTvSeries(int page, String language) {
-    TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchPopularTvSeries(page, language);
+    TmdbPageResponse<TmdbTvResponse> response = tmdbClient.fetchDiscoverTvSeries(page, language);
     return externalContentService.importTmdbTvSeries(emptyIfNull(response.results()));
   }
 
