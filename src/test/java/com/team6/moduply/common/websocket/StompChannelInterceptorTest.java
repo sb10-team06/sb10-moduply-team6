@@ -2,14 +2,14 @@ package com.team6.moduply.common.websocket;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
-import com.team6.moduply.conversation.repository.ConversationRepository;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,74 +43,66 @@ class StompChannelInterceptorTest {
   @Mock
   private AuthService authService;
 
-  @Mock
-  private ConversationRepository conversationRepository;
-
   @Test
-  @DisplayName("DM 구독 요청자가 대화방 참여자이면 구독을 허용한다.")
-  void preSend_success_when_direct_message_subscriber_is_participant() {
+  @DisplayName("SUBSCRIBE 요청을 받으면 구독 이벤트를 발행하고 세션에 구독 정보를 저장한다.")
+  void preSend_success_when_subscribe() {
     UUID userId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     String destination = "/sub/conversations/" + conversationId + "/direct-messages";
-    Message<?> message = subscribeMessage(destination, userId);
-
-    given(conversationRepository.existsByIdAndParticipantId(conversationId, userId))
-        .willReturn(true);
+    Map<String, Object> sessionAttributes = new ConcurrentHashMap<>(Map.of("userId", userId));
+    Message<?> message = subscribeMessage(destination, sessionAttributes);
 
     assertThatCode(() -> stompChannelInterceptor.preSend(message, null))
         .doesNotThrowAnyException();
 
-    verify(conversationRepository).existsByIdAndParticipantId(conversationId, userId);
     verify(applicationEventPublisher).publishEvent(
         ArgumentMatchers.any(StompSubscribeEvent.class)
     );
+    Map<String, String> subscriptions = (Map<String, String>) sessionAttributes.get("SUBSCRIPTIONS");
+    assertThat(subscriptions).containsEntry("sub-1", destination);
   }
 
   @Test
-  @DisplayName("DM 구독 요청자가 대화방 참여자가 아니면 구독을 거부한다.")
-  void preSend_fail_when_direct_message_subscriber_is_not_participant() {
+  @DisplayName("구독 이벤트 처리 중 예외가 발생하면 구독 정보를 저장하지 않는다.")
+  void preSend_fail_when_subscribe_event_listener_throws_exception() {
     UUID userId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     String destination = "/sub/conversations/" + conversationId + "/direct-messages";
-    Message<?> message = subscribeMessage(destination, userId);
+    Map<String, Object> sessionAttributes = new ConcurrentHashMap<>(Map.of("userId", userId));
+    Message<?> message = subscribeMessage(destination, sessionAttributes);
 
-    given(conversationRepository.existsByIdAndParticipantId(conversationId, userId))
-        .willReturn(false);
-
+    willThrow(new MessageDeliveryException("대화방 참여자만 DM을 구독할 수 있습니다."))
+        .given(applicationEventPublisher)
+        .publishEvent(ArgumentMatchers.any(StompSubscribeEvent.class));
     assertThatThrownBy(() -> stompChannelInterceptor.preSend(message, null))
         .isInstanceOf(MessageDeliveryException.class)
         .hasMessageContaining("대화방 참여자만 DM을 구독할 수 있습니다.");
 
-    verify(conversationRepository).existsByIdAndParticipantId(conversationId, userId);
+    Map<String, String> subscriptions = (Map<String, String>) sessionAttributes.get("SUBSCRIPTIONS");
+    assertThat(subscriptions).doesNotContainKey("sub-1");
+  }
+
+  @Test
+  @DisplayName("인증 사용자 정보가 없으면 구독 이벤트를 발행하지 않는다.")
+  void preSend_fail_without_user_id() {
+    Map<String, Object> sessionAttributes = new ConcurrentHashMap<>();
+    Message<?> message = subscribeMessage("/sub/watching-sessions/session-1", sessionAttributes);
+
+    assertThatThrownBy(() -> stompChannelInterceptor.preSend(message, null))
+        .isInstanceOf(MessageDeliveryException.class)
+        .hasMessageContaining("웹소켓 세션에 사용자 인증 정보가 존재하지 않습니다.");
+
     verify(applicationEventPublisher, never()).publishEvent(
         ArgumentMatchers.any(StompSubscribeEvent.class)
     );
   }
 
-  @Test
-  @DisplayName("DM이 아닌 구독 요청은 대화방 참여자 검증을 수행하지 않는다.")
-  void preSend_success_without_participant_validation_when_not_direct_message_subscription() {
-    UUID userId = UUID.randomUUID();
-    Message<?> message = subscribeMessage("/sub/watching-sessions/session-1", userId);
-
-    assertThatCode(() -> stompChannelInterceptor.preSend(message, null))
-        .doesNotThrowAnyException();
-
-    verify(conversationRepository, never()).existsByIdAndParticipantId(
-        ArgumentMatchers.any(UUID.class),
-        ArgumentMatchers.any(UUID.class)
-    );
-    verify(applicationEventPublisher).publishEvent(
-        ArgumentMatchers.any(StompSubscribeEvent.class)
-    );
-  }
-
-  private Message<?> subscribeMessage(String destination, UUID userId) {
+  private Message<?> subscribeMessage(String destination, Map<String, Object> sessionAttributes) {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
     accessor.setDestination(destination);
     accessor.setSubscriptionId("sub-1");
     accessor.setSessionId("session-1");
-    accessor.setSessionAttributes(new ConcurrentHashMap<>(Map.of("userId", userId)));
+    accessor.setSessionAttributes(sessionAttributes);
     accessor.setUser(new TestingAuthenticationToken("user", null));
 
     return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());

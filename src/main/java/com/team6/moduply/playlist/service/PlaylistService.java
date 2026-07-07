@@ -3,6 +3,7 @@ package com.team6.moduply.playlist.service;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.notification.event.ContentAddedEvent;
+import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
@@ -20,6 +21,11 @@ import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.List;
 import java.util.Map;
+
+import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.exception.UserErrorCode;
+import com.team6.moduply.user.exception.UserException;
+import com.team6.moduply.user.repository.UserRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +44,7 @@ public class PlaylistService {
   private final PlaylistContentRepository playlistContentRepository;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
   private final ApplicationEventPublisher eventPublisher;
+  private final UserRepository userRepository;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -49,6 +56,14 @@ public class PlaylistService {
         .build();
 
     Playlist saved = playlistRepository.save(playlist);
+    String ownerName = userRepository.findById(ownerId)
+                    .map(User::getName)
+                            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of("userId",  ownerId)));
+    eventPublisher.publishEvent(new FollowActivityEvent(
+        ownerId,
+        ownerName,
+        "새 플레이리스트를 생성했습니다."
+    ));
 
     return playlistMapper.toDto(saved);
   }
@@ -162,11 +177,19 @@ public class PlaylistService {
         .build();
 
     playlistContentRepository.save(playlistContent);
+    String ownerName = userRepository.findById(ownerId)
+            .map(User::getName)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of("userId",  ownerId)));
 
     eventPublisher.publishEvent(new ContentAddedEvent(
         playlistId,
         playlist.getTitle(),
         String.valueOf(contentId)
+    ));
+    eventPublisher.publishEvent(new FollowActivityEvent(
+            ownerId,
+            ownerName,
+            "플레이리스트에 새 콘텐츠를 추가했습니다."
     ));
   }
 

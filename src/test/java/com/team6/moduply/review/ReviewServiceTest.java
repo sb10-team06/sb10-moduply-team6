@@ -4,6 +4,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
 import com.team6.moduply.review.dto.ReviewSearchRequest;
@@ -28,9 +29,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,6 +66,8 @@ class ReviewServiceTest {
   @Mock
   private UserMapper userMapper;
 
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
 
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(
@@ -103,6 +108,14 @@ class ReviewServiceTest {
     assertThat(result.text()).isEqualTo("좋아요");
     assertThat(result.rating()).isEqualTo(4.5);
     verify(reviewRepository).save(any(Review.class));
+    ArgumentCaptor<FollowActivityEvent> eventCaptor = ArgumentCaptor.forClass(
+        FollowActivityEvent.class
+    );
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    FollowActivityEvent event = eventCaptor.getValue();
+    assertThat(event.getActorId()).isEqualTo(authorId);
+    assertThat(event.getActorName()).isEqualTo(userDetails.getUserDto().getName());
+    assertThat(event.getActivityContent()).isEqualTo("새 리뷰를 작성했습니다.");
   }
 
   @Test

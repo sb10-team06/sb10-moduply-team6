@@ -52,6 +52,53 @@ public class NotificationService {
     notificationRepository.saveAll(notifications);
   }
 
+  /// 팔로우 알림 전송 메서드.
+  @Transactional
+  public void sendFollowedNotification(UUID receiverId, String followerName) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.FOLLOWED)
+        .title(NotificationType.FOLLOWED.getTitle())
+        .content(String.format(NotificationType.FOLLOWED.getMessageTemplate(), followerName))
+        .level(NotificationLevel.INFO)
+        .build();
+    notificationRepository.save(notification);
+  }
+
+  @Transactional
+  public void sendDmReceivedNotification(UUID receiverId, String senderName) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.DM_RECEIVED)
+        .title(NotificationType.DM_RECEIVED.getTitle())
+        .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), senderName))
+        .level(NotificationLevel.INFO)
+        .build();
+    notificationRepository.save(notification);
+  }
+
+  @Transactional
+  public void sendFollowActivityNotification(
+      List<UUID> receiverIds,
+      String actorName,
+      String activityContent
+  ) {
+    List<Notification> notifications = receiverIds.stream()
+        .map(receiverId -> Notification.builder()
+            .receiverId(receiverId)
+            .type(NotificationType.FOLLOW_ACTIVITY)
+            .title(NotificationType.FOLLOW_ACTIVITY.getTitle())
+            .content(String.format(
+                NotificationType.FOLLOW_ACTIVITY.getMessageTemplate(),
+                actorName,
+                activityContent
+            ))
+            .level(NotificationLevel.INFO)
+            .build())
+        .toList();
+    notificationRepository.saveAll(notifications);
+  }
+
   @Transactional(readOnly = true)
   public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request, UUID receiverId) {
     List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request, receiverId);

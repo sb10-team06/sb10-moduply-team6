@@ -10,6 +10,7 @@ import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.directmessage.mapper.DirectMessageMapper;
 import com.team6.moduply.directmessage.repository.DirectMessageRepository;
+import com.team6.moduply.notification.event.DirectMessageReceivedEvent;
 import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ public class DirectMessageService {
   private final DirectMessageMapper directMessageMapper;
   private final BinaryContentService binaryContentService;
   private final UserMapper userMapper;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public DirectMessageDto create(
@@ -55,12 +58,20 @@ public class DirectMessageService {
     validateParticipant(conversation, currentUserId);
 
     User currentUser = findUser(currentUserId);
-    User withUser = findUser(resolveWithUserId(conversation, currentUserId));
+    UUID withUserId = resolveWithUserId(conversation, currentUserId);
+    User withUser = findUser(withUserId);
     UserSummaryDto currentUserSummary = toUserSummaryDto(currentUser);
     UserSummaryDto withUserSummary = toUserSummaryDto(withUser);
     DirectMessage directMessage = directMessageRepository.save(
         DirectMessage.create(conversation, currentUser, request.content())
     );
+    // 메시지 수신 이벤트 발행
+    eventPublisher.publishEvent(new DirectMessageReceivedEvent(
+            withUserId,
+            currentUserId,
+            currentUser.getName(),
+            conversationId
+    ));
 
     DirectMessageDto response = directMessageMapper.toDto(
         directMessage,
@@ -69,6 +80,7 @@ public class DirectMessageService {
         currentUserSummary,
         withUserSummary
     );
+
     log.debug("DM 생성 처리 완료. directMessageId={}", response.id());
     return response;
   }
