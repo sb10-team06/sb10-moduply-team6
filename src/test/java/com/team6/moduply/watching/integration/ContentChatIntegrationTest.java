@@ -405,15 +405,10 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession3.subscribe(sd, new EmptyFrameHandler() {
     });
 
-    WatchingSession beforeChangeSession = watchingSessionRepository.findByUserId(user3Id)
-        .orElseThrow(() -> new AssertionError("시청 세션이 존재하지 않습니다."));
-    watchingSessionRepository.deleteBySessionId(beforeChangeSession.getSessionId());
-    assertThat(awaitSessionPresenceByUserId(user3Id, false)).isNull();
-
     stompSession3.subscribe("/sub/contents/" + content1Id + "/watch", new EmptyFrameHandler() {
     });
 
-    assertThat(awaitSessionPresenceByUserId(user3Id, true)).isNotNull();
+    assertThat(awaitSessionContentByUserId(user3Id, content1Id)).isNotNull();
 
     //when
     stompSession3.send(pd, request);
@@ -496,7 +491,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     });
 
     assertThat(awaitSessionPresenceByUserId(user3Id, true)).isNotNull();
-    
+
     //when
     stompSession3.send(pd, request);
 
@@ -540,5 +535,18 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
           }
           return receivedSignal.isDone();
         });
+  }
+
+  private WatchingSession awaitSessionContentByUserId(UUID userId, UUID contentId)
+      throws InterruptedException {
+    long deadline = System.currentTimeMillis() + 5000;
+    while (System.currentTimeMillis() < deadline) {
+      var opt = watchingSessionRepository.findByUserId(userId);
+      if (opt.isPresent() && contentId.equals(opt.get().getContentId())) {
+        return opt.get();
+      }
+      Thread.sleep(100);
+    }
+    return null;
   }
 }
