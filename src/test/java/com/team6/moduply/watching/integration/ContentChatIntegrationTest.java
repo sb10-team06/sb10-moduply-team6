@@ -496,12 +496,7 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     });
 
     assertThat(awaitSessionPresenceByUserId(user3Id, true)).isNotNull();
-
-    // 💡 해결책 2: 혹시 모를 타이밍을 위해 orElseThrow() 대신, 세션을 안전하게 조회하도록 보장
-    WatchingSession session = watchingSessionRepository.findByUserId(user3Id)
-        .orElseThrow(
-            () -> new AssertionError("비동기 세션 저장이 대기 시간 내에 완료되지 않았습니다. 현재 DB에 유저의 세션이 없습니다."));
-
+    
     //when
     stompSession3.send(pd, request);
 
