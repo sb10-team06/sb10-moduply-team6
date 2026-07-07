@@ -411,7 +411,12 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     assertThat(awaitSessionContentByUserId(user3Id, content1Id)).isNotNull();
 
     //when
-    stompSession3.send(pd, request);
+    try {
+      stompSession3.send(pd, request);
+    } catch (Exception ignored) {
+      // 세션이 서버 측 예외(WATCHING_SESSION__NOT_FOUND)로 인해
+      // ERROR 프레임 + 연결 종료 처리 중이라 발생할 수 있는 예외입니다.
+    }
 
     // then
     assertThrows(
@@ -457,7 +462,12 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     assertThat(awaitSessionPresenceByUserId(user3Id, false)).isNull();
 
     //when
-    stompSession3.send(pd, request);
+    try {
+      stompSession3.send(pd, request);
+    } catch (Exception ignored) {
+      // 세션이 서버 측 예외(WATCHING_SESSION__NOT_FOUND)로 인해
+      // ERROR 프레임 + 연결 종료 처리 중이라 발생할 수 있는 예외입니다.
+    }
 
     // then
     assertThrows(
@@ -493,7 +503,12 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     assertThat(awaitSessionPresenceByUserId(user3Id, true)).isNotNull();
 
     //when
-    stompSession3.send(pd, request);
+    try {
+      stompSession3.send(pd, request);
+    } catch (Exception ignored) {
+      // 세션이 서버 측 예외(WATCHING_SESSION__NOT_FOUND)로 인해
+      // ERROR 프레임 + 연결 종료 처리 중이라 발생할 수 있는 예외입니다.
+    }
 
     // then
     assertThrows(
