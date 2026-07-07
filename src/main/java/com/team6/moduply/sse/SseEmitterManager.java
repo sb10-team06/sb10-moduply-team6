@@ -20,17 +20,17 @@ public class SseEmitterManager {
 
     emitter.onCompletion(() -> {
       log.info("[SSE] 연결 완료 - userId: {}", userId);
-      emitters.remove(userId);
+      emitters.remove(userId, emitter);
     });
 
     emitter.onTimeout(() -> {
       log.info("[SSE] 연결 타임아웃 - userId: {}", userId);
-      emitters.remove(userId);
+      emitters.remove(userId, emitter);
     });
 
     emitter.onError(e -> {
       log.error("[SSE] 연결 오류 - userId: {}", userId, e);
-      emitters.remove(userId);
+      emitters.remove(userId, emitter);
     });
 
     emitters.put(userId, emitter);
@@ -58,8 +58,8 @@ public class SseEmitterManager {
           .name("notification")
           .data(data));
     } catch (IOException e) {
-      log.error("[SSE] 이벤트 전송 실패 - userId: {}", userId, e);
-      emitters.remove(userId);
+      log.error("[SSE] 초기 이벤트 전송 실패 - userId: {}", userId, e);
+      emitters.remove(userId, emitter);
     }
   }
 }
