@@ -1,10 +1,12 @@
 package com.team6.moduply.notification.event.listener;
 
 import com.team6.moduply.common.config.AsyncConfig;
+import com.team6.moduply.notification.enums.NotificationType;
 import com.team6.moduply.notification.event.ContentAddedEvent;
 import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
+import com.team6.moduply.sse.SseEmitterManager;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class NotificationEventListener {
 
   private final NotificationService notificationService;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
+  private final SseEmitterManager sseEmitterManager;
 
   @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -31,6 +34,9 @@ public class NotificationEventListener {
           event.getPlaylistOwnerId(),
           event.getPlaylistTitle()
       );
+      // SSE 실시간 전송
+      sseEmitterManager.send(event.getPlaylistOwnerId(),
+          NotificationType.PLAYLIST_SUBSCRIBED.getTitle());
     } catch (Exception e) {
       log.error("[알림 발송 실패] 플레이리스트 구독 알림 - playlistId: {}",
           event.getPlaylistId(), e);
@@ -52,6 +58,10 @@ public class NotificationEventListener {
             event.getPlaylistTitle(),
             event.getContentTitle()
         );
+        // SSE 실시간 전송
+        subscriberIds.forEach(subscriberId ->
+            sseEmitterManager.send(subscriberId,
+                NotificationType.CONTENT_ADDED.getTitle()));
       }
     } catch (Exception e) {
       log.error("[알림 발송 실패] 콘텐츠 추가 알림 - playlistId: {}",
