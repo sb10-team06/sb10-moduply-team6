@@ -254,6 +254,9 @@ CREATE TABLE follows (
     -- ex) A -> A 불가
     CONSTRAINT chk_follows_not_self                  CHECK (follower_id <> followee_id)
 );
+-- FollowActivityEvent를 위한 인덱스
+CREATE INDEX idx_follows_followee_follower
+    ON follows (followee_id, follower_id);
 
 CREATE TABLE conversations (
     id              UUID             PRIMARY KEY,

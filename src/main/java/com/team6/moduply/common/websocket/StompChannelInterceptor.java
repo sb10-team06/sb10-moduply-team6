@@ -4,13 +4,10 @@ import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
 import com.team6.moduply.common.websocket.events.StompUnSubscribeEvent;
-import com.team6.moduply.conversation.repository.ConversationRepository;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,14 +31,10 @@ public class StompChannelInterceptor implements ChannelInterceptor {
 
   private final ApplicationEventPublisher applicationEventPublisher;
   private static final String SUBSCRIPTIONS_KEY = "SUBSCRIPTIONS";
-  private static final Pattern DIRECT_MESSAGE_SUBSCRIBE_DESTINATION = Pattern.compile(
-    "^/sub/conversations/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/direct-messages$"
-  );
 
   //JWT 인증
   private final JwtTokenProvider jwtTokenProvider;
   private final AuthService authService;
-  private final ConversationRepository conversationRepository;
 
   @Override
   public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -84,13 +77,17 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     }
   }
 
+  /// STOMP SUBSCRIBE 요청이 들어왔을때 처리하는 메서드.
   private void handleSubscribe(StompHeaderAccessor accessor,
       Map<String, Object> sessionAttributes) {
-
+    // 세션 정보가 없으면 return
+    // sessionAttributes에는 로그인할 때 저장해둔 값 ex) userId가 들어있어야한다.
     if (sessionAttributes == null) {
       return;
     }
-
+    // WebSocket 세션이 구독중인 목록을 저장할 Map을 꺼낸다.
+    // 없으면 새로 만든다.
+    // ex) SUBSCRIPTIONS = { "sub-1": "/sub/conversations/11111111-1111-1111-1111-111111111111/direct-messages" }
     Map<String, String> subscriptionMap = (Map<String, String>) sessionAttributes.computeIfAbsent(
         SUBSCRIPTIONS_KEY,
         key -> new ConcurrentHashMap<>());
@@ -106,28 +103,13 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         throw new MessageDeliveryException("웹소켓 세션에 사용자 인증 정보가 존재하지 않습니다.");
       }
 
-      validateDirectMessageSubscription(destination, userId);
-
-      subscriptionMap.put(subscriptionId, destination);
-
       applicationEventPublisher.publishEvent(new StompSubscribeEvent(
               accessor.getSessionId(),
               userId,
               destination
       ));
-    }
-  }
 
-  private void validateDirectMessageSubscription(String destination, UUID userId) {
-    Matcher matcher = DIRECT_MESSAGE_SUBSCRIBE_DESTINATION.matcher(destination);
-    if (!matcher.matches()) {
-      return;
-    }
-
-    UUID conversationId = UUID.fromString(matcher.group(1));
-    // 해당 conversationId에 userId가 참여자인지 검증.
-    if (!conversationRepository.existsByIdAndParticipantId(conversationId, userId)) {
-      throw new MessageDeliveryException("대화방 참여자만 DM을 구독할 수 있습니다.");
+      subscriptionMap.put(subscriptionId, destination);
     }
   }
 
