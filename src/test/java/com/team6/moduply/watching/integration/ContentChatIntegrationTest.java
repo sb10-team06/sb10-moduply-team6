@@ -405,6 +405,11 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     stompSession3.subscribe(sd, new EmptyFrameHandler() {
     });
 
+    WatchingSession beforeChangeSession = watchingSessionRepository.findByUserId(user3Id)
+        .orElseThrow(() -> new AssertionError("시청 세션이 존재하지 않습니다."));
+    watchingSessionRepository.deleteBySessionId(beforeChangeSession.getSessionId());
+    assertThat(awaitSessionPresenceByUserId(user3Id, false)).isNull();
+
     stompSession3.subscribe("/sub/contents/" + content1Id + "/watch", new EmptyFrameHandler() {
     });
 
