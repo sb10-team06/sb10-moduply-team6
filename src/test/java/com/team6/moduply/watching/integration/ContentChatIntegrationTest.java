@@ -466,6 +466,48 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
     );
   }
 
+  @Test
+  @DisplayName("빈 채팅 메세지의 경우 전송되지 않는다.")
+  void receive_chat_fail_with_blank_message()
+      throws ExecutionException, InterruptedException, TimeoutException {
+    //given
+    CompletableFuture<ContentChatDto> messageExpectation = new CompletableFuture<>();
+    String sd = makeDestination(content2Id, "sub");
+    String pd = makeDestination(content2Id, "pub");
+    ContentChatSendRequest request = new ContentChatSendRequest("");
+
+    stompSession2.subscribe(sd, new StompFrameHandler() {
+      @Override
+      public Type getPayloadType(StompHeaders headers) {
+        return ContentChatDto.class;
+      }
+
+      @Override
+      public void handleFrame(StompHeaders headers, Object payload) {
+        messageExpectation.complete((ContentChatDto) payload);
+      }
+    });
+    stompSession3.subscribe(sd, new EmptyFrameHandler() {
+    });
+
+    assertThat(awaitSessionPresenceByUserId(user3Id, true)).isNotNull();
+
+    // 💡 해결책 2: 혹시 모를 타이밍을 위해 orElseThrow() 대신, 세션을 안전하게 조회하도록 보장
+    WatchingSession session = watchingSessionRepository.findByUserId(user3Id)
+        .orElseThrow(
+            () -> new AssertionError("비동기 세션 저장이 대기 시간 내에 완료되지 않았습니다. 현재 DB에 유저의 세션이 없습니다."));
+
+    //when
+    stompSession3.send(pd, request);
+
+    // then
+    assertThrows(
+        TimeoutException.class,
+        () -> messageExpectation.get(500, TimeUnit.MILLISECONDS)
+    );
+  }
+
+
   private String makeDestination(UUID contentId, String header) {
     return "/" + header + "/contents/" + contentId + "/chat";
   }
