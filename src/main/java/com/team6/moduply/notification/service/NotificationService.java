@@ -26,8 +26,9 @@ public class NotificationService {
   private final NotificationQDSLRepository notificationQDSLRepository;
   private final NotificationMapper notificationMapper;
 
+  /// 플레이리스트 알림 전송 메서드
   @Transactional
-  public void sendPlaylistSubscribedNotification(UUID receiverId, String playlistTitle) {
+  public NotificationDto sendPlaylistSubscribedNotification(UUID receiverId, String playlistTitle) {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.PLAYLIST_SUBSCRIBED)
@@ -35,11 +36,12 @@ public class NotificationService {
         .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), playlistTitle))
         .level(NotificationLevel.INFO)
         .build();
-    notificationRepository.save(notification);
+    Notification saved = notificationRepository.save(notification);
+    return notificationMapper.toDto(saved);
   }
 
   @Transactional
-  public void sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
+  public List<NotificationDto> sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
     List<Notification> notifications = receiverIds.stream()
         .map(receiverId -> Notification.builder()
             .receiverId(receiverId)
@@ -49,7 +51,49 @@ public class NotificationService {
             .level(NotificationLevel.INFO)
             .build())
         .toList();
-    notificationRepository.saveAll(notifications);
+    List<Notification> saved = notificationRepository.saveAll(notifications);
+    return saved.stream().map(notificationMapper::toDto).toList();
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request, UUID receiverId) {
+    List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request, receiverId);
+    long totalCount = notificationQDSLRepository.countWithCondition(receiverId);
+
+    boolean hasNext = notifications.size() > request.limit();
+
+    if (hasNext) {
+      notifications = notifications.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      Notification last = notifications.get(notifications.size() - 1);
+      if (last.getCreatedAt() == null) {
+        throw new NotificationException(
+            NotificationErrorCode.NOTIFICATION_INVALID_STATE,
+            Map.of("notificationId", last.getId())
+        );
+      }
+      nextCursor = last.getCreatedAt().toString();
+      nextIdAfter = last.getId();
+    }
+
+    List<NotificationDto> data = notifications.stream()
+        .map(notificationMapper::toDto)
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
   }
 
   /// 팔로우 알림 전송 메서드.
@@ -97,46 +141,5 @@ public class NotificationService {
             .build())
         .toList();
     notificationRepository.saveAll(notifications);
-  }
-
-  @Transactional(readOnly = true)
-  public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request, UUID receiverId) {
-    List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request, receiverId);
-    long totalCount = notificationQDSLRepository.countWithCondition(receiverId);
-
-    boolean hasNext = notifications.size() > request.limit();
-
-    if (hasNext) {
-      notifications = notifications.subList(0, request.limit());
-    }
-
-    String nextCursor = null;
-    UUID nextIdAfter = null;
-
-    if (hasNext) {
-      Notification last = notifications.get(notifications.size() - 1);
-      if (last.getCreatedAt() == null) {
-        throw new NotificationException(
-            NotificationErrorCode.NOTIFICATION_INVALID_STATE,
-            Map.of("notificationId", last.getId())
-        );
-      }
-      nextCursor = last.getCreatedAt().toString();
-      nextIdAfter = last.getId();
-    }
-
-    List<NotificationDto> data = notifications.stream()
-        .map(notificationMapper::toDto)
-        .toList();
-
-    return new CursorResponse<>(
-        data,
-        nextCursor,
-        nextIdAfter,
-        hasNext,
-        totalCount,
-        request.sortBy().name(),
-        request.sortDirection()
-    );
   }
 }

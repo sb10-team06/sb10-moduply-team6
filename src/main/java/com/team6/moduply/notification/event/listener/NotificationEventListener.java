@@ -1,6 +1,7 @@
 package com.team6.moduply.notification.event.listener;
 
 import com.team6.moduply.common.config.AsyncConfig;
+import com.team6.moduply.notification.dto.NotificationDto;
 import com.team6.moduply.notification.enums.NotificationType;
 import com.team6.moduply.notification.event.ContentAddedEvent;
 import com.team6.moduply.notification.event.DirectMessageReceivedEvent;
@@ -33,20 +34,19 @@ public class NotificationEventListener {
   private final FollowRepository followRepository;
   private final SseEmitterManager sseEmitterManager;
 
+  /// 플레이리스트 관련 알림
   @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handlePlaylistSubscribed(PlaylistSubscribedEvent event) {
-    log.info("[알림 발송] 플레이리스트 구독 - playlistId: {}", event.getPlaylistId());
+    log.info("[알림 저장] 플레이리스트 구독 - playlistId={}", event.getPlaylistId());
     try {
-      notificationService.sendPlaylistSubscribedNotification(
+      NotificationDto dto = notificationService.sendPlaylistSubscribedNotification(
           event.getPlaylistOwnerId(),
           event.getPlaylistTitle()
       );
-      // SSE 실시간 전송
-      sseEmitterManager.send(event.getPlaylistOwnerId(),
-          NotificationType.PLAYLIST_SUBSCRIBED.getTitle());
+      sseEmitterManager.send(event.getPlaylistOwnerId(), dto);
     } catch (Exception e) {
-      log.error("[알림 발송 실패] 플레이리스트 구독 알림 - playlistId: {}",
+      log.error("[알림 저장 실패] 플레이리스트 구독 알림 - playlistId={}",
           event.getPlaylistId(), e);
     }
   }
@@ -54,25 +54,23 @@ public class NotificationEventListener {
   @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void handleContentAdded(ContentAddedEvent event) {
-    log.info("[알림 발송] 콘텐츠 추가 - playlistId: {}", event.getPlaylistId());
+    log.info("[알림 저장] 콘텐츠 추가 - playlistId={}", event.getPlaylistId());
     try {
       List<UUID> subscriberIds = playlistSubscriptionRepository
           .findSubscriberIdsByPlaylistId(event.getPlaylistId());
 
-
       if (!subscriberIds.isEmpty()) {
-        notificationService.sendContentAddedNotification(
+        List<NotificationDto> dtos = notificationService.sendContentAddedNotification(
             subscriberIds,
             event.getPlaylistTitle(),
             event.getContentTitle()
         );
-        // SSE 실시간 전송
-        subscriberIds.forEach(subscriberId ->
-            sseEmitterManager.send(subscriberId,
-                NotificationType.CONTENT_ADDED.getTitle()));
+        for (int i = 0; i < subscriberIds.size(); i++) {
+          sseEmitterManager.send(subscriberIds.get(i), dtos.get(i));
+        }
       }
     } catch (Exception e) {
-      log.error("[알림 발송 실패] 콘텐츠 추가 알림 - playlistId: {}",
+      log.error("[알림 저장 실패] 콘텐츠 추가 알림 - playlistId={}",
           event.getPlaylistId(), e);
     }
   }
