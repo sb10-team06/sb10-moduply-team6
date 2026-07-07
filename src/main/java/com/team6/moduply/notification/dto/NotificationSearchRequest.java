@@ -41,7 +41,7 @@ public record NotificationSearchRequest(
         try {
             Instant.parse(cursor);
             return true;
-        } catch (Exception e) {
+        } catch (java.time.format.DateTimeParseException e) {
             return false;
         }
     }

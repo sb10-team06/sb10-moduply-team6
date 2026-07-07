@@ -35,6 +35,16 @@ public class DirectMessage extends BaseUpdatableEntity {
   protected DirectMessage() {
   }
 
+  private DirectMessage(Conversation conversation, User sender, String content) {
+    this.conversation = conversation;
+    this.sender = sender;
+    this.content = content;
+  }
+
+  public static DirectMessage create(Conversation conversation, User sender, String content) {
+    return new DirectMessage(conversation, sender, content);
+  }
+
   public void markAsRead() {
     this.read = true;
   }

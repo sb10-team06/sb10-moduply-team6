@@ -66,6 +66,20 @@ moduply:
       read-access-token: ${TMDB_READ_ACCESS_TOKEN:}
       connect-timeout-millis: ${TMDB_CONNECT_TIMEOUT_MILLIS:3000}
       read-timeout-millis: ${TMDB_READ_TIMEOUT_MILLIS:10000}
+      movie-include-adult: ${TMDB_MOVIE_INCLUDE_ADULT:false}
+      movie-include-video: ${TMDB_MOVIE_INCLUDE_VIDEO:false}
+      movie-sort-by: ${TMDB_MOVIE_SORT_BY:primary_release_date.desc}
+      movie-region: ${TMDB_MOVIE_REGION:KR}
+      movie-certification-country: ${TMDB_MOVIE_CERTIFICATION_COUNTRY:KR}
+      movie-certification-lte: ${TMDB_MOVIE_CERTIFICATION_LTE:15}
+      movie-vote-count-gte: ${TMDB_MOVIE_VOTE_COUNT_GTE:10}
+      movie-without-keywords: ${TMDB_MOVIE_WITHOUT_KEYWORDS:}
+      movie-without-genres: ${TMDB_MOVIE_WITHOUT_GENRES:}
+      tv-include-adult: ${TMDB_TV_INCLUDE_ADULT:false}
+      tv-sort-by: ${TMDB_TV_SORT_BY:first_air_date.desc}
+      tv-vote-count-gte: ${TMDB_TV_VOTE_COUNT_GTE:10}
+      tv-without-keywords: ${TMDB_TV_WITHOUT_KEYWORDS:}
+      tv-without-genres: ${TMDB_TV_WITHOUT_GENRES:}
     sports-db:
       base-url: ${SPORTS_DB_BASE_URL:https://www.thesportsdb.com/api/v1/json}
       api-key: ${SPORTS_DB_API_KEY}
