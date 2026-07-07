@@ -52,47 +52,6 @@ public class NotificationService {
     notificationRepository.saveAll(notifications);
   }
 
-  @Transactional(readOnly = true)
-  public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request, UUID receiverId) {
-    List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request, receiverId);
-    long totalCount = notificationQDSLRepository.countWithCondition(receiverId);
-
-    boolean hasNext = notifications.size() > request.limit();
-
-    if (hasNext) {
-      notifications = notifications.subList(0, request.limit());
-    }
-
-    String nextCursor = null;
-    UUID nextIdAfter = null;
-
-    if (hasNext) {
-      Notification last = notifications.get(notifications.size() - 1);
-      if (last.getCreatedAt() == null) {
-        throw new NotificationException(
-            NotificationErrorCode.NOTIFICATION_INVALID_STATE,
-            Map.of("notificationId", last.getId())
-        );
-      }
-      nextCursor = last.getCreatedAt().toString();
-      nextIdAfter = last.getId();
-    }
-
-    List<NotificationDto> data = notifications.stream()
-        .map(notificationMapper::toDto)
-        .toList();
-
-    return new CursorResponse<>(
-        data,
-        nextCursor,
-        nextIdAfter,
-        hasNext,
-        totalCount,
-        request.sortBy().name(),
-        request.sortDirection()
-    );
-  }
-
   /// 팔로우 알림 전송 메서드.
   @Transactional
   public void sendFollowedNotification(UUID receiverId, String followerName) {
@@ -138,5 +97,46 @@ public class NotificationService {
             .build())
         .toList();
     notificationRepository.saveAll(notifications);
+  }
+
+  @Transactional(readOnly = true)
+  public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request, UUID receiverId) {
+    List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request, receiverId);
+    long totalCount = notificationQDSLRepository.countWithCondition(receiverId);
+
+    boolean hasNext = notifications.size() > request.limit();
+
+    if (hasNext) {
+      notifications = notifications.subList(0, request.limit());
+    }
+
+    String nextCursor = null;
+    UUID nextIdAfter = null;
+
+    if (hasNext) {
+      Notification last = notifications.get(notifications.size() - 1);
+      if (last.getCreatedAt() == null) {
+        throw new NotificationException(
+            NotificationErrorCode.NOTIFICATION_INVALID_STATE,
+            Map.of("notificationId", last.getId())
+        );
+      }
+      nextCursor = last.getCreatedAt().toString();
+      nextIdAfter = last.getId();
+    }
+
+    List<NotificationDto> data = notifications.stream()
+        .map(notificationMapper::toDto)
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        nextCursor,
+        nextIdAfter,
+        hasNext,
+        totalCount,
+        request.sortBy().name(),
+        request.sortDirection()
+    );
   }
 }
