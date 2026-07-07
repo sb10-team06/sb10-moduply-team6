@@ -329,6 +329,44 @@ public class UserServiceTest {
   }
 
   @Test
+  @DisplayName("기존 프로필 이미지가 있는 사용자의 이름만 수정하면 기존 프로필 이미지 URL을 유지한다")
+  public void update_user_success_with_name_only_and_existing_profile_image() throws IOException {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserUpdateRequest request = new UserUpdateRequest("updated-name");
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    BinaryContent existingProfileImg = BinaryContent.create(
+        "old-profile.png",
+        100L,
+        "image/png",
+        "users/" + userId + "/old-profile.png"
+    );
+    user.updateProfileImg(existingProfileImg);
+
+    String existingProfileImageUrl = "https://cdn.example.com/users/" + userId + "/old-profile.png";
+    UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
+        existingProfileImageUrl, Role.USER, false);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.generateUrl(existingProfileImg)).willReturn(existingProfileImageUrl);
+    given(userMapper.toDto(user, existingProfileImageUrl)).willReturn(expected);
+
+    // When
+    UserDto response = userService.updateUser(userId, request, null);
+
+    // Then
+    assertThat(response.getName()).isEqualTo("updated-name");
+    assertThat(response.getProfileImageUrl()).isEqualTo(existingProfileImageUrl);
+    assertThat(user.getProfileImg()).isEqualTo(existingProfileImg);
+
+    verify(userRepository).findById(userId);
+    verify(binaryContentService, never())
+        .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
+    verify(binaryContentService).generateUrl(existingProfileImg);
+    verify(userMapper).toDto(user, existingProfileImageUrl);
+  }
+
+  @Test
   @DisplayName("사용자 이름과 프로필 이미지 수정 성공")
   public void update_user_success_with_profile_image() throws IOException {
     // Given
@@ -367,6 +405,58 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(binaryContentService).createUserProfile(userId, profileImg, null);
+    verify(binaryContentService).generateUrl(newProfileImg);
+    verify(userMapper).toDto(user, profileImageUrl);
+  }
+
+  @Test
+  @DisplayName("프로필 이미지 수정 시 기존 이미지 URL은 생성하지 않고 새 이미지 URL만 응답한다")
+  public void update_user_success_with_profile_image_does_not_generate_old_profile_image_url()
+      throws IOException {
+    // Given
+    UUID userId = UUID.randomUUID();
+    UserUpdateRequest request = new UserUpdateRequest("updated-name");
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+    BinaryContent oldProfileImg = BinaryContent.create(
+        "old-profile.png",
+        100L,
+        "image/png",
+        "users/" + userId + "/old-profile.png"
+    );
+    user.updateProfileImg(oldProfileImg);
+    MockMultipartFile profileImg = new MockMultipartFile(
+        "image",
+        "profile.png",
+        "image/png",
+        "image".getBytes()
+    );
+    BinaryContent newProfileImg = BinaryContent.create(
+        "profile.png",
+        profileImg.getSize(),
+        profileImg.getContentType(),
+        "users/" + userId + "/profile.png"
+    );
+    String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
+    UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
+        profileImageUrl, Role.USER, false);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+    given(binaryContentService.createUserProfile(userId, profileImg, oldProfileImg))
+        .willReturn(newProfileImg);
+    given(binaryContentService.generateUrl(newProfileImg)).willReturn(profileImageUrl);
+    given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
+
+    // When
+    UserDto response = userService.updateUser(userId, request, profileImg);
+
+    // Then
+    assertThat(response.getName()).isEqualTo("updated-name");
+    assertThat(response.getProfileImageUrl()).isEqualTo(profileImageUrl);
+    assertThat(user.getProfileImg()).isEqualTo(newProfileImg);
+
+    verify(userRepository).findById(userId);
+    verify(binaryContentService).createUserProfile(userId, profileImg, oldProfileImg);
+    verify(binaryContentService, never()).generateUrl(oldProfileImg);
     verify(binaryContentService).generateUrl(newProfileImg);
     verify(userMapper).toDto(user, profileImageUrl);
   }

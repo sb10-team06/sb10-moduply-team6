@@ -15,6 +15,7 @@ import com.team6.moduply.follow.exception.FollowException;
 import com.team6.moduply.follow.mapper.FollowMapper;
 import com.team6.moduply.follow.repository.FollowRepository;
 import com.team6.moduply.follow.service.FollowService;
+import com.team6.moduply.notification.event.FollowedEvent;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserErrorCode;
@@ -29,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +47,9 @@ class FollowServiceTest {
 
   @Mock
   private FollowMapper followMapper;
+
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
 
   @Test
   @DisplayName("다른 사용자를 팔로우하면 팔로우 관계를 저장하고 응답을 반환한다.")
@@ -84,6 +89,13 @@ class FollowServiceTest {
     // 팔로우하는사람, 당하는사람이 맞게 저장됐는지?
     assertThat(capturedFollow.getFollower()).isEqualTo(follower);
     assertThat(capturedFollow.getFollowee()).isEqualTo(followee);
+
+    ArgumentCaptor<FollowedEvent> eventCaptor = ArgumentCaptor.forClass(FollowedEvent.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    FollowedEvent event = eventCaptor.getValue();
+    assertThat(event.getFollowerId()).isEqualTo(followerId);
+    assertThat(event.getFollowerName()).isEqualTo(follower.getName());
+    assertThat(event.getFolloweeId()).isEqualTo(followeeId);
 
     verify(followMapper).toDto(savedFollow);
   }

@@ -56,7 +56,7 @@ class ExternalContentImportServiceTest {
     );
     ExternalContentImportResult expected = new ExternalContentImportResult(1, 1, 0, 1, 0);
 
-    given(tmdbClient.fetchPopularMovies(1, "ko-KR")).willReturn(response);
+    given(tmdbClient.fetchDiscoverMovies(1, "ko-KR")).willReturn(response);
     given(externalContentService.importTmdbMovies(response.results())).willReturn(expected);
 
     // When
@@ -64,7 +64,7 @@ class ExternalContentImportServiceTest {
 
     // Then
     assertThat(result).isEqualTo(expected);
-    verify(tmdbClient).fetchPopularMovies(1, "ko-KR");
+    verify(tmdbClient).fetchDiscoverMovies(1, "ko-KR");
     verify(externalContentService).importTmdbMovies(response.results());
   }
 
@@ -80,7 +80,7 @@ class ExternalContentImportServiceTest {
     );
     ExternalContentImportResult expected = new ExternalContentImportResult(0, 0, 0, 0, 0);
 
-    given(tmdbClient.fetchPopularMovies(1, "ko-KR")).willReturn(response);
+    given(tmdbClient.fetchDiscoverMovies(1, "ko-KR")).willReturn(response);
     given(externalContentService.importTmdbMovies(List.of())).willReturn(expected);
 
     // When
@@ -88,7 +88,7 @@ class ExternalContentImportServiceTest {
 
     // Then
     assertThat(result).isEqualTo(expected);
-    verify(tmdbClient).fetchPopularMovies(1, "ko-KR");
+    verify(tmdbClient).fetchDiscoverMovies(1, "ko-KR");
     verify(externalContentService).importTmdbMovies(List.of());
   }
 
@@ -112,7 +112,7 @@ class ExternalContentImportServiceTest {
     );
     ExternalContentImportResult expected = new ExternalContentImportResult(1, 1, 0, 1, 0);
 
-    given(tmdbClient.fetchPopularTvSeries(1, "ko-KR")).willReturn(response);
+    given(tmdbClient.fetchDiscoverTvSeries(1, "ko-KR")).willReturn(response);
     given(externalContentService.importTmdbTvSeries(response.results())).willReturn(expected);
 
     // When
@@ -121,7 +121,7 @@ class ExternalContentImportServiceTest {
 
     // Then
     assertThat(result).isEqualTo(expected);
-    verify(tmdbClient).fetchPopularTvSeries(1, "ko-KR");
+    verify(tmdbClient).fetchDiscoverTvSeries(1, "ko-KR");
     verify(externalContentService).importTmdbTvSeries(response.results());
   }
 
@@ -137,7 +137,7 @@ class ExternalContentImportServiceTest {
     );
     ExternalContentImportResult expected = new ExternalContentImportResult(0, 0, 0, 0, 0);
 
-    given(tmdbClient.fetchPopularTvSeries(1, "ko-KR")).willReturn(response);
+    given(tmdbClient.fetchDiscoverTvSeries(1, "ko-KR")).willReturn(response);
     given(externalContentService.importTmdbTvSeries(List.of())).willReturn(expected);
 
     // When
@@ -146,7 +146,7 @@ class ExternalContentImportServiceTest {
 
     // Then
     assertThat(result).isEqualTo(expected);
-    verify(tmdbClient).fetchPopularTvSeries(1, "ko-KR");
+    verify(tmdbClient).fetchDiscoverTvSeries(1, "ko-KR");
     verify(externalContentService).importTmdbTvSeries(List.of());
   }
 

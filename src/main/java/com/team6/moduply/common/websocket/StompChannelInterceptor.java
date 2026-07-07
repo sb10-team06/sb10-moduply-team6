@@ -77,22 +77,26 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     }
   }
 
+  /// STOMP SUBSCRIBE 요청이 들어왔을때 처리하는 메서드.
   private void handleSubscribe(StompHeaderAccessor accessor,
       Map<String, Object> sessionAttributes) {
-
+    // 세션 정보가 없으면 return
+    // sessionAttributes에는 로그인할 때 저장해둔 값 ex) userId가 들어있어야한다.
     if (sessionAttributes == null) {
       return;
     }
-
+    // WebSocket 세션이 구독중인 목록을 저장할 Map을 꺼낸다.
+    // 없으면 새로 만든다.
+    // ex) SUBSCRIPTIONS = { "sub-1": "/sub/conversations/11111111-1111-1111-1111-111111111111/direct-messages" }
     Map<String, String> subscriptionMap = (Map<String, String>) sessionAttributes.computeIfAbsent(
         SUBSCRIPTIONS_KEY,
         key -> new ConcurrentHashMap<>());
 
     String subscriptionId = accessor.getSubscriptionId();
+    // ex) destination: /sub/conversations/{conversationId}/direct-messages
     String destination = accessor.getDestination();
 
     if (subscriptionId != null && destination != null) {
-      subscriptionMap.put(subscriptionId, destination);
       UUID userId = (UUID) sessionAttributes.get("userId");
 
       if (userId == null) {
@@ -100,10 +104,12 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       }
 
       applicationEventPublisher.publishEvent(new StompSubscribeEvent(
-          accessor.getSessionId(),
-          userId,
-          destination
+              accessor.getSessionId(),
+              userId,
+              destination
       ));
+
+      subscriptionMap.put(subscriptionId, destination);
     }
   }
 

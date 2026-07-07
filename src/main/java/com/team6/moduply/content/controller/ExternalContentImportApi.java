@@ -22,9 +22,12 @@ public interface ExternalContentImportApi {
   @Operation(
       summary = "[어드민] TMDB 영화 수동 수집",
       description = """
-          TMDB 인기 영화 데이터를 수동으로 수집합니다.
+          TMDB 영화 데이터를 수동으로 수집합니다.
 
-          현재 수집 범위는 TMDB popular movie 목록 기준입니다.
+          현재 수집 범위는 TMDB Discover Movie API 기준입니다.
+          환경변수로 설정된 수집 조건을 적용합니다.
+          기본 설정은 adult/video 제외, 한국 등급 15세 이하, 투표 수 10개 이상,
+          최신 개봉일순(primary_release_date.desc)으로 수집합니다.
           page 값으로 수집할 단일 목록 페이지를 선택하고,
           language 값으로 제목/설명 응답 언어를 선택합니다.
 
@@ -54,7 +57,7 @@ public interface ExternalContentImportApi {
               schema = @Schema(implementation = ErrorResponse.class)))
   })
   ResponseEntity<ExternalContentImportResult> importTmdbMovies(
-      @Parameter(description = "TMDB 인기 영화 목록 조회 페이지", example = "1",
+      @Parameter(description = "TMDB Discover 영화 목록 조회 페이지", example = "1",
           schema = @Schema(defaultValue = "1")) Integer page,
       @Parameter(description = "TMDB 응답 언어. 예시: ko-KR, en-US, ja-JP", example = "ko-KR",
           schema = @Schema(defaultValue = "ko-KR")) String language
@@ -63,9 +66,12 @@ public interface ExternalContentImportApi {
   @Operation(
       summary = "[어드민] TMDB TV 수동 수집",
       description = """
-          TMDB 인기 TV 데이터를 수동으로 수집합니다.
+          TMDB TV 데이터를 수동으로 수집합니다.
 
-          현재 수집 범위는 TMDB popular TV 목록 기준입니다.
+          현재 수집 범위는 TMDB Discover TV API 기준입니다.
+          환경변수로 설정된 수집 조건을 적용합니다.
+          기본 설정은 adult 제외, 투표 수 10개 이상,
+          최신 첫 방영일순(first_air_date.desc)으로 수집합니다.
           page 값으로 수집할 단일 목록 페이지를 선택하고,
           language 값으로 제목/설명 응답 언어를 선택합니다.
 
@@ -95,7 +101,7 @@ public interface ExternalContentImportApi {
               schema = @Schema(implementation = ErrorResponse.class)))
   })
   ResponseEntity<ExternalContentImportResult> importTmdbTvSeries(
-      @Parameter(description = "TMDB 인기 TV 목록 조회 페이지", example = "1",
+      @Parameter(description = "TMDB Discover TV 목록 조회 페이지", example = "1",
           schema = @Schema(defaultValue = "1")) Integer page,
       @Parameter(description = "TMDB 응답 언어. 예시: ko-KR, en-US, ja-JP", example = "ko-KR",
           schema = @Schema(defaultValue = "ko-KR")) String language
