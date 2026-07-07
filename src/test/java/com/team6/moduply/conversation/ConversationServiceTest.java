@@ -634,7 +634,7 @@ class ConversationServiceTest {
     UUID senderId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     UUID directMessageId = UUID.randomUUID();
-    User sender = user(senderId, "sender");
+    Instant readUntilCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
     Conversation conversation = Conversation.create(currentUserId, senderId);
     ReflectionTestUtils.setField(conversation, "id", conversationId);
     DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
@@ -642,11 +642,18 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(directMessageRepository.findByIdAndConversationId(directMessageId, conversationId))
         .willReturn(Optional.of(directMessage));
-    given(directMessage.getSender()).willReturn(sender);
+    given(directMessage.getCreatedAt()).willReturn(readUntilCreatedAt);
+    given(directMessage.getId()).willReturn(directMessageId);
 
     conversationService.read(conversationId, directMessageId, currentUserId);
 
-    verify(directMessage).markAsRead();
+    verify(directMessageRepository).markUnreadMessagesAsReadUntil(
+        conversationId,
+        currentUserId,
+        readUntilCreatedAt,
+        directMessageId
+    );
+    verify(directMessage, never()).markAsRead();
   }
 
   @Test
@@ -665,6 +672,9 @@ class ConversationServiceTest {
     java.lang.reflect.Constructor<DirectMessage> constructor = DirectMessage.class.getDeclaredConstructor();
     constructor.setAccessible(true);
     DirectMessage directMessage = constructor.newInstance();
+    Instant readUntilCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
+    ReflectionTestUtils.setField(directMessage, "id", directMessageId);
+    ReflectionTestUtils.setField(directMessage, "createdAt", readUntilCreatedAt);
     ReflectionTestUtils.setField(directMessage, "sender", sender);
     // DM 읽음상태 true로 셋팅
     ReflectionTestUtils.setField(directMessage, "read", true);
@@ -676,6 +686,12 @@ class ConversationServiceTest {
     conversationService.read(conversationId, directMessageId, currentUserId);
     // then
     assertThat(directMessage.isRead()).isTrue();
+    verify(directMessageRepository).markUnreadMessagesAsReadUntil(
+        conversationId,
+        currentUserId,
+        readUntilCreatedAt,
+        directMessageId
+    );
   }
 
   @Test
@@ -742,13 +758,13 @@ class ConversationServiceTest {
   }
 
   @Test
-  @DisplayName("DM 발신자가 본인 메시지 읽음 처리를 요청하면 예외가 발생한다.")
-  void read_fail_when_sender_requests() {
+  @DisplayName("DM 발신자가 본인 메시지 읽음 처리를 요청해도 해당 시점까지 받은 미읽음 메시지를 읽음 처리한다.")
+  void read_success_when_sender_requests() {
     UUID currentUserId = UUID.randomUUID();
     UUID withUserId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     UUID directMessageId = UUID.randomUUID();
-    User sender = user(currentUserId, "sender");
+    Instant readUntilCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
     Conversation conversation = Conversation.create(currentUserId, withUserId);
     ReflectionTestUtils.setField(conversation, "id", conversationId);
     DirectMessage directMessage = org.mockito.Mockito.mock(DirectMessage.class);
@@ -756,16 +772,18 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(directMessageRepository.findByIdAndConversationId(directMessageId, conversationId))
         .willReturn(Optional.of(directMessage));
-    given(directMessage.getSender()).willReturn(sender);
+    given(directMessage.getCreatedAt()).willReturn(readUntilCreatedAt);
+    given(directMessage.getId()).willReturn(directMessageId);
 
-    assertThatThrownBy(() -> conversationService.read(conversationId, directMessageId, currentUserId))
-        .isInstanceOfSatisfying(DirectMessageException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN);
-          assertThat(exception.getDetails().get("directMessageId")).isEqualTo(directMessageId);
-          assertThat(exception.getDetails().get("userId")).isEqualTo(currentUserId);
-        });
+    conversationService.read(conversationId, directMessageId, currentUserId);
 
     verify(directMessage, never()).markAsRead();
+    verify(directMessageRepository).markUnreadMessagesAsReadUntil(
+        conversationId,
+        currentUserId,
+        readUntilCreatedAt,
+        directMessageId
+    );
   }
 
   private User user(UUID userId, String name) {
