@@ -212,36 +212,34 @@ public class ConversationService {
 
   @Transactional
   public void read(UUID conversationId, UUID directMessageId, UUID currentUserId) {
-    log.debug(
-        "DM 읽음 처리 시작. conversationId={}, directMessageId={}, currentUserId={}",
-        conversationId,
-        directMessageId,
-        currentUserId
-    );
     Conversation conversation = conversationRepository.findById(conversationId)
-        .orElseThrow(() -> new ConversationException(
-            ConversationErrorCode.CONVERSATION_NOT_FOUND,
-            Map.of("conversationId", conversationId)
-        ));
+            .orElseThrow(() -> new ConversationException(
+                    ConversationErrorCode.CONVERSATION_NOT_FOUND,
+                    Map.of("conversationId", conversationId)
+            ));
+
     validateParticipant(conversation, currentUserId);
 
-    DirectMessage directMessage = directMessageRepository
-        .findByIdAndConversationId(directMessageId, conversationId)
-        .orElseThrow(() -> new DirectMessageException(
-            DirectMessageErrorCode.DIRECT_MESSAGE_NOT_FOUND,
-            Map.of("directMessageId", directMessageId, "conversationId", conversationId)
-        ));
+    DirectMessage readUntilMessage = directMessageRepository
+            .findByIdAndConversationId(directMessageId, conversationId)
+            .orElseThrow(() -> new DirectMessageException(
+                    DirectMessageErrorCode.DIRECT_MESSAGE_NOT_FOUND,
+                    Map.of("directMessageId", directMessageId, "conversationId", conversationId)
+            ));
 
-    // 자기자신 메세지 읽음처리 x
-    if (directMessage.getSender().getId().equals(currentUserId)) {
-      throw new DirectMessageException(
-          DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN,
-          Map.of("directMessageId", directMessageId, "userId", currentUserId)
-      );
-    }
+    int readCount = directMessageRepository.markUnreadMessagesAsReadUntil(
+            conversationId,
+            currentUserId,
+            readUntilMessage.getCreatedAt(),
+            readUntilMessage.getId()
+    );
 
-    directMessage.markAsRead();
-    log.debug("DM 읽음 처리 완료. directMessageId={}", directMessageId);
+    log.debug(
+            "DM 읽음 처리 완료. conversationId={}, readUntilMessageId={}, readCount={}",
+            conversationId,
+            directMessageId,
+            readCount
+    );
   }
 
   @Transactional(readOnly = true)

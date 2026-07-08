@@ -23,6 +23,7 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.content.service.ContentService;
+import jakarta.servlet.http.HttpServletResponse;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -31,12 +32,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -404,5 +408,21 @@ class ContentControllerMethodSecurityTest {
 
   @EnableMethodSecurity
   static class MethodSecurityTestConfig {
+
+    @Bean
+    SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
+      return http
+          // 이 테스트는 JWT 필터 자체가 아니라 ContentService의 @PreAuthorize를 검증한다.
+          // 다만 API 서버 기준으로 인증 없는 요청은 Spring Security 기본 로그인 redirect(302)가 아니라
+          // 401을 반환해야 하므로 테스트 전용 entry point만 명시한다.
+          .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+          .formLogin(formLogin -> formLogin.disable())
+          .httpBasic(httpBasic -> httpBasic.disable())
+          .exceptionHandling(exception -> exception.authenticationEntryPoint(
+              (request, response, authException) ->
+                  response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+          ))
+          .build();
+    }
   }
 }

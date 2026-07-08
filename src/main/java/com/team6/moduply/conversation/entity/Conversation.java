@@ -54,15 +54,10 @@ public class Conversation extends BaseUpdatableEntity {
         }
 
         /// 두 UUID를 항상 같은 순서로 정렬하기위한 로직
-        /// 항상 작은 UUID를 user1_id에 넣도록한다.
-        /// ex) user1_id = aaa, user2_id = bbb
-        UUID user1Id = userAId.compareTo(userBId) < 0
-                ? userAId
-                : userBId;
-
-        UUID user2Id = userAId.compareTo(userBId) < 0
-                ? userBId
-                : userAId;
+        /// PostgreSQL UUID CHECK (user1_id < user2_id) 제약과 같은 문자열 기준으로 정렬한다.
+        boolean userAIsFirst = userAId.toString().compareTo(userBId.toString()) < 0;
+        UUID user1Id = userAIsFirst ? userAId : userBId;
+        UUID user2Id = userAIsFirst ? userBId : userAId;
 
         return new Conversation(user1Id, user2Id);
     }
