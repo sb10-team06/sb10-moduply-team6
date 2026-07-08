@@ -3,7 +3,6 @@ package com.team6.moduply.conversation.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -26,8 +25,6 @@ import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.service.ConversationService;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.dto.DirectMessageSortBy;
-import com.team6.moduply.directmessage.exception.DirectMessageErrorCode;
-import com.team6.moduply.directmessage.exception.DirectMessageException;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.dto.UserSummaryDto;
 import com.team6.moduply.user.enums.Role;
@@ -388,7 +385,7 @@ class ConversationControllerTest {
   }
 
   @Test
-  @DisplayName("DM 읽음 처리 요청 시 인증 사용자 ID를 서비스에 전달하고 200 응답을 반환한다.")
+  @DisplayName("DM 읽음 처리 요청 시 인증 사용자 ID를 서비스에 전달하고 204 응답을 반환한다.")
   void read_success_with_authenticated_principal() throws Exception {
     UUID currentUserId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
@@ -399,32 +396,24 @@ class ConversationControllerTest {
             directMessageId)
             .with(user(userDetails(currentUserId)))
             .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isNoContent());
 
     verify(conversationService).read(conversationId, directMessageId, currentUserId);
   }
 
   @Test
-  @DisplayName("DM 발신자가 본인 메시지 읽음 처리를 요청하면 403 응답을 반환한다.")
-  void read_fail_when_sender_requests() throws Exception {
+  @DisplayName("DM 발신자가 본인 메시지 읽음 처리를 요청해도 204 응답을 반환한다.")
+  void read_success_when_sender_requests() throws Exception {
     UUID currentUserId = UUID.randomUUID();
     UUID conversationId = UUID.randomUUID();
     UUID directMessageId = UUID.randomUUID();
-
-    willThrow(new DirectMessageException(
-            DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN,
-            Map.of("directMessageId", directMessageId, "userId", currentUserId)
-        ))
-        .given(conversationService)
-        .read(eq(conversationId), eq(directMessageId), eq(currentUserId));
 
     mockMvc.perform(post("/api/conversations/{conversationId}/direct-messages/{directMessageId}/read",
             conversationId,
             directMessageId)
             .with(user(userDetails(currentUserId)))
             .with(csrf()))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.code").value(DirectMessageErrorCode.DIRECT_MESSAGE_FORBIDDEN.getCode()));
+        .andExpect(status().isNoContent());
 
     verify(conversationService).read(conversationId, directMessageId, currentUserId);
   }

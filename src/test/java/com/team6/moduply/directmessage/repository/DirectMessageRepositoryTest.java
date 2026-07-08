@@ -236,6 +236,88 @@ class DirectMessageRepositoryTest extends RepositoryTestSupport {
     assertThat(result).isEqualTo(2L);
   }
 
+  @Test
+  @DisplayName("읽음 처리 기준 메시지까지 상대가 보낸 미읽음 DM만 읽음 처리한다.")
+  void markUnreadMessagesAsReadUntil_success_with_boundary_conditions() throws Exception {
+    User currentUser = saveUser("read-current@example.com", "current");
+    User opponent = saveUser("read-opponent@example.com", "opponent");
+    User otherUser = saveUser("read-other@example.com", "other");
+    Conversation conversation = saveConversation(currentUser, opponent);
+    Conversation otherConversation = saveConversation(currentUser, otherUser);
+    Instant beforeBoundary = Instant.parse("2026-01-01T00:00:00Z");
+    Instant boundary = Instant.parse("2026-01-02T00:00:00Z");
+    Instant afterBoundary = Instant.parse("2026-01-03T00:00:00Z");
+
+    DirectMessage beforeBoundaryMessage = saveDirectMessage(
+        conversation,
+        opponent,
+        "before boundary",
+        beforeBoundary
+    );
+    DirectMessage firstSameCreatedAtMessage = saveDirectMessage(
+        conversation,
+        opponent,
+        "same boundary first",
+        boundary
+    );
+    DirectMessage secondSameCreatedAtMessage = saveDirectMessage(
+        conversation,
+        opponent,
+        "same boundary second",
+        boundary
+    );
+    DirectMessage afterBoundaryMessage = saveDirectMessage(
+        conversation,
+        opponent,
+        "after boundary",
+        afterBoundary
+    );
+    DirectMessage currentUserMessage = saveDirectMessage(
+        conversation,
+        currentUser,
+        "current user message",
+        beforeBoundary
+    );
+    DirectMessage alreadyReadMessage = saveDirectMessage(
+        conversation,
+        opponent,
+        "already read",
+        beforeBoundary
+    );
+    DirectMessage otherConversationMessage = saveDirectMessage(
+        otherConversation,
+        otherUser,
+        "other conversation",
+        beforeBoundary
+    );
+    markAsRead(alreadyReadMessage);
+
+    List<DirectMessage> sameCreatedAtMessages = findAllByIdsOrderById(
+        firstSameCreatedAtMessage.getId(),
+        secondSameCreatedAtMessage.getId()
+    );
+    DirectMessage boundaryMessage = sameCreatedAtMessages.get(0);
+    DirectMessage sameCreatedAtAfterBoundaryMessage = sameCreatedAtMessages.get(1);
+
+    int result = directMessageRepository.markUnreadMessagesAsReadUntil(
+        conversation.getId(),
+        currentUser.getId(),
+        boundary,
+        boundaryMessage.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(result).isEqualTo(2);
+    assertThat(findDirectMessage(beforeBoundaryMessage).isRead()).isTrue();
+    assertThat(findDirectMessage(boundaryMessage).isRead()).isTrue();
+    assertThat(findDirectMessage(sameCreatedAtAfterBoundaryMessage).isRead()).isFalse();
+    assertThat(findDirectMessage(afterBoundaryMessage).isRead()).isFalse();
+    assertThat(findDirectMessage(currentUserMessage).isRead()).isFalse();
+    assertThat(findDirectMessage(alreadyReadMessage).isRead()).isTrue();
+    assertThat(findDirectMessage(otherConversationMessage).isRead()).isFalse();
+  }
+
   private DirectMessageFindAllRequest request(
       String cursor,
       UUID idAfter,
@@ -286,5 +368,32 @@ class DirectMessageRepositoryTest extends RepositoryTestSupport {
     entityManager.clear();
 
     return directMessageRepository.findById(saved.getId()).orElseThrow();
+  }
+
+  private List<DirectMessage> findAllByIdsOrderById(UUID firstId, UUID secondId) {
+    return entityManager.createQuery("""
+            select dm
+            from DirectMessage dm
+            where dm.id in :ids
+            order by dm.id asc
+            """, DirectMessage.class)
+        .setParameter("ids", List.of(firstId, secondId))
+        .getResultList();
+  }
+
+  private DirectMessage findDirectMessage(DirectMessage directMessage) {
+    return directMessageRepository.findById(directMessage.getId()).orElseThrow();
+  }
+
+  private void markAsRead(DirectMessage directMessage) {
+    entityManager.createNativeQuery("""
+            update direct_messages
+            set is_read = true
+            where id = :id
+            """)
+        .setParameter("id", directMessage.getId())
+        .executeUpdate();
+    entityManager.flush();
+    entityManager.clear();
   }
 }
