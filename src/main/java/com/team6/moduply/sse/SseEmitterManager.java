@@ -44,7 +44,7 @@ public class SseEmitterManager {
     } catch (IOException e) {
       log.error("[SSE] 초기 이벤트 전송 실패 - userId: {}", userId, e);
       emitter.completeWithError(e);;
-      emitters.remove(userId);
+      emitters.remove(userId, emitter);
     }
 
     return emitter;
