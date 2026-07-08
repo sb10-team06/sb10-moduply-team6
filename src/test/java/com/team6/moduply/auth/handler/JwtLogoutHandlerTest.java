@@ -6,15 +6,18 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.handler.logout.JwtLogoutHandler;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.servlet.http.Cookie;
+import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -29,6 +32,9 @@ class JwtLogoutHandlerTest {
   @Mock
   private RedisUtil redisUtil;
 
+  @Mock
+  private AuthService authService;
+
   @AfterEach
   void tearDown() {
     SecurityContextHolder.clearContext();
@@ -38,7 +44,8 @@ class JwtLogoutHandlerTest {
   @DisplayName("로그아웃 시 Refresh Token 쿠키를 만료시키고 SecurityContext를 비운다")
   void logout_success() {
     // Given
-    JwtLogoutHandler logoutHandler = new JwtLogoutHandler(jwtTokenProvider, redisUtil);
+    JwtLogoutHandler logoutHandler = new JwtLogoutHandler(jwtTokenProvider, redisUtil,
+        authService);
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.setCookies(new Cookie("REFRESH_TOKEN", "refresh-token"));
     MockHttpServletResponse response = new MockHttpServletResponse();
@@ -61,6 +68,32 @@ class JwtLogoutHandlerTest {
     assertThat(deleteCookie.isHttpOnly()).isTrue();
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     verify(jwtTokenProvider).getEmail("refresh-token");
+    verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"));
+  }
+
+  @Test
+  @DisplayName("로그아웃 시 남은 만료시간 동안 Access Token을 블랙리스트에 등록한다")
+  void logout_blacklists_access_token() {
+    // Given
+    JwtLogoutHandler logoutHandler = new JwtLogoutHandler(jwtTokenProvider, redisUtil,
+        authService);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer access-token");
+    request.setCookies(new Cookie("REFRESH_TOKEN", "refresh-token"));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    TestingAuthenticationToken authentication =
+        new TestingAuthenticationToken("tester", null, "ROLE_USER");
+    Duration remainingTtl = Duration.ofMinutes(10);
+
+    given(jwtTokenProvider.validateAccessToken("access-token")).willReturn(true);
+    given(jwtTokenProvider.getRemainingExpiration("access-token")).willReturn(remainingTtl);
+    given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
+
+    // When
+    logoutHandler.logout(request, response, authentication);
+
+    // Then
+    verify(authService).blacklistAccessToken("access-token", remainingTtl);
     verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"));
   }
 }

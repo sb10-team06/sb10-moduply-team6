@@ -16,6 +16,8 @@ import com.team6.moduply.user.dto.UserDto;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -92,6 +94,24 @@ public class JwtTokenProvider {
         throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
       }
       return email;
+    } catch (ParseException e) {
+      log.warn("유효하지 않은 JWT 토큰입니다.", e);
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
+    }
+  }
+
+  public Duration getRemainingExpiration(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+      if (expirationTime == null) {
+        throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      }
+
+      Duration remaining = Duration.between(Instant.now(), expirationTime.toInstant());
+      return remaining.isNegative() ? Duration.ZERO : remaining;
     } catch (ParseException e) {
       log.warn("유효하지 않은 JWT 토큰입니다.", e);
       throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(

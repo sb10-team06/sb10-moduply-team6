@@ -11,6 +11,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.text.ParseException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -133,6 +134,34 @@ class JwtTokenProviderTest {
 
     // Then
     assertThat(result).isEqualTo(email);
+  }
+
+  @Test
+  @DisplayName("토큰의 남은 만료시간을 계산한다")
+  void get_remaining_expiration_success() {
+    // Given
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+
+    // When
+    Duration result = jwtTokenProvider.getRemainingExpiration(accessToken);
+
+    // Then
+    assertThat(result).isPositive();
+    assertThat(result).isLessThanOrEqualTo(Duration.ofMinutes(30));
+  }
+
+  @Test
+  @DisplayName("이미 만료된 토큰의 남은 만료시간은 0이다")
+  void get_remaining_expiration_returns_zero_when_token_is_expired() {
+    // Given
+    ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMinutes", -1);
+    String expiredToken = jwtTokenProvider.generateAccessToken(authentication);
+
+    // When
+    Duration result = jwtTokenProvider.getRemainingExpiration(expiredToken);
+
+    // Then
+    assertThat(result).isZero();
   }
 
   @Test

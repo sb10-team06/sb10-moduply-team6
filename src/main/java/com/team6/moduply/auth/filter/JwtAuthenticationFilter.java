@@ -44,6 +44,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       if (!jwtTokenProvider.validateAccessToken(token)) {
         throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.");
       }
+      if (authService.isAccessTokenBlacklisted(token)) {
+        throw new BadCredentialsException("로그아웃된 엑세스 토큰입니다.");
+      }
       if(SecurityContextHolder.getContext().getAuthentication() == null){
         UUID userId = jwtTokenProvider.getUserId(token);
         String email = jwtTokenProvider.getEmail(token);

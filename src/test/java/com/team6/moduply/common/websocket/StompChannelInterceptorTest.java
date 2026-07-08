@@ -3,6 +3,7 @@ package com.team6.moduply.common.websocket;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +27,7 @@ import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 
 @ExtendWith(MockitoExtension.class)
@@ -97,6 +99,24 @@ class StompChannelInterceptorTest {
     );
   }
 
+  @Test
+  @DisplayName("블랙리스트에 등록된 Access Token으로 CONNECT 요청 시 인증에 실패한다.")
+  void preSend_fail_when_connect_with_blacklisted_access_token() {
+    String token = "blacklisted-token";
+    Message<?> message = connectMessage(token, new ConcurrentHashMap<>());
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(authService.isAccessTokenBlacklisted(token)).willReturn(true);
+
+    assertThatThrownBy(() -> stompChannelInterceptor.preSend(message, null))
+        .isInstanceOf(BadCredentialsException.class)
+        .hasMessageContaining("엑세스 토큰이 유효하지 않습니다.");
+
+    verify(jwtTokenProvider).validateAccessToken(token);
+    verify(authService).isAccessTokenBlacklisted(token);
+    verify(authService, never()).getAuthentication(ArgumentMatchers.any());
+  }
+
   private Message<?> subscribeMessage(String destination, Map<String, Object> sessionAttributes) {
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
     accessor.setDestination(destination);
@@ -104,6 +124,15 @@ class StompChannelInterceptorTest {
     accessor.setSessionId("session-1");
     accessor.setSessionAttributes(sessionAttributes);
     accessor.setUser(new TestingAuthenticationToken("user", null));
+
+    return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+  }
+
+  private Message<?> connectMessage(String token, Map<String, Object> sessionAttributes) {
+    StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+    accessor.setSessionId("session-1");
+    accessor.setSessionAttributes(sessionAttributes);
+    accessor.setNativeHeader("Authorization", "Bearer " + token);
 
     return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
   }

@@ -2,7 +2,9 @@ package com.team6.moduply.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,12 +20,14 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -75,8 +79,57 @@ class AuthServiceTest {
   @Mock
   private RoleHierarchy roleHierarchy;
 
+  @Mock
+  private RedisUtil redisUtil;
+
   @InjectMocks
   private AuthService authService;
+
+  @Test
+  @DisplayName("Access Token 원문이 아니라 해시 기반 키로 블랙리스트에 등록한다")
+  void blacklist_access_token_stores_hashed_token_key() {
+    // Given
+    String token = "access-token";
+    Duration ttl = Duration.ofMinutes(10);
+
+    // When
+    authService.blacklistAccessToken(token, ttl);
+
+    // Then
+    verify(redisUtil).setDataExpire(
+        argThat(key -> key.startsWith("blacklist:access:") && !key.contains(token)),
+        eq("logout"),
+        eq(ttl)
+    );
+  }
+
+  @Test
+  @DisplayName("만료시간이 남지 않은 Access Token은 블랙리스트에 저장하지 않는다")
+  void blacklist_access_token_skip_when_ttl_is_zero() {
+    // When
+    authService.blacklistAccessToken("access-token", Duration.ZERO);
+
+    // Then
+    verify(redisUtil, never()).setDataExpire(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.any()
+    );
+  }
+
+  @Test
+  @DisplayName("Access Token 블랙리스트 키가 존재하면 true를 반환한다")
+  void is_access_token_blacklisted_returns_true_when_key_exists() {
+    // Given
+    given(redisUtil.getData(org.mockito.ArgumentMatchers.startsWith("blacklist:access:")))
+        .willReturn("logout");
+
+    // When
+    boolean result = authService.isAccessTokenBlacklisted("access-token");
+
+    // Then
+    assertThat(result).isTrue();
+  }
 
   @Test
   @DisplayName("사용자 ID로 최신 사용자 상태를 조회해 인증 객체를 생성한다")

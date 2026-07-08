@@ -129,6 +129,38 @@ class JwtAuthenticationFilterTest {
     verify(authService, never()).getAuthentication(any());
   }
 
+  @Test
+  @DisplayName("블랙리스트에 등록된 Access Token이면 401 응답을 반환한다")
+  void do_filter_fail_when_access_token_is_blacklisted() throws Exception {
+    // Given
+    String token = "blacklisted-token";
+    ModuPlyAuthenticationEntryPoint entryPoint =
+        new ModuPlyAuthenticationEntryPoint(objectMapper());
+    JwtAuthenticationFilter filter =
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint, redisUtil);
+
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain filterChain = new MockFilterChain();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(authService.isAccessTokenBlacklisted(token)).willReturn(true);
+
+    // When
+    filter.doFilter(request, response, filterChain);
+
+    // Then
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getContentAsString()).contains("auth06");
+
+    verify(jwtTokenProvider).validateAccessToken(token);
+    verify(authService).isAccessTokenBlacklisted(token);
+    verify(jwtTokenProvider, never()).getUserId(token);
+    verify(authService, never()).getAuthentication(any());
+  }
+
   private ObjectMapper objectMapper() {
     return new ObjectMapper().findAndRegisterModules();
   }

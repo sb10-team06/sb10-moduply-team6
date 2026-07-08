@@ -157,6 +157,9 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       if (!jwtTokenProvider.validateAccessToken(token)) {
         throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.");
       }
+      if (authService.isAccessTokenBlacklisted(token)) {
+        throw new BadCredentialsException("로그아웃된 엑세스 토큰입니다.");
+      }
       UUID userId = jwtTokenProvider.getUserId(token);
       Authentication authentication = authService.getAuthentication(userId);
       accessor.setUser(authentication);
