@@ -26,6 +26,25 @@ public class NotificationService {
   private final NotificationQDSLRepository notificationQDSLRepository;
   private final NotificationMapper notificationMapper;
 
+  // 알림 읽음 처리
+  @Transactional
+  public void markAsRead(UUID notificationId, UUID receiverId) {
+    Notification notification = notificationRepository.findById(notificationId)
+        .orElseThrow(() -> new NotificationException(
+            NotificationErrorCode.NOTIFICATION_NOT_FOUND,
+            Map.of("notificationId", notificationId)
+        ));
+
+    if (!notification.getReceiverId().equals(receiverId)) {
+      throw new NotificationException(
+          NotificationErrorCode.NOTIFICATION_FORBIDDEN,
+          Map.of("notificationId", notificationId)
+      );
+    }
+
+    notification.markAsRead();
+  }
+
   /// 플레이리스트 알림 전송 메서드
   @Transactional
   public NotificationDto sendPlaylistSubscribedNotification(UUID receiverId, String playlistTitle) {
