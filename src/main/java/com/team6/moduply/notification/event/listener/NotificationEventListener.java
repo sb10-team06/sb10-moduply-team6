@@ -132,8 +132,8 @@ public class NotificationEventListener {
               event.getActorName(),
               event.getActivityContent()
           );
-          for (int i = 0; i < followerIds.size(); i++) {
-            sseEmitterManager.send(followerIds.get(i), dtos.get(i));
+          for (NotificationDto dto : dtos) {
+            sseEmitterManager.send(dto.receiverId(), dto);
           }
         }
         page++;
