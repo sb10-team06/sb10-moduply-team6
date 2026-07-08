@@ -163,7 +163,8 @@ class NotificationServiceTest {
         .level(NotificationLevel.INFO)
         .build();
 
-    given(notificationRepository.findById(notificationId)).willReturn(Optional.of(notification));
+    given(notificationRepository.findByIdAndReceiverId(notificationId, receiverId))
+        .willReturn(Optional.of(notification));
 
     // when
     notificationService.markAsRead(notificationId, receiverId);
@@ -179,7 +180,8 @@ class NotificationServiceTest {
     UUID receiverId = UUID.randomUUID();
     UUID notificationId = UUID.randomUUID();
 
-    given(notificationRepository.findById(notificationId)).willReturn(Optional.empty());
+    given(notificationRepository.findByIdAndReceiverId(notificationId, receiverId))
+        .willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> notificationService.markAsRead(notificationId, receiverId))
@@ -189,27 +191,20 @@ class NotificationServiceTest {
   }
 
   @Test
-  @DisplayName("본인 알림이 아닌 알림을 읽음 처리하면 예외가 발생한다.")
+  @DisplayName("본인 알림이 아닌 알림을 읽음 처리하면 404를 반환한다.")
   void markAsRead_fail_with_forbidden() {
     // given
     UUID receiverId = UUID.randomUUID();
     UUID otherId = UUID.randomUUID();
     UUID notificationId = UUID.randomUUID();
 
-    Notification notification = Notification.builder()
-        .receiverId(otherId)
-        .type(NotificationType.PLAYLIST_SUBSCRIBED)
-        .title("제목")
-        .content("내용")
-        .level(NotificationLevel.INFO)
-        .build();
-
-    given(notificationRepository.findById(notificationId)).willReturn(Optional.of(notification));
+    given(notificationRepository.findByIdAndReceiverId(notificationId, receiverId))
+        .willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> notificationService.markAsRead(notificationId, receiverId))
         .isInstanceOf(NotificationException.class)
         .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
-            .isEqualTo(NotificationErrorCode.NOTIFICATION_FORBIDDEN));
+            .isEqualTo(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
   }
 }

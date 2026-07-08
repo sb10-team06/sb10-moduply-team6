@@ -137,7 +137,7 @@ class NotificationControllerTest {
   }
 
   @Test
-  @DisplayName("본인 알림이 아닌 알림을 읽음 처리하면 403을 반환한다.")
+  @DisplayName("본인 알림이 아닌 알림을 읽음 처리하면 404을 반환한다.")
   void markAsRead_fail_with_forbidden() throws Exception {
     // given
     UUID notificationId = UUID.randomUUID();
