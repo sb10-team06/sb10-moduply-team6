@@ -40,6 +40,8 @@ jobs:
       # 1) 소스코드 체크아웃
       - name: Checkout
         uses: actions/checkout@v4 # 현재 repo의 소스코드를 Runner 작업 디렉터리로 복사
+        with:
+          persist-credentials: false
 
       # 2) AWS 자격 증명 설정
       - name: Configure AWS credentials (Private ECR)

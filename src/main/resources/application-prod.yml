@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${RDS_URL:${POSTGRES_URL}}
-    username: ${RDS_USERNAME:${POSTGRES_USER_NAME}}
-    password: ${RDS_PASSWORD:${POSTGRES_PASSWORD}}
+    url: ${RDS_URL}
+    username: ${RDS_USERNAME}
+    password: ${RDS_PASSWORD}
     driver-class-name: org.postgresql.Driver
   batch:
     jdbc:
@@ -17,8 +17,8 @@ cors:
     - ${CORS_ALLOWED_ORIGINS}
 
 jwt:
-  oauth-success-url: ${OAUTH_SUCCESS_URL:http://localhost:8080/#/contents}
-  oauth-failure-url: ${OAUTH_FAILURE_URL:http://localhost:8080/#/sign-in}
+  oauth-success-url: ${OAUTH_SUCCESS_URL}
+  oauth-failure-url: ${OAUTH_FAILURE_URL}
 
 logging:
   level:

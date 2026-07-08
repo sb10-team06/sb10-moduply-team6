@@ -2,7 +2,7 @@ spring:
   application:
     name: moduply
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:local}
+    active: ${SPRING_PROFILES_ACTIVE}
   jpa:
     show-sql: false
     open-in-view: false
