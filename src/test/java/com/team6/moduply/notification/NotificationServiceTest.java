@@ -16,6 +16,7 @@ import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository
 import com.team6.moduply.notification.service.NotificationService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -145,5 +146,70 @@ class NotificationServiceTest {
         .isInstanceOf(NotificationException.class)
         .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
             .isEqualTo(NotificationErrorCode.NOTIFICATION_INVALID_STATE));
+  }
+
+  @Test
+  @DisplayName("알림을 읽음 처리하면 isRead가 true가 된다.")
+  void markAsRead_success() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    UUID notificationId = UUID.randomUUID();
+
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.PLAYLIST_SUBSCRIBED)
+        .title("제목")
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    given(notificationRepository.findById(notificationId)).willReturn(Optional.of(notification));
+
+    // when
+    notificationService.markAsRead(notificationId, receiverId);
+
+    // then
+    assertThat(notification.isRead()).isTrue();
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 알림을 읽음 처리하면 예외가 발생한다.")
+  void markAsRead_fail_with_not_found() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    UUID notificationId = UUID.randomUUID();
+
+    given(notificationRepository.findById(notificationId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> notificationService.markAsRead(notificationId, receiverId))
+        .isInstanceOf(NotificationException.class)
+        .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
+            .isEqualTo(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+  }
+
+  @Test
+  @DisplayName("본인 알림이 아닌 알림을 읽음 처리하면 예외가 발생한다.")
+  void markAsRead_fail_with_forbidden() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+    UUID notificationId = UUID.randomUUID();
+
+    Notification notification = Notification.builder()
+        .receiverId(otherId)
+        .type(NotificationType.PLAYLIST_SUBSCRIBED)
+        .title("제목")
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    given(notificationRepository.findById(notificationId)).willReturn(Optional.of(notification));
+
+    // when & then
+    assertThatThrownBy(() -> notificationService.markAsRead(notificationId, receiverId))
+        .isInstanceOf(NotificationException.class)
+        .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
+            .isEqualTo(NotificationErrorCode.NOTIFICATION_FORBIDDEN));
   }
 }
