@@ -29,18 +29,12 @@ public class NotificationService {
   // 알림 읽음 처리
   @Transactional
   public void markAsRead(UUID notificationId, UUID receiverId) {
-    Notification notification = notificationRepository.findById(notificationId)
+    Notification notification = notificationRepository
+        .findByIdAndReceiverId(notificationId, receiverId)
         .orElseThrow(() -> new NotificationException(
             NotificationErrorCode.NOTIFICATION_NOT_FOUND,
             Map.of("notificationId", notificationId)
         ));
-
-    if (!notification.getReceiverId().equals(receiverId)) {
-      throw new NotificationException(
-          NotificationErrorCode.NOTIFICATION_FORBIDDEN,
-          Map.of("notificationId", notificationId)
-      );
-    }
 
     notification.markAsRead();
   }
