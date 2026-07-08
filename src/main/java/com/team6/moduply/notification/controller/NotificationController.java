@@ -12,8 +12,10 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,5 +31,14 @@ public class NotificationController implements NotificationApi {
       @ModelAttribute @Valid NotificationSearchRequest request,
       @AuthenticationPrincipal(expression = "userDto.id") UUID receiverId) {
     return ResponseEntity.ok(notificationService.findAll(request, receiverId));
+  }
+
+  @DeleteMapping("/{notificationId}")
+  @Operation(summary = "알림 읽음 처리", description = "알림을 읽음 처리합니다.")
+  public ResponseEntity<Void> markAsRead(
+      @PathVariable UUID notificationId,
+      @AuthenticationPrincipal(expression = "userDto.id") UUID receiverId) {
+    notificationService.markAsRead(notificationId, receiverId);
+    return ResponseEntity.noContent().build();
   }
 }

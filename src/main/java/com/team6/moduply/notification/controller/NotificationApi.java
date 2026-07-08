@@ -18,4 +18,7 @@ public interface NotificationApi {
       @ModelAttribute @Valid NotificationSearchRequest request,
       UUID receiverId
   );
+
+  @Operation(summary = "알림 읽음 처리", description = "알림을 읽음 처리합니다.")
+  ResponseEntity<Void> markAsRead(UUID notificationId, UUID receiverId);
 }
