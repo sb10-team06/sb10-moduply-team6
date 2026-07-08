@@ -24,7 +24,6 @@ reviews:
     enabled: true # 자동리뷰 켬
     drafts: false # Draft PR은 자동 리뷰하지 않음
     base_branches:
-      - "main"
       - "dev"
 
   path_instructions:
@@ -140,7 +139,7 @@ reviews:
         - 사용자 권한(Role) 및 계정 잠금(locked) 필드 확인
         - 콘텐츠: 제목, 설명, 타입(영화/드라마/스포츠), 외부 API ID, 썸네일 URL 등
         - 플레이리스트: 사용자, 콘텐츠 목록, 공개 여부
-        - 알림: 수신자, 유형, 내용, 읽음 여부
+        - 알림: 수신자, 유형, 내용
         - 연관관계 기본 LAZY
 
     # 6) DTO
@@ -237,27 +236,24 @@ reviews:
           - 소셜 로그인 실패 리다이렉트
         - 테스트 메서드명은 시나리오를 명확히 (given-when-then 권장)
         - 외부 API(TMDB, The Sports DB, Google/Kakao OAuth)는 모킹 또는 테스트더블 사용
-        - 전체 커버리지 80% 이상 — 신규 코드 테스트 누락 시 지적
+        - 신규/변경된 코드에 테스트가 누락된 경우 지적
+          (전체 커버리지 수치 자체는 CI/Codecov가 게이트로 강제하므로 % 기준은 언급하지 않음 —
+           PR이 CI를 통과했다면 현재 단계의 커버리지 기준은 이미 만족한 것으로 간주)
 
     # 15) GitHub Actions
     - path: ".github/workflows/**/*.{yml,yaml}"
       instructions: |
         - 시크릿은 ${{ secrets.* }}로만 참조, 평문 금지
-        - PR 생성 시 테스트가 수행되어야 하고, 커버리지 80% 이상 게이트 적용
+        - PR 생성 시 테스트가 정상적으로 실행되는 워크플로우 구조인지 확인
+          (커버리지 임계값 수치는 CI 설정에서 이미 관리 중이므로 별도로 % 기준을 지적하지 않음)
+        - 문서/설정 파일만 변경된 PR에서 CI를 스킵
         - AWS ECS 자동 배포 흐름 분리 명확성
         - 액션 버전은 SHA 또는 메이저 태그 고정 (@latest/임의 브랜치 참조 금지)
 
     # 16) 빌드 스크립트
     - path: "**/*.{gradle,gradle.kts}"
       instructions: |
-        - 테스트 커버리지 도구 설정 + 80% 임계값 게이트
+        - Jacoco 등 커버리지 측정 도구 설정 자체의 누락/오류만 점검
+          (임계값 수치는 build.gradle/CI에서 이미 관리 중이므로 % 기준은 언급하지 않음)
         - 커버리지 배지를 README에서 사용할 수 있도록 리포트 출력 경로 일관성
         - 불필요한 플러그인/의존성 추가 점검
-
-    # 17) README
-    - path: "README.md"
-      instructions: |
-        - 프로젝트 개요, 팀원 구성, 기술 스택, 팀원별 구현 기능 명시
-        - 테스트 커버리지 배지가 메인 브랜치 기준으로 표시되어야 함
-        - 백엔드 배포 링크와 API 명세 링크 포함 권장
-        - WebSocket/SSE 명세 링크 포함 권장

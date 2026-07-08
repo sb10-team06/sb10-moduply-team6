@@ -1,0 +1,61 @@
+# =========================================
+# codecov.yml
+# 레포지토리 루트에 위치
+#
+# ⚠️ 중요: Codecov 자체는 "브랜치별로 다른 기준"을 깔끔하게 지원하지 않음.
+# 그래서 실제 머지 차단(gate)은 두 단계로 나눠서 처리함:
+#
+#   1) Gradle (jacocoTestCoverageVerification) ← 진짜 게이트
+#      - CI에서 -PcoverageMinimum 값을 브랜치별로 다르게 주입
+#      - dev: 40%, main: 80%
+#      - 기준 미달 시 빌드 자체가 실패 → Branch Protection의
+#        "Require status checks to pass" 에서 CI 실패로 머지 차단됨
+#
+#   2) Codecov ← 보조 지표 + PR 코멘트 + 시각화 용도
+#      - 여기 설정한 80%는 "최종 목표 기준"으로만 사용
+#      - dev PR에서는 이 기준에 미달해도 Codecov 자체가 머지를 막지는 않도록
+#        informational(정보 제공용)로 설정함 (아래 참고)
+# =========================================
+
+coverage:
+  status:
+    project:
+      default:
+        # ---------------------------------------
+        # 최종 목표는 80%지만, 지금은 개발 단계라
+        # Codecov 단계에서까지 강제로 막으면 dev 머지가 너무 빡빡해짐.
+        # 그래서 'informational: true' 로 설정 → 기준 미달이어도
+        # 실패 처리는 안 하고 PR에 percentage만 보여줌 (경고용)
+        # ---------------------------------------
+        target: 80%
+        threshold: 1%
+        if_not_found: success
+        if_ci_failed: error
+        informational: true   # ✅ 실제 차단은 Gradle 쪽에서 하므로 여기는 정보 제공만
+
+    patch:
+      default:
+        # 새로 추가된 코드의 커버리지도 동일하게 informational로 설정
+        # (실제 차단은 Gradle 게이트가 담당)
+        target: 80%
+        threshold: 0%
+        if_not_found: success
+        if_ci_failed: error
+        informational: true
+
+comment:
+  layout: "header, diff, flags, files, footer"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "**/dto/**"
+  - "**/config/**"
+  - "**/entity/**"
+  - "**/mapper/**"
+  - "**/enums/**"
+  - "**/exception/**"
+  - "**/batch/**"
+  - "**/common/pagination/**"
+  - "**/*Application.java"
+  - "**/Q*.class"

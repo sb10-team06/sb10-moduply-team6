@@ -1,0 +1,145 @@
+spring:
+  application:
+    name: moduply
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE}
+  jpa:
+    show-sql: false
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+  sql:
+    init:
+      mode: never
+  batch:
+    job:
+      enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+          starttls:
+            enable: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/login/oauth2/code/kakao}
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            scope:
+              - profile_nickname
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+logging:
+  level:
+    root: info
+
+cors:
+  allowed-origins:
+    - "http://moduply.com"
+
+moduply:
+  storage:
+    type: ${BINARY_CONTENT_STORAGE_TYPE:s3}
+    s3:
+      access-key: ${AWS_S3_ACCESS_KEY:}
+      secret-key: ${AWS_S3_SECRET_KEY:}
+      region: ${AWS_S3_REGION}
+      bucket: ${AWS_S3_BUCKET}
+      presigned-url-expiration: ${AWS_S3_PRESIGNED_URL_EXPIRATION:600} #기본값:10분
+    local:
+      root-path: ${LOCAL_STORAGE_ROOT_PATH:./uploads}
+      url-prefix: ${LOCAL_STORAGE_URL_PREFIX:/uploads}
+  external:
+    tmdb:
+      base-url: ${TMDB_BASE_URL:https://api.themoviedb.org/3}
+      image-base-url: ${TMDB_IMAGE_BASE_URL:https://image.tmdb.org/t/p}
+      read-access-token: ${TMDB_READ_ACCESS_TOKEN:}
+      connect-timeout-millis: ${TMDB_CONNECT_TIMEOUT_MILLIS:3000}
+      read-timeout-millis: ${TMDB_READ_TIMEOUT_MILLIS:10000}
+      movie-include-adult: ${TMDB_MOVIE_INCLUDE_ADULT:false}
+      movie-include-video: ${TMDB_MOVIE_INCLUDE_VIDEO:false}
+      movie-sort-by: ${TMDB_MOVIE_SORT_BY:primary_release_date.desc}
+      movie-region: ${TMDB_MOVIE_REGION:KR}
+      movie-certification-country: ${TMDB_MOVIE_CERTIFICATION_COUNTRY:KR}
+      movie-certification-lte: ${TMDB_MOVIE_CERTIFICATION_LTE:15}
+      movie-vote-count-gte: ${TMDB_MOVIE_VOTE_COUNT_GTE:10}
+      movie-without-keywords: ${TMDB_MOVIE_WITHOUT_KEYWORDS:}
+      movie-without-genres: ${TMDB_MOVIE_WITHOUT_GENRES:}
+      tv-include-adult: ${TMDB_TV_INCLUDE_ADULT:false}
+      tv-sort-by: ${TMDB_TV_SORT_BY:first_air_date.desc}
+      tv-vote-count-gte: ${TMDB_TV_VOTE_COUNT_GTE:10}
+      tv-without-keywords: ${TMDB_TV_WITHOUT_KEYWORDS:}
+      tv-without-genres: ${TMDB_TV_WITHOUT_GENRES:}
+    sports-db:
+      base-url: ${SPORTS_DB_BASE_URL:https://www.thesportsdb.com/api/v1/json}
+      api-key: ${SPORTS_DB_API_KEY}
+      connect-timeout-millis: ${SPORTS_DB_CONNECT_TIMEOUT_MILLIS:3000}
+      read-timeout-millis: ${SPORTS_DB_READ_TIMEOUT_MILLIS:10000}
+    image:
+      connect-timeout-millis: ${EXTERNAL_IMAGE_CONNECT_TIMEOUT_MILLIS:3000}
+      read-timeout-millis: ${EXTERNAL_IMAGE_READ_TIMEOUT_MILLIS:10000}
+  content:
+    batch:
+      import:
+        enabled: ${CONTENT_IMPORT_BATCH_ENABLED:true}
+        cron: ${CONTENT_IMPORT_BATCH_CRON:0 0 2 * * *}
+        tmdb-page-start: ${CONTENT_IMPORT_BATCH_TMDB_PAGE_START:1}
+        tmdb-page-end: ${CONTENT_IMPORT_BATCH_TMDB_PAGE_END:3}
+        tmdb-language: ${CONTENT_IMPORT_BATCH_TMDB_LANGUAGE:ko-KR}
+        sports-db-league-ids: ${CONTENT_IMPORT_BATCH_SPORTS_DB_LEAGUE_IDS:4328}
+        sports-db-sport: ${CONTENT_IMPORT_BATCH_SPORTS_DB_SPORT:Soccer}
+        sports-db-day-offsets:
+          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_PREVIOUS:-1}
+          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_TODAY:0}
+          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_NEXT:1}
+
+jwt:
+  key: ${JWT_SECRET_KEY}
+  access-token-expiration-minutes: 30
+  refresh-token-expiration-minutes: 420
+  oauth-success-url: ${OAUTH_SUCCESS_URL:http://localhost:8080/#/contents}
+  oauth-failure-url: ${OAUTH_FAILURE_URL:http://localhost:8080/#/sign-in}
+
+admin:
+  init:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
+
+watching:
+  storage:
+    type: redis

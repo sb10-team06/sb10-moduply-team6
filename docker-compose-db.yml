@@ -1,0 +1,41 @@
+version: '3.9'
+services:
+  # Postgres DB
+  postgres-db:
+    container_name: moduply-postgres
+    image: postgres:15
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - backend
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER_NAME:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-0000}
+      POSTGRES_DB: ${POSTGRES_DB:-moduply}
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=ko-KR"
+    env_file:
+      - .env
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: moduply-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - backend
+
+# 볼륨 설정
+volumes:
+  postgres-data:
+  redis-data:
+
+# network
+networks:
+  backend:
+    driver: bridge # default, 생략 가능
