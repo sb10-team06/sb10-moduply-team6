@@ -28,6 +28,7 @@ public interface DirectMessageRepository extends JpaRepository<DirectMessage, UU
 
   // 수정
   // 현재 로그인한 사용자가 보낸 메시지는 읽음처리 x(상대방이 보낸 메시지만 읽음처리)
+  // TODO: 복합 인덱스 고려
   @Modifying(clearAutomatically = true)
   @Query("""
     update DirectMessage dm
