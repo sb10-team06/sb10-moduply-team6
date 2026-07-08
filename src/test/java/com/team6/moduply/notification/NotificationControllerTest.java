@@ -8,11 +8,14 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.notification.controller.NotificationController;
 import com.team6.moduply.notification.dto.NotificationDto;
 import com.team6.moduply.notification.dto.NotificationSortBy;
+import com.team6.moduply.notification.exception.NotificationErrorCode;
+import com.team6.moduply.notification.exception.NotificationException;
 import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +31,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -98,5 +105,50 @@ class NotificationControllerTest {
             .param("sortDirection", "DESCENDING")
             .param("sortBy", "createdAt"))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("알림을 읽음 처리하면 204를 반환한다.")
+  void markAsRead_success() throws Exception {
+    // given
+    UUID notificationId = UUID.randomUUID();
+
+    // when & then
+    mockMvc.perform(delete("/api/notifications/" + notificationId))
+        .andExpect(status().isNoContent());
+
+    verify(notificationService).markAsRead(eq(notificationId), eq(TEST_RECEIVER_ID));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 알림을 읽음 처리하면 404를 반환한다.")
+  void markAsRead_fail_with_not_found() throws Exception {
+    // given
+    UUID notificationId = UUID.randomUUID();
+
+    doThrow(new NotificationException(
+        NotificationErrorCode.NOTIFICATION_NOT_FOUND,
+        Map.of("notificationId", notificationId)
+    )).when(notificationService).markAsRead(eq(notificationId), eq(TEST_RECEIVER_ID));
+
+    // when & then
+    mockMvc.perform(delete("/api/notifications/" + notificationId))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("본인 알림이 아닌 알림을 읽음 처리하면 404을 반환한다.")
+  void markAsRead_fail_with_forbidden() throws Exception {
+    // given
+    UUID notificationId = UUID.randomUUID();
+
+    doThrow(new NotificationException(
+        NotificationErrorCode.NOTIFICATION_FORBIDDEN,
+        Map.of("notificationId", notificationId)
+    )).when(notificationService).markAsRead(eq(notificationId), eq(TEST_RECEIVER_ID));
+
+    // when & then
+    mockMvc.perform(delete("/api/notifications/" + notificationId))
+        .andExpect(status().isForbidden());
   }
 }
