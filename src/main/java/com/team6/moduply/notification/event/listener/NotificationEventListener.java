@@ -82,10 +82,12 @@ public class NotificationEventListener {
     log.info("[알림 저장] 팔로우 - followerId={}, followeeId={}",
         event.getFollowerId(), event.getFolloweeId());
     try {
-      notificationService.sendFollowedNotification(
+      NotificationDto dto = notificationService.sendFollowedNotification(
           event.getFolloweeId(),
           event.getFollowerName()
       );
+
+      sseEmitterManager.send(event.getFolloweeId(), dto);
     } catch (Exception e) {
       log.error("[알림 저장 실패] 팔로우 알림 - followerId={}, followeeId={}",
           event.getFollowerId(), event.getFolloweeId(), e);
@@ -98,10 +100,11 @@ public class NotificationEventListener {
     log.info("[알림 저장] DM 수신 - senderId={}, receiverId={}, conversationId={}",
         event.getSenderId(), event.getReceiverId(), event.getConversationId());
     try {
-      notificationService.sendDmReceivedNotification(
+      NotificationDto dto = notificationService.sendDmReceivedNotification(
           event.getReceiverId(),
           event.getSenderName()
       );
+      sseEmitterManager.send(event.getReceiverId(), dto);
     } catch (Exception e) {
       log.error("[알림 저장 실패] DM 수신 알림 - senderId={}, receiverId={}, conversationId={}",
           event.getSenderId(), event.getReceiverId(), event.getConversationId(), e);
@@ -124,11 +127,14 @@ public class NotificationEventListener {
         );
         if (!followerIds.isEmpty()) {
           // 500명씩 알림 저장..
-          notificationService.sendFollowActivityNotification(
+          List<NotificationDto> dtos = notificationService.sendFollowActivityNotification(
               followerIds,
               event.getActorName(),
               event.getActivityContent()
           );
+          for (int i = 0; i < followerIds.size(); i++) {
+            sseEmitterManager.send(followerIds.get(i), dtos.get(i));
+          }
         }
         page++;
       } while (followerIds.size() == FOLLOW_ACTIVITY_NOTIFICATION_BATCH_SIZE);
