@@ -43,7 +43,7 @@ public class SseEmitterManager {
           .data("connected"));
     } catch (IOException e) {
       log.error("[SSE] 초기 이벤트 전송 실패 - userId: {}", userId, e);
-      emitter.complete();
+      emitter.completeWithError(e);;
       emitters.remove(userId);
     }
 
@@ -61,7 +61,7 @@ public class SseEmitterManager {
           .data(data));
     } catch (IOException e) {
       log.error("[SSE] 초기 이벤트 전송 실패 - userId: {}", userId, e);
-      emitter.complete();
+      emitter.completeWithError(e);
       emitters.remove(userId, emitter);
     }
   }
@@ -79,7 +79,7 @@ public class SseEmitterManager {
             .data("ping"));
       } catch (IOException | IllegalStateException e) {
         log.error("[SSE] Heartbeat 전송 실패 - userId={}", userId, e);
-        emitter.complete();
+        emitter.completeWithError(e);
         emitters.remove(userId, emitter);
       }
     });
