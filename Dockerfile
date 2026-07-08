@@ -104,19 +104,20 @@ EXPOSE ${SERVER_PORT}
 #  CMD wget -qO- http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
 
-# JVM Configuration (프리티어 고려)
-# -Xmx256m : 최대 힙 메모리를 256MB로 제한
-#  - JVM이 이 이상의 힙 메모리를 할당하지 않으며, 초과 시 OutOfMemoryError가 발생
+# JVM Configuration (ECS EC2 t3.small + Redis 동시 운영 기준)
 # -Xms128m : 초기 힙 메모리를 128MB로 설정
-#  - JVM 시작 시 OS로부터 128MB를 미리 확보하므로, 런타임 중 힙 확장에 따른 지연을 줄여줌
-# -XX:MaxMetaspaceSize=128m : 메타스페이스 최대 크기를 128MB로 제한
-#  - 메타스페이스는 클래스 메타데이터(클래스 정의, 메서드 정보 등)를 저장하는 네이티브 메모리 영역
-#  - 기본값은 무제한. 제한 이유 - 클래스 로딩 누수를 조기에 감지하거나 메모리 사용량을 통제하려는 목적
+#  - 컨테이너 시작 시 과도한 메모리를 선점하지 않도록 작게 시작한다.
+# -Xmx384m : 최대 힙 메모리를 384MB로 제한
+#  - 객체 데이터가 저장되는 Java heap 상한이다.
+#  - 같은 EC2 인스턴스에서 앱 컨테이너와 Redis 컨테이너를 함께 실행하므로 전체 메모리 사용량을 통제한다.
+# -XX:MaxMetaspaceSize=256m : Metaspace 최대 크기를 256MB로 제한
+#  - Metaspace는 클래스 메타데이터, Spring/Hibernate/CGLIB 프록시, 리플렉션/어노테이션 정보를 저장하는 네이티브 메모리 영역이다.
+#  - 기존 128MB 설정은 Spring Boot + Security + JPA + QueryDSL + WebSocket 조합에서 QA 중 OutOfMemoryError: Metaspace를 유발했다.
+#  - 256MB로 상향해 프레임워크 메타데이터 공간을 확보하되 컨테이너 메모리 상한 안에서 관리한다.
 # -XX:+UseSerialGC : Serial GC를 사용
-#  - 단일 스레드로 GC를 수행하는 가장 단순한 컬렉터
-#  - GC 중 모든 애플리케이션 스레드가 멈추는(STW) 단점 존재
-#  - GC 스레드 자체의 오버헤드가 거의 없어 메모리가 적고 CPU 코어가 제한된 환경(컨테이너, 임베디드 등)에 적합
-ENV JVM_OPTS="-Xmx256m -Xms128m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC"
+#  - 단일 스레드로 GC를 수행해 GC 스레드 오버헤드를 줄인다.
+#  - 작은 컨테이너에서는 단순하고 예측 가능하지만, 트래픽 증가 시 지연 시간이 커질 수 있어 추후 재검토한다.
+ENV JVM_OPTS="-Xms128m -Xmx384m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC"
 
 ENV SPRING_PROFILES_ACTIVE=prod
 
