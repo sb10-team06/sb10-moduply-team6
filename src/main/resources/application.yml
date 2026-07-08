@@ -48,6 +48,9 @@ cors:
     - "http://moduply.com"
 
 moduply:
+  async:
+    binary-content:
+      enabled: ${MODUPLY_BINARY_CONTENT_ASYNC_ENABLED:true}
   storage:
     type: ${BINARY_CONTENT_STORAGE_TYPE:s3}
     s3:

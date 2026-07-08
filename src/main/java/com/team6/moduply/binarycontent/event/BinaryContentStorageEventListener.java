@@ -6,9 +6,9 @@ import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
+import com.team6.moduply.common.config.AsyncConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -28,7 +28,7 @@ public class BinaryContentStorageEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     // TODO: 비동기 설정및 이름 설정 필요
-    @Async
+    @Async(AsyncConfig.BINARY_CONTENT_TASK_EXECUTOR)
     public void handleBinaryContentStorage(BinaryContentCreatedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
         BinaryContent binaryContent;
@@ -91,7 +91,7 @@ public class BinaryContentStorageEventListener {
     }
 
 
-    @Async
+    @Async(AsyncConfig.BINARY_CONTENT_TASK_EXECUTOR)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleBinaryContentDelete(BinaryContentDeletedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
