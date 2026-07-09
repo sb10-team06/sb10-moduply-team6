@@ -1,6 +1,7 @@
 package com.team6.moduply.common.config;
 
 import java.util.Arrays;
+import java.util.concurrent.ThreadPoolExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Value;
@@ -113,10 +114,7 @@ public class AsyncConfig implements AsyncConfigurer {
     executor.setThreadNamePrefix("binary-content-");
     executor.setWaitForTasksToCompleteOnShutdown(true);
     executor.setAwaitTerminationSeconds(30);
-    executor.setRejectedExecutionHandler((r, e) -> {
-      log.warn("BinaryContent 작업이 거부되었습니다. poolSize={}, activeCount={}, queueSize={}",
-              e.getPoolSize(), e.getActiveCount(), e.getQueue().size());
-    });
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
     return executor;
   }
