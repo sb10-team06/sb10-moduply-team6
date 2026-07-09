@@ -27,7 +27,6 @@ public class BinaryContentStorageEventListener {
     private final BinaryContentRepository binaryContentRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    // TODO: 비동기 설정및 이름 설정 필요
     @Async(AsyncConfig.BINARY_CONTENT_TASK_EXECUTOR)
     public void handleBinaryContentStorage(BinaryContentCreatedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
