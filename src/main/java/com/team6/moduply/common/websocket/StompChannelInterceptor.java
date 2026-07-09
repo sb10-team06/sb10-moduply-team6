@@ -2,8 +2,6 @@ package com.team6.moduply.common.websocket;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
-import com.team6.moduply.common.enums.RedisKeyPolicy;
-import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
 import com.team6.moduply.common.websocket.events.StompUnSubscribeEvent;
 import java.util.Map;
@@ -33,11 +31,14 @@ public class StompChannelInterceptor implements ChannelInterceptor {
 
   private final ApplicationEventPublisher applicationEventPublisher;
   private static final String SUBSCRIPTIONS_KEY = "SUBSCRIPTIONS";
+  private static final String USER_ID_KEY = "userId";
+  private static final String EMAIL_KEY = "email";
+  private static final String TOKEN_VERSION_KEY = "tokenVersion";
+  private static final String ACCESS_TOKEN_KEY = "accessToken";
 
   //JWT 인증
   private final JwtTokenProvider jwtTokenProvider;
   private final AuthService authService;
-  private final RedisUtil redisUtil;
 
   @Override
   public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -84,15 +85,23 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       throw new MessageDeliveryException("웹소켓 세션에 사용자 인증 정보가 존재하지 않습니다.");
     }
 
-    Object email = sessionAttributes.get("email");
-    Object tokenVersion = sessionAttributes.get("tokenVersion");
+    Object email = sessionAttributes.get(EMAIL_KEY);
+    Object tokenVersion = sessionAttributes.get(TOKEN_VERSION_KEY);
+    Object accessToken = sessionAttributes.get(ACCESS_TOKEN_KEY);
     if (!(email instanceof String) || !(tokenVersion instanceof Long)) {
       throw new MessageDeliveryException("웹소켓 세션에 토큰 버전 정보가 존재하지 않습니다.");
     }
+    if (!(accessToken instanceof String token) || token.isBlank()) {
+      throw new MessageDeliveryException("웹소켓 세션에 Access Token 정보가 존재하지 않습니다.");
+    }
 
     // 연결 후의 SEND/SUBSCRIBE 요청도 최신 토큰 버전인지 확인한다.
-    if(!authService.isTokenVersionValid((String) email,(Long) tokenVersion)){
+    if (!authService.isTokenVersionValid((String) email, (Long) tokenVersion)) {
       throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+    }
+    // 로그아웃 이후 이미 연결된 세션에서 보내는 후속 프레임도 차단한다.
+    if (authService.isAccessTokenBlacklisted(token)) {
+      throw new BadCredentialsException("로그아웃된 Access Token입니다.");
     }
   }
 
@@ -116,7 +125,7 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     String destination = accessor.getDestination();
 
     if (subscriptionId != null && destination != null) {
-      UUID userId = (UUID) sessionAttributes.get("userId");
+      UUID userId = (UUID) sessionAttributes.get(USER_ID_KEY);
 
       if (userId == null) {
         throw new MessageDeliveryException("웹소켓 세션에 사용자 인증 정보가 존재하지 않습니다.");
@@ -191,9 +200,10 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       Authentication authentication = authService.getAuthentication(userId);
       accessor.setUser(authentication);
       if (sessionAttributes != null) {
-        sessionAttributes.put("userId", userId);
-        sessionAttributes.put("email", email);
-        sessionAttributes.put("tokenVersion", tokenVersion);
+        sessionAttributes.put(USER_ID_KEY, userId);
+        sessionAttributes.put(EMAIL_KEY, email);
+        sessionAttributes.put(TOKEN_VERSION_KEY, tokenVersion);
+        sessionAttributes.put(ACCESS_TOKEN_KEY, token);
       }
     } catch (AuthenticationException e) {
       throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.", e);
