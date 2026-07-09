@@ -1,10 +1,13 @@
 package com.team6.moduply.common.config;
 
 import java.util.Arrays;
+import java.util.concurrent.ThreadPoolExecutor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -18,6 +21,7 @@ public class AsyncConfig implements AsyncConfigurer {
   public static final String TEMP_PASSWORD_MAIL_TASK_EXECUTOR = "tempPasswordMailTaskExecutor";
   public static final String WATCHING_EVENT_TASK_EXECUTOR = "watchingEventTaskExecutor";
   public static final String NOTIFICATION_TASK_EXECUTOR = "notificationTaskExecutor";
+  public static final String BINARY_CONTENT_TASK_EXECUTOR = "binaryContentTaskExecutor";
 
   @Bean(TEMP_PASSWORD_MAIL_TASK_EXECUTOR)
   public TaskExecutor tempPasswordMailTaskExecutor() {
@@ -91,6 +95,26 @@ public class AsyncConfig implements AsyncConfigurer {
       log.warn("알림 발송 작업이 거부되었습니다. poolSize={}, activeCount={}, queueSize={}",
           e.getPoolSize(), e.getActiveCount(), e.getQueue().size());
     });
+    executor.initialize();
+    return executor;
+  }
+
+  @Bean(BINARY_CONTENT_TASK_EXECUTOR)
+  public TaskExecutor binaryContentTaskExecutor(
+      @Value("${moduply.async.binary-content.enabled:true}") boolean asyncEnabled
+  ) {
+    if (!asyncEnabled) {
+      return new SyncTaskExecutor();
+    }
+
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(500);
+    executor.setThreadNamePrefix("binary-content-");
+    executor.setWaitForTasksToCompleteOnShutdown(true);
+    executor.setAwaitTerminationSeconds(30);
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
     return executor;
   }
