@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.ReflectionUtils;
 
 @Slf4j
@@ -48,14 +49,17 @@ public class ContentGenerator extends AbstractGenerator<Content> {
       """;
 
   private final ContentTestDataProperties properties;
+  private final TransactionTemplate transactionTemplate;
 
   public ContentGenerator(
       JdbcTemplate jdbcTemplate,
       @Qualifier("dataGeneratorExecutor") Executor dataGeneratorExecutor,
-      ContentTestDataProperties properties
+      ContentTestDataProperties properties,
+      TransactionTemplate transactionTemplate
   ) {
     super(jdbcTemplate, dataGeneratorExecutor);
     this.properties = properties;
+    this.transactionTemplate = transactionTemplate;
   }
 
   public void generate() {
@@ -101,8 +105,10 @@ public class ContentGenerator extends AbstractGenerator<Content> {
 
   @Override
   protected void executeBatch(List<Content> contents) {
-    insertBinaryContents(contents);
-    super.executeBatch(contents);
+    transactionTemplate.executeWithoutResult(status -> {
+      insertBinaryContents(contents);
+      super.executeBatch(contents);
+    });
   }
 
   @Override
