@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -29,6 +30,9 @@ class JwtLogoutHandlerTest {
   @Mock
   private RedisUtil redisUtil;
 
+  @Mock
+  private ApplicationEventPublisher applicationEventPublisher;
+
   @AfterEach
   void tearDown() {
     SecurityContextHolder.clearContext();
@@ -38,7 +42,8 @@ class JwtLogoutHandlerTest {
   @DisplayName("로그아웃 시 Refresh Token 쿠키를 만료시키고 SecurityContext를 비운다")
   void logout_success() {
     // Given
-    JwtLogoutHandler logoutHandler = new JwtLogoutHandler(jwtTokenProvider, redisUtil);
+    JwtLogoutHandler logoutHandler = new JwtLogoutHandler(jwtTokenProvider, redisUtil,
+        applicationEventPublisher);
     MockHttpServletRequest request = new MockHttpServletRequest();
     request.setCookies(new Cookie("REFRESH_TOKEN", "refresh-token"));
     MockHttpServletResponse response = new MockHttpServletResponse();
