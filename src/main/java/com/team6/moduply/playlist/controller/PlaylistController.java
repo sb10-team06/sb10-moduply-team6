@@ -97,22 +97,20 @@ public class PlaylistController {
     return ResponseEntity.noContent().build();
   }
 
-  @PostMapping("/{playlistId}/subscriptions")
+  @PostMapping("/{playlistId}/subscription")
   @Operation(summary = "플레이리스트 구독", description = "플레이리스트를 구독합니다.")
   public ResponseEntity<Void> subscribe(
       @PathVariable UUID playlistId,
-      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
-    UUID subscriberId = userDetails.getUserDto().getId();
+      @AuthenticationPrincipal(expression = "userDto.id") UUID subscriberId) {
     playlistService.subscribe(playlistId, subscriberId);
     return ResponseEntity.status(201).build();
   }
 
-  @DeleteMapping("/{playlistId}/subscriptions")
+  @DeleteMapping("/{playlistId}/subscription")
   @Operation(summary = "플레이리스트 구독취소", description = "플레이리스트 구독을 취소합니다.")
   public ResponseEntity<Void> unsubscribe(
       @PathVariable UUID playlistId,
-      @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
-    UUID subscriberId = userDetails.getUserDto().getId();
+      @AuthenticationPrincipal(expression = "userDto.id") UUID subscriberId) {
     playlistService.unsubscribe(playlistId, subscriberId);
     return ResponseEntity.noContent().build();
   }
