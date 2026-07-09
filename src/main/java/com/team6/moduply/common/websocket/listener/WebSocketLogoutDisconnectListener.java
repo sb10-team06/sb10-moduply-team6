@@ -16,7 +16,7 @@ public class WebSocketLogoutDisconnectListener {
 
   @EventListener
   public void on(UserLogoutEvent event) {
-    log.debug("[LOGOUT EVENT] Disconnecting user: {}", event.email());
+    log.debug("[LOGOUT EVENT] Disconnecting userId: {}", event.userId());
     try {
       websocketConnectionManager.sendForceLogoutSignal(event.email());
     } catch (Exception e) {
