@@ -97,7 +97,7 @@ public abstract class AbstractGenerator<T extends BaseEntity> {       // T에 Us
                         insertedCount.addAndGet(chunk.size());
                       }, dataGeneratorExecutor)
                       .exceptionally(ex -> {
-                        log.error("청크 {}번 삽입 중 오류 발생: {}", i, ex.getMessage());
+                        log.error("청크 {}번 삽입 중 오류 발생", i, ex);
                         return null;
                       });
             })
