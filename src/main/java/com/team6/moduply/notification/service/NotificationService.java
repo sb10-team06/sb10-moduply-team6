@@ -111,7 +111,7 @@ public class NotificationService {
 
   /// 팔로우 알림 전송 메서드.
   @Transactional
-  public void sendFollowedNotification(UUID receiverId, String followerName) {
+  public NotificationDto sendFollowedNotification(UUID receiverId, String followerName) {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.FOLLOWED)
@@ -119,11 +119,12 @@ public class NotificationService {
         .content(String.format(NotificationType.FOLLOWED.getMessageTemplate(), followerName))
         .level(NotificationLevel.INFO)
         .build();
-    notificationRepository.save(notification);
+    Notification saved = notificationRepository.save(notification);
+    return notificationMapper.toDto(saved);
   }
 
   @Transactional
-  public void sendDmReceivedNotification(UUID receiverId, String senderName) {
+  public NotificationDto sendDmReceivedNotification(UUID receiverId, String senderName) {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.DM_RECEIVED)
@@ -131,11 +132,12 @@ public class NotificationService {
         .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), senderName))
         .level(NotificationLevel.INFO)
         .build();
-    notificationRepository.save(notification);
+    Notification saved = notificationRepository.save(notification);
+    return notificationMapper.toDto(saved);
   }
 
   @Transactional
-  public void sendFollowActivityNotification(
+  public List<NotificationDto> sendFollowActivityNotification(
       List<UUID> receiverIds,
       String actorName,
       String activityContent
@@ -153,6 +155,9 @@ public class NotificationService {
             .level(NotificationLevel.INFO)
             .build())
         .toList();
-    notificationRepository.saveAll(notifications);
+    List<Notification> saved = notificationRepository.saveAll(notifications);
+    return saved.stream()
+        .map(notificationMapper::toDto)
+        .toList();
   }
 }
