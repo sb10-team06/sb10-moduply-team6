@@ -66,10 +66,10 @@ public abstract class AbstractGenerator<T extends BaseEntity> {       // T에 Us
     long maxSeconds = (long) daysBack * 24 * 60 * 60;
     // 평균을 0(현재)에 가깝게 두고 표준편차를 적용하여 최근에 가중치 부여
     double gaussian = ThreadLocalRandom.current().nextGaussian();
-    long offset = (long) (gaussian * (maxSeconds / 4)); // 최근에 쏠리도록 범위 조절
+    long offset = (long) (gaussian * (maxSeconds / 3)); // 최근에 쏠리도록 범위 조절
 
     // 너무 과거로 가지 않게 Clamp 처리
-    long finalSeconds = Math.max(0, Math.min(maxSeconds, (maxSeconds / 2) + offset));
+    long finalSeconds = Math.max(0, Math.min(maxSeconds, offset));
     return Timestamp.from(Instant.now().minusSeconds(finalSeconds));
   }
 
