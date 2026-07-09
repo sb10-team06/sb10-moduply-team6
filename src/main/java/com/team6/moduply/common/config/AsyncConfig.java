@@ -113,6 +113,10 @@ public class AsyncConfig implements AsyncConfigurer {
     executor.setThreadNamePrefix("binary-content-");
     executor.setWaitForTasksToCompleteOnShutdown(true);
     executor.setAwaitTerminationSeconds(30);
+    executor.setRejectedExecutionHandler((r, e) -> {
+      log.warn("BinaryContent 작업이 거부되었습니다. poolSize={}, activeCount={}, queueSize={}",
+              e.getPoolSize(), e.getActiveCount(), e.getQueue().size());
+    });
     executor.initialize();
     return executor;
   }
