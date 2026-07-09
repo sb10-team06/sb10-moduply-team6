@@ -10,11 +10,14 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
@@ -44,6 +47,16 @@ class StompChannelInterceptorTest {
 
   @Mock
   private AuthService authService;
+
+  @Mock
+  private RedisUtil redisUtil;
+
+  @BeforeEach
+  void setUp() {
+    org.mockito.Mockito.lenient()
+        .when(redisUtil.getData(ArgumentMatchers.anyString()))
+        .thenReturn("0");
+  }
 
   @Test
   @DisplayName("SUBSCRIBE 요청을 받으면 구독 이벤트를 발행하고 세션에 구독 정보를 저장한다.")
@@ -117,7 +130,28 @@ class StompChannelInterceptorTest {
     verify(authService, never()).getAuthentication(ArgumentMatchers.any());
   }
 
+  @Test
+  @DisplayName("현재 버전과 다른 Access Token으로 CONNECT 요청 시 인증에 실패한다.")
+  void preSend_fail_when_connect_with_mismatched_token_version() {
+    String token = "old-token";
+    String email = "tester@example.com";
+    Message<?> message = connectMessage(token, new ConcurrentHashMap<>());
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(UUID.randomUUID());
+    given(jwtTokenProvider.getEmail(token)).willReturn(email);
+    given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("1");
+
+    assertThatThrownBy(() -> stompChannelInterceptor.preSend(message, null))
+        .isInstanceOf(BadCredentialsException.class);
+
+    verify(authService, never()).getAuthentication(ArgumentMatchers.any());
+  }
+
   private Message<?> subscribeMessage(String destination, Map<String, Object> sessionAttributes) {
+    sessionAttributes.putIfAbsent("email", "tester@example.com");
+    sessionAttributes.putIfAbsent("tokenVersion", 0L);
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
     accessor.setDestination(destination);
     accessor.setSubscriptionId("sub-1");

@@ -2,6 +2,8 @@ package com.team6.moduply.common.websocket;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
 import com.team6.moduply.common.websocket.events.StompUnSubscribeEvent;
 import java.util.Map;
@@ -35,6 +37,7 @@ public class StompChannelInterceptor implements ChannelInterceptor {
   //JWT 인증
   private final JwtTokenProvider jwtTokenProvider;
   private final AuthService authService;
+  private final RedisUtil redisUtil;
 
   @Override
   public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -75,6 +78,20 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     if (accessor.getUser() == null) {
       throw new MessageDeliveryException("인증되지 않은 웹소켓 사용자입니다.");
     }
+
+    Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+    if (sessionAttributes == null) {
+      throw new MessageDeliveryException("웹소켓 세션에 사용자 인증 정보가 존재하지 않습니다.");
+    }
+
+    Object email = sessionAttributes.get("email");
+    Object tokenVersion = sessionAttributes.get("tokenVersion");
+    if (!(email instanceof String) || !(tokenVersion instanceof Long)) {
+      throw new MessageDeliveryException("웹소켓 세션에 토큰 버전 정보가 존재하지 않습니다.");
+    }
+
+    // 연결 후의 SEND/SUBSCRIBE 요청도 최신 토큰 버전인지 확인한다.
+    validateTokenVersion((String) email, (Long) tokenVersion);
   }
 
   /// STOMP SUBSCRIBE 요청이 들어왔을때 처리하는 메서드.
@@ -161,15 +178,37 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         throw new BadCredentialsException("로그아웃된 엑세스 토큰입니다.");
       }
       UUID userId = jwtTokenProvider.getUserId(token);
+      String email = jwtTokenProvider.getEmail(token);
+      long tokenVersion = jwtTokenProvider.getTokenVersion(token);
+      // 무효화된 토큰으로 WebSocket 연결을 생성하지 못하게 한다.
+      validateTokenVersion(email, tokenVersion);
       Authentication authentication = authService.getAuthentication(userId);
       accessor.setUser(authentication);
       if (sessionAttributes != null) {
         sessionAttributes.put("userId", userId);
+        sessionAttributes.put("email", email);
+        sessionAttributes.put("tokenVersion", tokenVersion);
       }
     } catch (AuthenticationException e) {
       throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.", e);
     } catch (Exception e) {
       throw new MessageDeliveryException("웹소켓 연결 인증에 실패하였습니다.");
+    }
+  }
+
+  private void validateTokenVersion(String email, long tokenVersion) {
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    String storedVersion = redisUtil.getData(key);
+    if (storedVersion == null) {
+      throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+    }
+
+    try {
+      if (tokenVersion != Long.parseLong(storedVersion)) {
+        throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+      }
+    } catch (NumberFormatException e) {
+      throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.", e);
     }
   }
 }

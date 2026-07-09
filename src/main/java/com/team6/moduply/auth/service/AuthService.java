@@ -103,9 +103,29 @@ public class AuthService {
     }
 
     String email = jwtTokenProvider.getEmail(refreshToken);
+    // 재발급한 Access Token에도 현재 사용자 버전을 그대로 적용한다.
+    String tokenVersionKey = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    String storedVersion = redisUtil.getData(tokenVersionKey);
+
+    if(storedVersion == null){
+      throw new AuthException(
+          AuthErrorCode.INVALID_TOKEN_EXCEPTION,
+          Map.of("reason", "token version not found")
+      );
+    }
+
+    long tokenVersion;
+    try {
+      tokenVersion = Long.parseLong(storedVersion);
+    } catch (NumberFormatException e) {
+      throw new AuthException(
+          AuthErrorCode.INVALID_TOKEN_EXCEPTION,
+          Map.of("reason", "invalid token version")
+      );
+    }
     Authentication authentication = getAuthentication(jwtTokenProvider.getUserId(refreshToken));
 
-    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    String newAccessToken = jwtTokenProvider.generateAccessToken(authentication, tokenVersion);
     String newRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     String result = refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken);

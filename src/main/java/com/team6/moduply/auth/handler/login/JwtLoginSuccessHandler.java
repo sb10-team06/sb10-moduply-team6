@@ -36,17 +36,27 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
   @Override
   public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
       Authentication authentication) throws IOException, ServletException {
-    // 토큰 생성
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
-    String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     ModuPlyUserDetails userDetails = (ModuPlyUserDetails) authentication.getPrincipal();
     UserDto userDto = userDetails.getUserDto();
 
+    // 최초 로그인에서만 버전 0을 생성하고 기존 버전은 유지한다.
+    String tokenVersionKey = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(userDto.getEmail());
+    redisUtil.setDataIfAbsent(tokenVersionKey, "0");
+    String storedTokenVersion = redisUtil.getData(tokenVersionKey);
+    if (storedTokenVersion == null) {
+      throw new IllegalStateException("토큰 버전을 조회할 수 없습니다.");
+    }
+    long tokenVersion = Long.parseLong(storedTokenVersion);
+
+    // 토큰 생성
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, tokenVersion);
+    String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+
     // redis에 refreshToken 저장
     String email = jwtTokenProvider.getEmail(refreshToken);
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
-    redisUtil.setDataExpire(redisKey, refreshToken, RedisKeyPolicy.REFRESH_TOKEN.getTtl());
+    String refreshTokenKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    redisUtil.setDataExpire(refreshTokenKey, refreshToken, RedisKeyPolicy.REFRESH_TOKEN.getTtl());
 
     // http 헤더 설정
     response.setStatus(HttpServletResponse.SC_OK);

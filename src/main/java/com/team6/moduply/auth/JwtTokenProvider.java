@@ -33,6 +33,7 @@ public class JwtTokenProvider {
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
   private static final String EMAIL_CLAIM = "email";
+  private static final String TOKEN_VERSION_CLAIM = "tokenVersion";
 
   @Value("${jwt.key}")
   private String secretKey;
@@ -58,12 +59,12 @@ public class JwtTokenProvider {
     this.signingKey = keyBytes;
   }
 
-  public String generateAccessToken(Authentication authentication) {
-    return generateToken(authentication, ACCESS_TOKEN_TYPE, accessTokenExpirationMinutes);
+  public String generateAccessToken(Authentication authentication, long tokenVersion) {
+    return generateToken(authentication, ACCESS_TOKEN_TYPE, accessTokenExpirationMinutes, tokenVersion);
   }
 
   public String generateRefreshToken(Authentication authentication) {
-    return generateToken(authentication, REFRESH_TOKEN_TYPE, refreshTokenExpirationMinutes);
+    return generateToken(authentication, REFRESH_TOKEN_TYPE, refreshTokenExpirationMinutes, null);
   }
 
   public boolean validateAccessToken(String token) {
@@ -120,11 +121,32 @@ public class JwtTokenProvider {
     }
   }
 
+  public long getTokenVersion(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+      Object tokenVersionClaim = claimsSet.getClaim(TOKEN_VERSION_CLAIM);
+
+      // 숫자가 아닌 버전 클레임은 변조되거나 잘못 발급된 토큰으로 처리한다.
+      if(!(tokenVersionClaim instanceof Number number)){
+        throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      }
+
+      return number.longValue();
+    } catch (ParseException e) {
+      log.warn("유효하지 않은 JWT 토큰입니다.", e);
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
+    }
+  }
   // 토큰 생성
+
   private String generateToken(
       Authentication authentication,
       String tokenType,
-      int expirationMinutes
+      int expirationMinutes,
+      Long tokenVersion
   ) {
     try {
       // 서명자 생성
@@ -144,6 +166,11 @@ public class JwtTokenProvider {
           .claim(EMAIL_CLAIM, userDto.getEmail())
           .issueTime(issuedAt)
           .expirationTime(expiresAt);
+
+      // 권한 변경 전후의 토큰을 구분하기 위해 Access Token에만 버전을 기록한다.
+      if(ACCESS_TOKEN_TYPE.equals(tokenType)){
+        claimsBuilder.claim(TOKEN_VERSION_CLAIM, tokenVersion);
+      }
 
       // 토큰 타입에 따른 페이로드 추가 정보 설정 - RT면 토큰 식별 id(Redis 조회용) 추가
       if (REFRESH_TOKEN_TYPE.equals(tokenType)) {

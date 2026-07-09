@@ -292,13 +292,14 @@ class AuthServiceTest {
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
         .willReturn(newAccessToken);
     given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
         .willReturn(newRefreshToken);
@@ -336,13 +337,14 @@ class AuthServiceTest {
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
         .willReturn("new-access-token");
     given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
         .willReturn(newRefreshToken);
@@ -379,13 +381,14 @@ class AuthServiceTest {
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
         .willReturn("new-access-token");
     given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
         .willReturn("new-refresh-token");

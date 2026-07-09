@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.handler.exception.ModuPlyAuthenticationEntryPoint;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -48,6 +49,7 @@ class JwtAuthenticationFilterTest {
     // Given
     UUID userId = UUID.randomUUID();
     String token = "valid-token";
+    String email = "tester@example.com";
     Authentication authentication = new TestingAuthenticationToken("tester", null, "ROLE_USER");
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
@@ -61,6 +63,9 @@ class JwtAuthenticationFilterTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(email);
+    given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(authService.getAuthentication(userId)).willReturn(authentication);
 
     // When
@@ -73,6 +78,34 @@ class JwtAuthenticationFilterTest {
     verify(jwtTokenProvider).validateAccessToken(token);
     verify(jwtTokenProvider).getUserId(token);
     verify(authService).getAuthentication(userId);
+  }
+
+  @Test
+  @DisplayName("Access Token 버전이 현재 사용자 버전과 다르면 401을 반환한다")
+  void do_filter_fail_when_token_version_is_mismatched() throws Exception {
+    UUID userId = UUID.randomUUID();
+    String token = "old-token";
+    String email = "tester@example.com";
+    JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+        jwtTokenProvider,
+        authService,
+        new ModuPlyAuthenticationEntryPoint(objectMapper()),
+        redisUtil
+    );
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(userId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(email);
+    given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("1");
+
+    filter.doFilter(request, response, new MockFilterChain());
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    verify(authService, never()).getAuthentication(any());
   }
 
   @Test

@@ -146,6 +146,12 @@ public class UserService {
 
     user.updateRole(request.getRole());
 
+    String email = user.getEmail();
+
+    // 기존 기기의 토큰을 모두 무효화하고 Refresh Token 재발급도 차단한다.
+    redisUtil.increment(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email));
+    redisUtil.deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey(email));
+
     UserDto response = userMapper.toDto(user);
     log.debug("사용자 권한 변경 처리 완료. userId={}, newRole={}", response.getId(), response.getRole());
   }
@@ -218,6 +224,9 @@ public class UserService {
           "locked",
           RedisKeyPolicy.BLACKLIST_LOCKED.getTtl()
       );
+      // 잠금 즉시 기존 Access/Refresh Token을 모두 사용할 수 없게 한다.
+      redisUtil.increment(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user.getEmail()));
+      redisUtil.deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey(user.getEmail()));
     } else {
       redisUtil.deleteData(RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()));
     }

@@ -279,6 +279,12 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(userMapper).toDto(user);
+    verify(redisUtil).increment(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user.getEmail())
+    );
+    verify(redisUtil).deleteData(
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(user.getEmail())
+    );
   }
 
   @Test
@@ -600,6 +606,12 @@ public class UserServiceTest {
         RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()),
         "locked",
         RedisKeyPolicy.BLACKLIST_LOCKED.getTtl()
+    );
+    verify(redisUtil).increment(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user.getEmail())
+    );
+    verify(redisUtil).deleteData(
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(user.getEmail())
     );
   }
 
