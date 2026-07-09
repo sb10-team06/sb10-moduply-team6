@@ -30,11 +30,11 @@ public class TestDataGeneratorRunner implements CommandLineRunner {
     log.info("데이터 생성 시작");
 
     // 데이터 생성 순서 주의(의존 관계 고려)
-    List<User> generatedUsers = userGenerator.generate(10000, 1000);
-    log.info("사용자 데이터 생성 완료: {}건", generatedUsers.size());
+    userGenerator.generate();
+    log.info("사용자 데이터 생성 완료");
 
-    List<Content> generatedContents = contentGenerator.generate(10000, 1000);
-    log.info("콘텐츠 데이터 생성 완료: {}건", generatedContents.size());
+    contentGenerator.generate();
+    log.info("콘텐츠 데이터 생성 완료");
 
     SpringApplication.exit(context, () -> 0);
   }
