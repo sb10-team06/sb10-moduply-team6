@@ -45,7 +45,7 @@ export const options = TARGET_VUS > 0 ? {
 } : {
   vus: VUS,
   iterations: ITERATIONS,
-  summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'max'],
+  summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 
   // 실패율이 1% 미만이어야한다.
   thresholds: {
