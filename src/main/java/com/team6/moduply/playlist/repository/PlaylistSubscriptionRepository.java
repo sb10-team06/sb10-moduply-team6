@@ -11,11 +11,12 @@ import org.springframework.data.repository.query.Param;
 
 public interface PlaylistSubscriptionRepository extends JpaRepository<PlaylistSubscription, UUID> {
 
+  long countByPlaylist(Playlist playlist);
+
   boolean existsByPlaylistAndSubscriberId(Playlist playlist, UUID subscriberId);
 
   Optional<PlaylistSubscription> findByPlaylistAndSubscriberId(Playlist playlist, UUID subscriberId);
 
   @Query("select ps.subscriberId from PlaylistSubscription ps where ps.playlist.id = :playlistId")
   List<UUID> findSubscriberIdsByPlaylistId(@Param("playlistId") UUID playlistId);
-
 }

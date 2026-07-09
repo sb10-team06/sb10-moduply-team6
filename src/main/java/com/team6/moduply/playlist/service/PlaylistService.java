@@ -1,5 +1,6 @@
 package com.team6.moduply.playlist.service;
 
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.notification.event.ContentAddedEvent;
@@ -45,6 +46,7 @@ public class PlaylistService {
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final UserRepository userRepository;
+  private final BinaryContentService binaryContentService;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -65,7 +67,7 @@ public class PlaylistService {
         "새 플레이리스트를 생성했습니다."
     ));
 
-    return playlistMapper.toDto(saved);
+    return playlistMapper.toDto(saved, null, 0L, false, List.of());
   }
 
   @Transactional
@@ -81,7 +83,7 @@ public class PlaylistService {
 
     playlist.update(request.title(), request.description());
 
-    return playlistMapper.toDto(playlist);
+    return playlistMapper.toDto(playlist, null, 0L, false, List.of());
   }
 
   @Transactional
@@ -98,14 +100,48 @@ public class PlaylistService {
   }
 
   @Transactional(readOnly = true)
-  public PlaylistDto findById(UUID playlistId) {
+  public PlaylistDto findById(UUID playlistId, UUID currentUserId) {
     Playlist playlist = playlistRepository.findById(playlistId)
         .orElseThrow(() -> new PlaylistException(
             PlaylistErrorCode.PLAYLIST_NOT_FOUND,
             Map.of("playlistId", playlistId)
         ));
 
-    return playlistMapper.toDto(playlist);
+    PlaylistDto.OwnerDto ownerDto = userRepository.findById(playlist.getOwnerId())
+        .map(user -> new PlaylistDto.OwnerDto(user.getId(), user.getName(), null))
+        .orElse(null);
+
+    long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
+    boolean subscribedByMe = currentUserId != null &&
+        playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId);
+
+    List<PlaylistDto.ContentSummaryDto> contents = playlistContentRepository
+        .findAllByPlaylist(playlist)
+        .stream()
+        .map(pc -> contentRepository.findById(pc.getContentId())
+            .map(c -> new PlaylistDto.ContentSummaryDto(
+                c.getId(),
+                c.getType(),
+                c.getTitle(),
+                c.getDescription(),
+                binaryContentService.generateUrl(c.getContentImg()),
+                List.of(),
+                c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
+                c.getReviewCount()))
+            .orElse(null))
+        .filter(c -> c != null)
+        .toList();
+
+    return new PlaylistDto(
+        playlist.getId(),
+        ownerDto,
+        playlist.getTitle(),
+        playlist.getDescription(),
+        playlist.getUpdatedAt(),
+        subscriberCount,
+        subscribedByMe,
+        contents
+    );
   }
 
   @Transactional(readOnly = true)
@@ -131,9 +167,8 @@ public class PlaylistService {
     }
 
     List<PlaylistDto> data = playlists.stream()
-        .map(playlistMapper::toDto)
+        .map(playlist -> playlistMapper.toDto(playlist, null, 0L, false, List.of()))
         .toList();
-
     return new CursorResponse<>(
         data,
         nextCursor,
