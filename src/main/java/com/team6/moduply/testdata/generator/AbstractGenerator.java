@@ -1,4 +1,4 @@
-package com.team6.moduply.testdata;
+package com.team6.moduply.testdata.generator;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
