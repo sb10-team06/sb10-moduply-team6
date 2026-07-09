@@ -204,7 +204,7 @@ class PlaylistControllerTest {
         "비 오는 날 보기 좋은 영화들", null, 0L, false, List.of()
     );
 
-    given(playlistService.findById(any())).willReturn(response);
+    given(playlistService.findById(any(), any())).willReturn(response);
 
     // when & then
     mockMvc.perform(get("/api/playlists/" + playlistId))
@@ -219,7 +219,7 @@ class PlaylistControllerTest {
     // given
     UUID playlistId = UUID.randomUUID();
 
-    given(playlistService.findById(any()))
+    given(playlistService.findById(any(), any()))
         .willThrow(new PlaylistException(
             PlaylistErrorCode.PLAYLIST_NOT_FOUND,
             Map.of("playlistId", playlistId)
