@@ -5,6 +5,7 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.util.RedisUtil;
+import com.team6.moduply.notification.event.UserRoleUpdatedEvent;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +43,7 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final BinaryContentService binaryContentService;
   private final RedisUtil redisUtil;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -144,8 +147,15 @@ public class UserService {
             "userId", userId
         )));
 
-    user.updateRole(request.getRole());
+    Role oldRole = user.getRole();
+    Role newRole = request.getRole();
+    if (oldRole == newRole) {
+      log.debug("사용자 권한 변경 생략. userId={}, role={}", userId, oldRole);
+      return;
+    }
 
+    user.updateRole(newRole);
+    applicationEventPublisher.publishEvent(new UserRoleUpdatedEvent(userId, oldRole, newRole));
     String email = user.getEmail();
 
     // 기존 기기의 토큰을 모두 무효화하고 Refresh Token 재발급도 차단한다.
