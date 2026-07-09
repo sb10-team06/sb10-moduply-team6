@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.instancio.Instancio;
 import org.instancio.Model;
 import org.instancio.Select;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -50,7 +51,7 @@ public class ContentGenerator extends AbstractGenerator<Content> {
 
   public ContentGenerator(
       JdbcTemplate jdbcTemplate,
-      Executor dataGeneratorExecutor,
+      @Qualifier("dataGeneratorExecutor") Executor dataGeneratorExecutor,
       ContentTestDataProperties properties
   ) {
     super(jdbcTemplate, dataGeneratorExecutor);
