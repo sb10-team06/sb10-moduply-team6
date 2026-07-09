@@ -2,7 +2,7 @@ spring:
   application:
     name: moduply
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE}
+    active: ${SPRING_PROFILES_ACTIVE:local}
   jpa:
     show-sql: false
     open-in-view: false
@@ -70,9 +70,12 @@ logging:
 
 cors:
   allowed-origins:
-    - "http://moduply.com"
+    - "http://moduply.co.kr"
 
 moduply:
+  async:
+    binary-content:
+      enabled: ${MODUPLY_BINARY_CONTENT_ASYNC_ENABLED:true}
   storage:
     type: ${BINARY_CONTENT_STORAGE_TYPE:s3}
     s3:
@@ -127,7 +130,6 @@ moduply:
           - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_PREVIOUS:-1}
           - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_TODAY:0}
           - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_NEXT:1}
-
 jwt:
   key: ${JWT_SECRET_KEY}
   access-token-expiration-minutes: 30
