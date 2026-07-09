@@ -2,6 +2,7 @@ package com.team6.moduply.playlist.service;
 
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.notification.event.ContentAddedEvent;
 import com.team6.moduply.notification.event.FollowActivityEvent;
@@ -27,6 +28,8 @@ import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,33 +118,31 @@ public class PlaylistService {
     boolean subscribedByMe = currentUserId != null &&
         playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId);
 
-    List<PlaylistDto.ContentSummaryDto> contents = playlistContentRepository
-        .findAllByPlaylist(playlist)
-        .stream()
-        .map(pc -> contentRepository.findById(pc.getContentId())
-            .map(c -> new PlaylistDto.ContentSummaryDto(
-                c.getId(),
-                c.getType(),
-                c.getTitle(),
-                c.getDescription(),
-                binaryContentService.generateUrl(c.getContentImg()),
-                List.of(),
-                c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
-                c.getReviewCount()))
-            .orElse(null))
-        .filter(c -> c != null)
+    List<PlaylistContent> playlistContents = playlistContentRepository.findAllByPlaylist(playlist);
+    List<UUID> contentIds = playlistContents.stream()
+        .map(PlaylistContent::getContentId)
+        .toList();
+    Map<UUID, Content> contentMap = contentRepository.findAllById(contentIds).stream()
+        .collect(Collectors.toMap(Content::getId, c -> c));
+
+    List<PlaylistDto.ContentSummaryDto> contents = playlistContents.stream()
+        .map(pc -> {
+          Content c = contentMap.get(pc.getContentId());
+          if (c == null) return null;
+          return new PlaylistDto.ContentSummaryDto(
+              c.getId(),
+              c.getType(),
+              c.getTitle(),
+              c.getDescription(),
+              binaryContentService.generateUrl(c.getContentImg()),
+              List.of(),
+              c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
+              c.getReviewCount());
+        })
+        .filter(Objects::nonNull)
         .toList();
 
-    return new PlaylistDto(
-        playlist.getId(),
-        ownerDto,
-        playlist.getTitle(),
-        playlist.getDescription(),
-        playlist.getUpdatedAt(),
-        subscriberCount,
-        subscribedByMe,
-        contents
-    );
+    return playlistMapper.toDto(playlist, ownerDto, subscriberCount, subscribedByMe, contents);
   }
 
   @Transactional(readOnly = true)
