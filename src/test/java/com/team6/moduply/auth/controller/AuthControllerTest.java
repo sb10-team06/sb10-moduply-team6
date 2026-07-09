@@ -127,7 +127,8 @@ class AuthControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.accessToken").value(newAccessToken))
         .andExpect(jsonPath("$.userDto.email").value("tester@example.com"))
-        .andExpect(cookie().value("REFRESH_TOKEN", newRefreshToken));
+        .andExpect(cookie().value("REFRESH_TOKEN", newRefreshToken))
+        .andExpect(cookie().secure("REFRESH_TOKEN", false));
 
     verify(authService).refreshTokens(refreshToken);
   }

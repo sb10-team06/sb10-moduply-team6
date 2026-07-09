@@ -35,7 +35,6 @@ public class JwtLogoutHandler implements LogoutHandler {
     Cookie deleteCookie = new Cookie("REFRESH_TOKEN", null);
     deleteCookie.setMaxAge(0);
     deleteCookie.setPath("/");
-    deleteCookie.setSecure(true);
     deleteCookie.setHttpOnly(true);
     response.addCookie(deleteCookie);
 
