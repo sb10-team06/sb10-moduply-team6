@@ -10,6 +10,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -34,6 +36,22 @@ class WebSocketLogoutDisconnectListenerTest {
     eventListener.on(event);
 
     // then
+    verify(websocketControlService, times(1)).sendForceLogoutSignal(email);
+  }
+
+  @Test
+  @DisplayName("서비스에서 예외 발생 시 예외가 전파되지 않아야 한다")
+  void should_not_propagate_exception_when_service_fails() {
+    // given
+    UUID userId = UUID.randomUUID();
+    String email = "test@moduply.com";
+    UserLogoutEvent event = new UserLogoutEvent(userId, email);
+    doThrow(new RuntimeException("send failed"))
+        .when(websocketControlService).sendForceLogoutSignal(email);
+
+    // when & then
+    assertThatCode(() -> eventListener.on(event))
+        .doesNotThrowAnyException();
     verify(websocketControlService, times(1)).sendForceLogoutSignal(email);
   }
 }

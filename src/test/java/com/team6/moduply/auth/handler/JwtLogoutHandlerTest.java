@@ -1,17 +1,22 @@
 package com.team6.moduply.auth.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
+import com.team6.moduply.auth.event.UserLogoutEvent;
 import com.team6.moduply.auth.handler.logout.JwtLogoutHandler;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import jakarta.servlet.http.Cookie;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,7 +57,8 @@ class JwtLogoutHandlerTest {
 
     SecurityContextHolder.getContext().setAuthentication(authentication);
     given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
-
+    UUID userId = UUID.randomUUID();
+    given(jwtTokenProvider.getUserId("refresh-token")).willReturn(userId);
     // When
     logoutHandler.logout(request, response, authentication);
 
@@ -66,6 +72,12 @@ class JwtLogoutHandlerTest {
     assertThat(deleteCookie.isHttpOnly()).isTrue();
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     verify(jwtTokenProvider).getEmail("refresh-token");
+    verify(jwtTokenProvider).getUserId("refresh-token");
     verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"));
+    ArgumentCaptor<UserLogoutEvent> eventCaptor = ArgumentCaptor.forClass(UserLogoutEvent.class);
+    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    UserLogoutEvent capturedEvent = eventCaptor.getValue();
+    assertEquals("tester@example.com", capturedEvent.email());
+    assertEquals(userId, capturedEvent.userId());
   }
 }
