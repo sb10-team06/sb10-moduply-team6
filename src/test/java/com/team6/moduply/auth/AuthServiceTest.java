@@ -132,6 +132,70 @@ class AuthServiceTest {
   }
 
   @Test
+  @DisplayName("Access Token 버전이 Redis에 저장된 사용자 토큰 버전과 같으면 유효하다")
+  void is_token_version_valid_returns_true_when_versions_match() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn("2");
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 2L);
+
+    // Then
+    assertThat(result).isTrue();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
+  @DisplayName("Access Token 버전이 Redis에 저장된 사용자 토큰 버전과 다르면 유효하지 않다")
+  void is_token_version_valid_returns_false_when_versions_mismatch() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn("3");
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 2L);
+
+    // Then
+    assertThat(result).isFalse();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
+  @DisplayName("Redis에 사용자 토큰 버전이 없으면 유효하지 않다")
+  void is_token_version_valid_returns_false_when_stored_version_is_missing() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn(null);
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 0L);
+
+    // Then
+    assertThat(result).isFalse();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
+  @DisplayName("Redis의 사용자 토큰 버전이 숫자가 아니면 유효하지 않다")
+  void is_token_version_valid_returns_false_when_stored_version_is_malformed() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn("invalid-version");
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 0L);
+
+    // Then
+    assertThat(result).isFalse();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
   @DisplayName("사용자 ID로 최신 사용자 상태를 조회해 인증 객체를 생성한다")
   void get_authentication_success() {
     // Given

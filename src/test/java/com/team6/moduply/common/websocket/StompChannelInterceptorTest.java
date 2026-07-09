@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.service.AuthService;
-import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.websocket.events.StompSubscribeEvent;
 import java.util.Map;
@@ -54,8 +53,11 @@ class StompChannelInterceptorTest {
   @BeforeEach
   void setUp() {
     org.mockito.Mockito.lenient()
-        .when(redisUtil.getData(ArgumentMatchers.anyString()))
-        .thenReturn("0");
+        .when(authService.isTokenVersionValid(
+            ArgumentMatchers.anyString(),
+            ArgumentMatchers.anyLong()
+        ))
+        .thenReturn(true);
   }
 
   @Test
@@ -141,11 +143,12 @@ class StompChannelInterceptorTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(UUID.randomUUID());
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
-    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("1");
+    given(authService.isTokenVersionValid(email, 0L)).willReturn(false);
 
     assertThatThrownBy(() -> stompChannelInterceptor.preSend(message, null))
         .isInstanceOf(BadCredentialsException.class);
 
+    verify(authService).isTokenVersionValid(email, 0L);
     verify(authService, never()).getAuthentication(ArgumentMatchers.any());
   }
 

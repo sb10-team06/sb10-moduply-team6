@@ -4,6 +4,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -106,11 +107,8 @@ class AuthControllerSecurityTest {
     );
 
     mockMvc.perform(post("/api/auth/refresh")
-            .cookie(
-                new Cookie("REFRESH_TOKEN", refreshToken),
-                new Cookie("XSRF-TOKEN", "csrf-token")
-            )
-            .header("X-XSRF-TOKEN", "csrf-token"))
+            .cookie(new Cookie("REFRESH_TOKEN", refreshToken))
+            .with(csrf()))
         .andExpect(status().isOk());
 
     verify(authService).refreshTokens(refreshToken);

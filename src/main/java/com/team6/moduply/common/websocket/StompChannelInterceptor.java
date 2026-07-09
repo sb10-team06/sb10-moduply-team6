@@ -91,7 +91,9 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     }
 
     // 연결 후의 SEND/SUBSCRIBE 요청도 최신 토큰 버전인지 확인한다.
-    validateTokenVersion((String) email, (Long) tokenVersion);
+    if(!authService.isTokenVersionValid((String) email,(Long) tokenVersion)){
+      throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+    }
   }
 
   /// STOMP SUBSCRIBE 요청이 들어왔을때 처리하는 메서드.
@@ -171,17 +173,21 @@ public class StompChannelInterceptor implements ChannelInterceptor {
   private void setAuthentication(StompHeaderAccessor accessor,
       Map<String, Object> sessionAttributes, String token) {
     try {
+      // 엑세스 토큰 검증 실패
       if (!jwtTokenProvider.validateAccessToken(token)) {
         throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.");
       }
+      // 엑세스 토큰 블랙리스트에 존재
       if (authService.isAccessTokenBlacklisted(token)) {
         throw new BadCredentialsException("로그아웃된 엑세스 토큰입니다.");
       }
       UUID userId = jwtTokenProvider.getUserId(token);
       String email = jwtTokenProvider.getEmail(token);
       long tokenVersion = jwtTokenProvider.getTokenVersion(token);
-      // 무효화된 토큰으로 WebSocket 연결을 생성하지 못하게 한다.
-      validateTokenVersion(email, tokenVersion);
+      // 버전이 달라 무효화된 토큰으로 WebSocket 연결을 생성하지 못하게 한다.
+      if(!authService.isTokenVersionValid(email,tokenVersion)){
+        throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+      }
       Authentication authentication = authService.getAuthentication(userId);
       accessor.setUser(authentication);
       if (sessionAttributes != null) {
@@ -193,22 +199,6 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.", e);
     } catch (Exception e) {
       throw new MessageDeliveryException("웹소켓 연결 인증에 실패하였습니다.");
-    }
-  }
-
-  private void validateTokenVersion(String email, long tokenVersion) {
-    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
-    String storedVersion = redisUtil.getData(key);
-    if (storedVersion == null) {
-      throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
-    }
-
-    try {
-      if (tokenVersion != Long.parseLong(storedVersion)) {
-        throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
-      }
-    } catch (NumberFormatException e) {
-      throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.", e);
     }
   }
 }

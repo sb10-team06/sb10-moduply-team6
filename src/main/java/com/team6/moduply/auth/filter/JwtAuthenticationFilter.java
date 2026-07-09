@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         long tokenVersion = jwtTokenProvider.getTokenVersion(token);
         String blacklistKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(email);
         // 권한 변경으로 버전이 올라간 사용자의 기존 Access Token을 차단한다.
-        if(!validateTokenVersion(tokenVersion, email)){
+        if(!authService.isTokenVersionValid(email, tokenVersion)){
           throw new BadCredentialsException("토큰 버전이 유효하지 않습니다. 다시 로그인 해주세요.");
         }
         if (redisUtil.getData(blacklistKey) != null) {
@@ -88,17 +88,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     return null;
   }
 
-  private boolean validateTokenVersion(long jwtTokenVersion, String email){
-    String tokenVersionKey = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
-    String redisTokenVersion = redisUtil.getData(tokenVersionKey);
-
-    if(redisTokenVersion == null){
-      return false;
-    }
-    try{
-      return jwtTokenVersion == Long.parseLong(redisTokenVersion);
-    } catch (NumberFormatException e){
-      return false;
-    }
-  }
 }

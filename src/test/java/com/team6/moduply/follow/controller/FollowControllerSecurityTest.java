@@ -1,6 +1,7 @@
 package com.team6.moduply.follow.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -26,7 +27,6 @@ import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.config.CsrfConfig;
 import com.team6.moduply.common.config.SecurityConfig;
-import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.follow.dto.FollowDto;
 import com.team6.moduply.follow.dto.FollowRequest;
@@ -90,8 +90,7 @@ class FollowControllerSecurityTest {
   void setUpTokenVersion() {
     given(jwtTokenProvider.getEmail(anyString())).willReturn(USER_EMAIL);
     given(jwtTokenProvider.getTokenVersion(anyString())).willReturn(0L);
-    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(USER_EMAIL)))
-        .willReturn("0");
+    given(authService.isTokenVersionValid(eq(USER_EMAIL), anyLong())).willReturn(true);
   }
 
   @Test

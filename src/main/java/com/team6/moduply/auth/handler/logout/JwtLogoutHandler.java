@@ -71,8 +71,8 @@ public class JwtLogoutHandler implements LogoutHandler {
       Duration ttl = jwtTokenProvider.getRemainingExpiration(accessToken);
       authService.blacklistAccessToken(accessToken, ttl);
       log.info("[로그아웃] Access Token 블랙리스트 등록 완료, 요청 Id={}", MDC.get("requestId"));
-    } catch (AuthException e) {
-      log.warn("[로그아웃] Access Token 파싱 실패, 요청 Id={}", MDC.get("requestId"));
+    } catch (Exception e) {
+      log.warn("[로그아웃] Access Token 블랙리스트 등록 실패, 요청 Id={}", MDC.get("requestId"), e);
     }
   }
 

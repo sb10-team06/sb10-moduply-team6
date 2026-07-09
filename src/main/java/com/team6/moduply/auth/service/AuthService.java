@@ -167,6 +167,20 @@ public class AuthService {
     return redisUtil.getData(redisKey) != null;
   }
 
+  // 엑세스 토큰 버전 검증
+  public boolean isTokenVersionValid(String email, long tokenVersion) {
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    String storedVersion = redisUtil.getData(key);
+    if (storedVersion == null) {
+      return false;
+    }
+    try {
+      return tokenVersion == Long.parseLong(storedVersion);
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
   private UserDto toDto(User user) {
     // TODO: 인증 객체 생성과 응답용 프로필 URL 생성 책임이 섞여 있으므로 추후 분리 리팩토링 필요
     String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());

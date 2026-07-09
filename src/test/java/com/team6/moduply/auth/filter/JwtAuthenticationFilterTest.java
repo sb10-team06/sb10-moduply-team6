@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.handler.exception.ModuPlyAuthenticationEntryPoint;
-import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -65,7 +64,7 @@ class JwtAuthenticationFilterTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
-    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
+    given(authService.isTokenVersionValid(email, 0L)).willReturn(true);
     given(authService.getAuthentication(userId)).willReturn(authentication);
 
     // When
@@ -77,6 +76,7 @@ class JwtAuthenticationFilterTest {
 
     verify(jwtTokenProvider).validateAccessToken(token);
     verify(jwtTokenProvider).getUserId(token);
+    verify(authService).isTokenVersionValid(email, 0L);
     verify(authService).getAuthentication(userId);
   }
 
@@ -100,11 +100,12 @@ class JwtAuthenticationFilterTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
-    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("1");
+    given(authService.isTokenVersionValid(email, 0L)).willReturn(false);
 
     filter.doFilter(request, response, new MockFilterChain());
 
     assertThat(response.getStatus()).isEqualTo(401);
+    verify(authService).isTokenVersionValid(email, 0L);
     verify(authService, never()).getAuthentication(any());
   }
 
