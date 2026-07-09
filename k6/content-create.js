@@ -7,8 +7,8 @@ import { koreanSummary } from './korean-html-report.js';
 // 환경변수
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const ACCESS_TOKEN = __ENV.ACCESS_TOKEN;                          // 직접 주입할 JWT Access Token
-const ADMIN_EMAIL = "admin@admin.com";
-const ADMIN_PASSWORD = "admin1234";
+const ADMIN_EMAIL = __ENV.ADMIN_EMAIL;
+const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD;
 const VUS = Number(__ENV.VUS || 1);                 // 관리자 1명이 연속 등록하는 현실 시나리오
 const ITERATIONS = Number(__ENV.ITERATIONS || 1000);  // 기본: 콘텐츠 1000건 등록
 const TARGET_VUS = Number(__ENV.TARGET_VUS || 0);
