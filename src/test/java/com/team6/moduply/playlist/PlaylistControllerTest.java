@@ -366,7 +366,7 @@ class PlaylistControllerTest {
     UUID playlistId = UUID.randomUUID();
 
     // when & then
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isCreated());
 
     verify(playlistService).subscribe(eq(playlistId), eq(TEST_OWNER_ID));
@@ -384,7 +384,7 @@ class PlaylistControllerTest {
     )).when(playlistService).subscribe(eq(playlistId), eq(TEST_OWNER_ID));
 
     // when & then
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isBadRequest());
   }
 
@@ -400,7 +400,7 @@ class PlaylistControllerTest {
     )).when(playlistService).subscribe(eq(playlistId), eq(TEST_OWNER_ID));
 
     // when & then
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isConflict());
   }
 
@@ -411,7 +411,7 @@ class PlaylistControllerTest {
     UUID playlistId = UUID.randomUUID();
 
     // when & then
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isNoContent());
 
     verify(playlistService).unsubscribe(eq(playlistId), eq(TEST_OWNER_ID));
@@ -429,7 +429,7 @@ class PlaylistControllerTest {
     )).when(playlistService).unsubscribe(eq(playlistId), eq(TEST_OWNER_ID));
 
     // when & then
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isNotFound());
   }
 
@@ -443,7 +443,7 @@ class PlaylistControllerTest {
         Map.of("playlistId", playlistId)
     )).when(playlistService).subscribe(eq(playlistId), eq(TEST_OWNER_ID));
 
-    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(post("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isNotFound());
   }
 
@@ -457,7 +457,7 @@ class PlaylistControllerTest {
         Map.of("playlistId", playlistId)
     )).when(playlistService).unsubscribe(eq(playlistId), eq(TEST_OWNER_ID));
 
-    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscriptions"))
+    mockMvc.perform(delete("/api/playlists/" + playlistId + "/subscription"))
         .andExpect(status().isNotFound());
   }
 }
