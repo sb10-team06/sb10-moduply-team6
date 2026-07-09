@@ -1,0 +1,14 @@
+moduply:
+  test-data:
+    user:
+      enabled: ${MODUPLY_TEST_DATA_USER_ENABLED:false}
+      follower-size: ${MODUPLY_TEST_DATA_USER_FOLLOWER_SIZE:100}
+      followee-size: ${MODUPLY_TEST_DATA_USER_FOLLOWEE_SIZE:1000}
+      chunk-size: ${MODUPLY_TEST_DATA_USER_CHUNK_SIZE:500}
+      skip-if-exists: ${MODUPLY_TEST_DATA_USER_SKIP_IF_EXISTS:true}
+      password: ${MODUPLY_TEST_DATA_USER_PASSWORD:k6-password}
+    content:
+      enabled: ${MODUPLY_TEST_DATA_CONTENT_ENABLED:false}
+      total-size: ${MODUPLY_TEST_DATA_CONTENT_TOTAL_SIZE:10000}
+      chunk-size: ${MODUPLY_TEST_DATA_CONTENT_CHUNK_SIZE:1000}
+      skip-if-exists: ${MODUPLY_TEST_DATA_CONTENT_SKIP_IF_EXISTS:true}

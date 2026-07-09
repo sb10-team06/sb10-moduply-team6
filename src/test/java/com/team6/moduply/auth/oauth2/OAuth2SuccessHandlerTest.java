@@ -73,7 +73,7 @@ class OAuth2SuccessHandlerTest {
     assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:8080/#/contents");
     assertThat(setCookie).contains("REFRESH_TOKEN=refresh-token");
     assertThat(setCookie).contains("HttpOnly");
-    assertThat(setCookie).contains("Secure");
+    assertThat(setCookie).doesNotContain("Secure");
     assertThat(setCookie).contains("Path=/");
     assertThat(setCookie).contains("Max-Age=25200");
     assertThat(response.getRedirectedUrl()).doesNotContain("access");

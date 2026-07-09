@@ -70,6 +70,7 @@ class JwtLogoutHandlerTest {
     assertThat(deleteCookie.getMaxAge()).isZero();
     assertThat(deleteCookie.getPath()).isEqualTo("/");
     assertThat(deleteCookie.isHttpOnly()).isTrue();
+    assertThat(deleteCookie.getSecure()).isFalse();
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     verify(jwtTokenProvider).getEmail("refresh-token");
     verify(jwtTokenProvider).getUserId("refresh-token");

@@ -40,6 +40,141 @@
 ./gradlew test
 ```
 
+## k6 Prometheus/Grafana 성능 측정
+
+콘텐츠 생성 API 부하 테스트 결과는 k6 Docker 컨테이너에서 실행하고, Prometheus remote write로 저장한 뒤 Grafana에서 확인한다. 로컬에 k6를 설치하지 않아도 된다.
+
+### 1. Prometheus와 Grafana 실행
+
+```powershell
+docker compose -f docker-compose-k6.yml up -d prometheus grafana
+```
+
+접속 주소:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
+
+Grafana 기본 계정은 `admin / admin`이다.
+
+### 2. Grafana 데이터 소스 연결
+
+Grafana에서 `Connections` -> `Data sources` -> `Prometheus`를 추가한다.
+
+```text
+URL: http://prometheus:9090
+```
+
+Grafana 컨테이너에서 Prometheus 컨테이너를 바라보는 주소이므로 `localhost`가 아니라 `prometheus` 서비스명을 사용한다.
+
+### 3. Spring 서버 실행
+
+동기/비동기 측정 차이는 k6 명령이 아니라 Spring Boot 서버의 `MODUPLY_BINARY_CONTENT_ASYNC_ENABLED` 값으로 결정된다. 측정하려는 방식에 맞게 서버를 먼저 실행한다.
+
+부하 테스트 전에 콘텐츠 더미 데이터를 준비하려면 `data-gen` profile을 함께 활성화한다. 기본값은 기존 `k6-seed-` 데이터가 있으면 중복 생성을 건너뛴다.
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local,data-gen"
+$env:MODUPLY_TEST_DATA_CONTENT_ENABLED="true"
+$env:MODUPLY_TEST_DATA_CONTENT_TOTAL_SIZE="10000"
+$env:MODUPLY_TEST_DATA_CONTENT_CHUNK_SIZE="1000"
+.\gradlew.bat bootRun
+```
+
+더미 데이터 생성이 끝나면 서버를 종료하고, 아래 동기/비동기 측정용 설정으로 다시 실행한다.
+
+동기 방식 서버 실행:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local"
+$env:MODUPLY_BINARY_CONTENT_ASYNC_ENABLED="false"
+.\gradlew.bat bootRun
+```
+
+비동기 방식 서버 실행:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local"
+$env:MODUPLY_BINARY_CONTENT_ASYNC_ENABLED="true"
+.\gradlew.bat bootRun
+```
+
+macOS/Linux:
+
+```bash
+SPRING_PROFILES_ACTIVE=local,data-gen MODUPLY_TEST_DATA_CONTENT_ENABLED=true MODUPLY_TEST_DATA_CONTENT_TOTAL_SIZE=10000 ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local MODUPLY_BINARY_CONTENT_ASYNC_ENABLED=false ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local MODUPLY_BINARY_CONTENT_ASYNC_ENABLED=true ./gradlew bootRun
+```
+
+기본값은 `true`다.
+
+일반 실행:
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+### 4. k6 실행
+
+`ACCESS_TOKEN`에는 관리자 또는 콘텐츠 생성 권한이 있는 사용자의 Access Token을 넣는다. 토큰 값은 코드나 문서에 커밋하지 않는다.
+
+동기 방식 측정은 서버를 `MODUPLY_BINARY_CONTENT_ASYNC_ENABLED=false`로 실행한 상태에서 수행한다.
+
+```powershell
+docker compose -f docker-compose-k6.yml run --rm `
+  -e BASE_URL=http://host.docker.internal:8080 `
+  -e ACCESS_TOKEN="ACCESS_TOKEN_VALUE" `
+  -e VUS=5 `
+  -e ITERATIONS=50 `
+  k6 run -o experimental-prometheus-rw --tag testid=content-create-sync /scripts/content-create.js
+```
+
+비동기 방식 측정은 서버를 `MODUPLY_BINARY_CONTENT_ASYNC_ENABLED=true`로 실행한 상태에서 수행한다.
+
+```powershell
+docker compose -f docker-compose-k6.yml run --rm `
+  -e BASE_URL=http://host.docker.internal:8080 `
+  -e ACCESS_TOKEN="ACCESS_TOKEN_VALUE" `
+  -e VUS=5 `
+  -e ITERATIONS=50 `
+  k6 run -o experimental-prometheus-rw --tag testid=content-create-async /scripts/content-create.js
+```
+
+### 5. Grafana에서 확인할 PromQL
+
+```promql
+k6_http_req_duration_p95
+```
+
+```promql
+k6_http_req_duration_avg
+```
+
+```promql
+k6_http_req_failed_rate
+```
+
+```promql
+rate(k6_http_reqs_total[1m])
+```
+
+동기/비동기 결과는 `testid` 태그로 필터링한다.
+
+```promql
+k6_http_req_duration_p95{testid="content-create-sync"}
+```
+
+```promql
+k6_http_req_duration_p95{testid="content-create-async"}
+```
+
+### 6. 종료
+
+```powershell
+docker compose -f docker-compose-k6.yml down
+```
+
 ## API 명세
 
 - **REST API**: [Swagger/OpenAPI 링크 추가 예정](http://example.com/swagger)
