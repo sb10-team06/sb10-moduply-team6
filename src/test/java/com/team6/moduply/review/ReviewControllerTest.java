@@ -266,7 +266,7 @@ class ReviewControllerTest {
 
     // when & then
     mockMvc.perform(get("/api/reviews")
-            .param("contentIdEqual", UUID.randomUUID().toString())
+            .param("contentId", UUID.randomUUID().toString())
             .param("limit", "10")
             .param("sortDirection", "DESCENDING")
             .param("sortBy", "createdAt"))
