@@ -1,0 +1,71 @@
+<svg width="920" height="520" viewBox="0 0 920 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">S3 Upload Sync vs Async Response Time Comparison</title>
+  <desc id="desc">Bar chart comparing k6 HTTP request duration metrics for synchronous and asynchronous S3 upload processing.</desc>
+
+  <rect width="920" height="520" fill="#ffffff"/>
+
+  <text x="60" y="54" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#111827">
+    Content Create API Response Time
+  </text>
+  <text x="60" y="84" font-family="Arial, sans-serif" font-size="15" fill="#4b5563">
+    k6 result, 5 VUs / 50 iterations / POST /api/contents
+  </text>
+
+  <line x1="95" y1="420" x2="855" y2="420" stroke="#111827" stroke-width="1.5"/>
+  <line x1="95" y1="120" x2="95" y2="420" stroke="#111827" stroke-width="1.5"/>
+
+  <g font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+    <line x1="95" y1="420" x2="855" y2="420" stroke="#e5e7eb"/>
+    <text x="62" y="424">0ms</text>
+
+    <line x1="95" y1="353.33" x2="855" y2="353.33" stroke="#e5e7eb"/>
+    <text x="50" y="357.33">200ms</text>
+
+    <line x1="95" y1="286.67" x2="855" y2="286.67" stroke="#e5e7eb"/>
+    <text x="50" y="290.67">400ms</text>
+
+    <line x1="95" y1="220" x2="855" y2="220" stroke="#e5e7eb"/>
+    <text x="50" y="224">600ms</text>
+
+    <line x1="95" y1="153.33" x2="855" y2="153.33" stroke="#e5e7eb"/>
+    <text x="50" y="157.33">800ms</text>
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="13" fill="#111827" text-anchor="middle">
+    <text x="220" y="455">avg</text>
+    <text x="475" y="455">med</text>
+    <text x="730" y="455">p95</text>
+  </g>
+
+  <!-- avg: sync 217.8, async 109.08. Scale: 900ms = 300px -->
+  <rect x="165" y="347.4" width="46" height="72.6" rx="4" fill="#ef4444"/>
+  <rect x="229" y="383.64" width="46" height="36.36" rx="4" fill="#2563eb"/>
+  <text x="188" y="339.4" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#111827">217.8</text>
+  <text x="252" y="375.64" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#111827">109.08</text>
+
+  <!-- med: sync 126.42, async 67.7 -->
+  <rect x="420" y="377.86" width="46" height="42.14" rx="4" fill="#ef4444"/>
+  <rect x="484" y="397.43" width="46" height="22.57" rx="4" fill="#2563eb"/>
+  <text x="443" y="369.86" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#111827">126.42</text>
+  <text x="507" y="389.43" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#111827">67.7</text>
+
+  <!-- p95: sync 870.46, async 280.19 -->
+  <rect x="675" y="129.85" width="46" height="290.15" rx="4" fill="#ef4444"/>
+  <rect x="739" y="326.6" width="46" height="93.4" rx="4" fill="#2563eb"/>
+  <text x="698" y="121.85" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#111827">870.46</text>
+  <text x="762" y="318.6" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" fill="#111827">280.19</text>
+
+  <g font-family="Arial, sans-serif" font-size="14" fill="#111827">
+    <rect x="630" y="54" width="16" height="16" rx="3" fill="#ef4444"/>
+    <text x="654" y="67">Sync S3 upload</text>
+    <rect x="630" y="80" width="16" height="16" rx="3" fill="#2563eb"/>
+    <text x="654" y="93">Async S3 upload</text>
+  </g>
+
+  <g>
+    <rect x="60" y="468" width="800" height="1" fill="#e5e7eb"/>
+    <text x="60" y="494" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#111827">
+      Average response time improved by 49.9%: 217.8ms to 109.08ms
+    </text>
+  </g>
+</svg>

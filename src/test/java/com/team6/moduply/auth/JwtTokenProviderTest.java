@@ -11,6 +11,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.text.ParseException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,7 +60,7 @@ class JwtTokenProviderTest {
   @DisplayName("Access Token 생성 성공")
   void generate_access_token_success() throws ParseException {
     // When
-    String token = jwtTokenProvider.generateAccessToken(authentication);
+    String token = jwtTokenProvider.generateAccessToken(authentication, 0L);
 
     // Then
     assertThat(jwtTokenProvider.validateAccessToken(token)).isTrue();
@@ -103,7 +104,7 @@ class JwtTokenProviderTest {
   void expired_access_token_is_invalid() {
     // Given
     ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMinutes", -1);
-    String expiredToken = jwtTokenProvider.generateAccessToken(authentication);
+    String expiredToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
 
     // When & Then
     assertThat(jwtTokenProvider.validateAccessToken(expiredToken)).isFalse();
@@ -113,7 +114,7 @@ class JwtTokenProviderTest {
   @DisplayName("토큰에서 사용자 ID를 추출한다")
   void get_user_id_success() {
     // Given
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
 
     // When
     UUID result = jwtTokenProvider.getUserId(accessToken);
@@ -126,13 +127,41 @@ class JwtTokenProviderTest {
   @DisplayName("토큰에서 사용자 이메일을 추출한다")
   void get_email_success() {
     // Given
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
 
     // When
     String result = jwtTokenProvider.getEmail(accessToken);
 
     // Then
     assertThat(result).isEqualTo(email);
+  }
+
+  @Test
+  @DisplayName("토큰의 남은 만료시간을 계산한다")
+  void get_remaining_expiration_success() {
+    // Given
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+
+    // When
+    Duration result = jwtTokenProvider.getRemainingExpiration(accessToken);
+
+    // Then
+    assertThat(result).isPositive();
+    assertThat(result).isLessThanOrEqualTo(Duration.ofMinutes(30));
+  }
+
+  @Test
+  @DisplayName("이미 만료된 토큰의 남은 만료시간은 0이다")
+  void get_remaining_expiration_returns_zero_when_token_is_expired() {
+    // Given
+    ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMinutes", -1);
+    String expiredToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+
+    // When
+    Duration result = jwtTokenProvider.getRemainingExpiration(expiredToken);
+
+    // Then
+    assertThat(result).isZero();
   }
 
   @Test

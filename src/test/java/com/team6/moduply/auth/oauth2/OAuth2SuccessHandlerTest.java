@@ -73,16 +73,20 @@ class OAuth2SuccessHandlerTest {
     assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:8080/#/contents");
     assertThat(setCookie).contains("REFRESH_TOKEN=refresh-token");
     assertThat(setCookie).contains("HttpOnly");
-    assertThat(setCookie).contains("Secure");
+    assertThat(setCookie).doesNotContain("Secure");
     assertThat(setCookie).contains("Path=/");
     assertThat(setCookie).contains("Max-Age=25200");
     assertThat(response.getRedirectedUrl()).doesNotContain("access");
 
-    verify(jwtTokenProvider, never()).generateAccessToken(authentication);
+    verify(jwtTokenProvider, never()).generateAccessToken(authentication, 0L);
     verify(redisUtil).setDataExpire(
         RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"),
         "refresh-token",
         RedisKeyPolicy.REFRESH_TOKEN.getTtl()
+    );
+    verify(redisUtil).setDataIfAbsent(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey("tester@example.com"),
+        "0"
     );
   }
 }

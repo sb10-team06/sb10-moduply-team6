@@ -33,6 +33,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     UserDto userDto = userDetails.getUserDto();
 
+    // OAuth 로그인도 토큰 재발급 전에 사용자 토큰 버전을 준비한다.
+    String tokenVersionKey =
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(userDto.getEmail());
+    redisUtil.setDataIfAbsent(tokenVersionKey, "0");
+
     String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(userDto.getEmail());
@@ -40,7 +45,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     ResponseCookie responseCookie = ResponseCookie.from("REFRESH_TOKEN", refreshToken)
         .httpOnly(true)
-        .path("/").secure(true).sameSite("Lax")
+        .path("/").sameSite("Lax")
         .maxAge(refreshTokenExpirationMinutes * 60)
                         .build();
 

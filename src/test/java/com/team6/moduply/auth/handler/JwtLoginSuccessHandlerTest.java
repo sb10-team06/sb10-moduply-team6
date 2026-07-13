@@ -64,7 +64,9 @@ class JwtLoginSuccessHandlerTest {
         userDetails.getAuthorities()
     );
 
-    given(jwtTokenProvider.generateAccessToken(authentication)).willReturn("access-token");
+    String versionKey = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(userDto.getEmail());
+    given(redisUtil.getData(versionKey)).willReturn("0");
+    given(jwtTokenProvider.generateAccessToken(authentication, 0L)).willReturn("access-token");
     given(jwtTokenProvider.generateRefreshToken(authentication)).willReturn("refresh-token");
     given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
 
@@ -84,6 +86,7 @@ class JwtLoginSuccessHandlerTest {
     assertThat(refreshTokenCookie).isNotNull();
     assertThat(refreshTokenCookie.getValue()).isEqualTo("refresh-token");
     assertThat(refreshTokenCookie.isHttpOnly()).isTrue();
+    assertThat(refreshTokenCookie.getSecure()).isFalse();
     assertThat(refreshTokenCookie.getPath()).isEqualTo("/");
     assertThat(csrfTokenCookie).isNotNull();
     assertThat(csrfTokenCookie.isHttpOnly()).isFalse();
@@ -95,5 +98,6 @@ class JwtLoginSuccessHandlerTest {
         "refresh-token",
         RedisKeyPolicy.REFRESH_TOKEN.getTtl()
     );
+    verify(redisUtil).setDataIfAbsent(versionKey, "0");
   }
 }

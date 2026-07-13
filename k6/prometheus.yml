@@ -1,0 +1,9 @@
+# Prometheus가 어떤 대상을 얼마나 자주 모니터링할지 설정하는 파일
+# Prometheus 자기자신의 메트릭을 수집하고있다: Prometheus가 잘 동작하는지 감시
+global:
+  scrape_interval: 5s     #메트릭 수집주기(5초)
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]     #실제로 메트릭을 가져올 서버 주소(localhost:9090)
