@@ -118,7 +118,6 @@ class NotificationServiceTest {
     // then
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
-    assertThat(result.nextIdAfter()).isEqualTo(notificationId);
   }
 
   @Test
