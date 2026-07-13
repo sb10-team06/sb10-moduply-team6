@@ -181,6 +181,7 @@ function taggedApiSections(data, transactionCount, transactionTps) {
     taggedApiSection(data, 'profile-read', '프로필 조회 API'),
     taggedApiSection(data, 'follow-status', '팔로우 여부 조회 API'),
     taggedApiSection(data, 'follow-create', '팔로우 생성 API', transactionCount, transactionTps, duplicateCount),
+    taggedApiSection(data, 'content-list-default', '콘텐츠 기본 목록조회 API'),
   ].join('');
 
   if (sections) {
