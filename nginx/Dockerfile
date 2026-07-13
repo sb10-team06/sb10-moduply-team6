@@ -5,6 +5,6 @@ FROM nginx:1.27-alpine
 # 컨테이너가 시작되면 Nginx가 이 설정을 자동으로 읽는다.
 COPY conf.d/default.conf /etc/nginx/conf.d/default.conf
 
-# 컨테이너가 HTTP 요청을 수신하는 포트를 문서화한다.
+# 컨테이너가 HTTP/HTTPS 요청을 수신하는 포트를 문서화한다.
 # 실제 외부 공개 여부는 ECS Task Definition의 hostPort/containerPort 매핑으로 결정된다.
-EXPOSE 80
+EXPOSE 80 443
