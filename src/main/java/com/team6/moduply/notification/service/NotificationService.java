@@ -82,18 +82,6 @@ public class NotificationService {
     String nextCursor = null;
     UUID nextIdAfter = null;
 
-    if (hasNext) {
-      Notification last = notifications.get(notifications.size() - 1);
-      if (last.getCreatedAt() == null) {
-        throw new NotificationException(
-            NotificationErrorCode.NOTIFICATION_INVALID_STATE,
-            Map.of("notificationId", last.getId())
-        );
-      }
-      nextCursor = last.getCreatedAt().toString();
-      nextIdAfter = last.getId();
-    }
-
     List<NotificationDto> data = notifications.stream()
         .map(notificationMapper::toDto)
         .toList();
