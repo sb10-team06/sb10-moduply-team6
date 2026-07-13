@@ -2,6 +2,14 @@ function value(data, metricName, valueName, fallback = 0) {
   return data.metrics?.[metricName]?.values?.[valueName] ?? fallback;
 }
 
+function hasMetric(data, metricName) {
+  return Boolean(data.metrics?.[metricName]?.values);
+}
+
+function taggedMetric(metricName, tagName, tagValue) {
+  return `${metricName}{${tagName}:${tagValue}}`;
+}
+
 function formatNumber(number, digits = 2) {
   if (!Number.isFinite(number)) {
     return '-';
@@ -15,6 +23,14 @@ function formatMs(number) {
 
 function formatRate(rate) {
   return `${formatNumber(rate * 100, 2)}%`;
+}
+
+function statusText(failedRate) {
+  return failedRate < 0.01 ? '통과' : '실패';
+}
+
+function statusClass(failedRate) {
+  return failedRate < 0.01 ? 'pass' : 'fail';
 }
 
 function bar(widthPercent, className = '') {
@@ -33,28 +49,157 @@ function row(label, rawValue, displayValue, maxValue, className = '') {
   `;
 }
 
-function statusText(failedRate) {
-  return failedRate < 0.01 ? '통과' : '실패';
+function metricSet(data, scope) {
+  const suffix = scope?.tagName ? `{${scope.tagName}:${scope.tagValue}}` : '';
+  const metric = (name) => `${name}${suffix}`;
+
+  const durationAvg = value(data, metric('http_req_duration'), 'avg');
+  const durationMed = value(data, metric('http_req_duration'), 'med');
+  const durationP90 = value(data, metric('http_req_duration'), 'p(90)');
+  const durationP95 = value(data, metric('http_req_duration'), 'p(95)');
+  const durationP99 = value(data, metric('http_req_duration'), 'p(99)');
+  const durationMax = value(data, metric('http_req_duration'), 'max');
+  const durationMaxForBar = Math.max(durationAvg, durationMed, durationP90, durationP95, durationP99, durationMax);
+
+  const requestCount = value(data, metric('http_reqs'), 'count');
+  const requestRate = value(data, metric('http_reqs'), 'rate');
+  const failedRate = value(data, metric('http_req_failed'), 'rate');
+  const failedCount = value(data, metric('http_req_failed'), 'passes');
+  const successCount = Math.max(0, requestCount - failedCount);
+
+  return {
+    durationAvg,
+    durationMed,
+    durationP90,
+    durationP95,
+    durationP99,
+    durationMax,
+    durationMaxForBar,
+    requestCount,
+    requestRate,
+    failedRate,
+    failedCount,
+    successCount,
+  };
 }
 
-function statusClass(failedRate) {
-  return failedRate < 0.01 ? 'pass' : 'fail';
+function responseTimePanel(title, metrics) {
+  return `
+    <section class="panel">
+      <h2>${title}</h2>
+      ${row('평균', metrics.durationAvg, formatMs(metrics.durationAvg), metrics.durationMaxForBar)}
+      ${row('중앙값', metrics.durationMed, formatMs(metrics.durationMed), metrics.durationMaxForBar)}
+      ${row('p90', metrics.durationP90, formatMs(metrics.durationP90), metrics.durationMaxForBar, 'warn')}
+      ${row('p95', metrics.durationP95, formatMs(metrics.durationP95), metrics.durationMaxForBar, 'warn')}
+      ${metrics.durationP99 ? row('p99', metrics.durationP99, formatMs(metrics.durationP99), metrics.durationMaxForBar, 'warn') : ''}
+      ${row('최대', metrics.durationMax, formatMs(metrics.durationMax), metrics.durationMaxForBar, 'fail')}
+    </section>
+  `;
+}
+
+function requestResultPanel(title, metrics) {
+  return `
+    <div class="panel">
+      <h2>${title}</h2>
+      ${row('성공', metrics.successCount, `${formatNumber(metrics.successCount, 0)}건`, metrics.requestCount)}
+      ${row('실패', metrics.failedCount, `${formatNumber(metrics.failedCount, 0)}건`, metrics.requestCount, 'fail')}
+    </div>
+  `;
+}
+
+function detailRows(metrics, transactionCount, transactionTps, duplicateCount = 0) {
+  return `
+    <tr><td>총 요청 수</td><td>${formatNumber(metrics.requestCount, 0)}</td></tr>
+    <tr><td>초당 요청 수</td><td>${formatNumber(metrics.requestRate, 2)}</td></tr>
+    <tr><td>평균 응답 시간</td><td>${formatMs(metrics.durationAvg)}</td></tr>
+    <tr><td>p95 응답 시간</td><td>${formatMs(metrics.durationP95)}</td></tr>
+    <tr><td>p99 응답 시간</td><td>${formatMs(metrics.durationP99)}</td></tr>
+    <tr><td>최대 응답 시간</td><td>${formatMs(metrics.durationMax)}</td></tr>
+    <tr><td>성공 트랜잭션 수</td><td>${formatNumber(transactionCount, 0)}</td></tr>
+    <tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>
+    <tr><td>TPS</td><td>${formatNumber(transactionTps, 2)}</td></tr>
+    <tr><td>요청 실패율</td><td>${formatRate(metrics.failedRate)}</td></tr>
+  `;
+}
+
+function taggedApiSection(data, tagValue, title, transactionCount = 0, transactionTps = 0, duplicateCount = 0) {
+  const tagName = 'api';
+  const durationMetric = taggedMetric('http_req_duration', tagName, tagValue);
+
+  if (!hasMetric(data, durationMetric)) {
+    return '';
+  }
+
+  const metrics = metricSet(data, { tagName, tagValue });
+  const status = statusText(metrics.failedRate);
+  const statusCss = statusClass(metrics.failedRate);
+  const tps = transactionTps > 0 ? transactionTps : metrics.requestRate;
+  const count = transactionCount > 0 ? transactionCount : metrics.successCount;
+
+  return `
+    <section class="section-gap">
+      <div class="section-heading">
+        <h2>${title}</h2>
+        <div class="badge ${statusCss}">${status}</div>
+      </div>
+      <section class="grid">
+        <div class="panel">
+          <div class="metric-label">요청 수</div>
+          <div class="metric-value">${formatNumber(metrics.requestCount, 0)}</div>
+        </div>
+        <div class="panel">
+          <div class="metric-label">초당 요청 수</div>
+          <div class="metric-value">${formatNumber(tps, 2)}</div>
+        </div>
+        <div class="panel">
+          <div class="metric-label">실패율</div>
+          <div class="metric-value">${formatRate(metrics.failedRate)}</div>
+        </div>
+        <div class="panel">
+          <div class="metric-label">성공 수</div>
+          <div class="metric-value">${formatNumber(count, 0)}</div>
+        </div>
+      </section>
+      ${responseTimePanel(`${title} 응답 시간`, metrics)}
+      <section class="two-column">
+        ${requestResultPanel(`${title} 성공/실패`, metrics)}
+        <div class="panel">
+          <h2>${title} 상세 지표</h2>
+          <table>
+            <tr><th>항목</th><th>값</th></tr>
+            ${detailRows(metrics, count, tps, duplicateCount)}
+          </table>
+        </div>
+      </section>
+    </section>
+  `;
+}
+
+function taggedApiSections(data, transactionCount, transactionTps) {
+  const duplicateCount = value(data, 'follow_already_exists', 'count');
+  const sections = [
+    taggedApiSection(data, 'profile-read', '프로필 조회 API'),
+    taggedApiSection(data, 'follow-status', '팔로우 여부 조회 API'),
+    taggedApiSection(data, 'follow-create', '팔로우 생성 API', transactionCount, transactionTps, duplicateCount),
+  ].join('');
+
+  if (sections) {
+    return sections;
+  }
+
+  return `
+    <section class="panel" style="margin-top:20px">
+      <h2>API별 지표</h2>
+      <p class="muted">
+        태그별 지표가 없습니다. 운영 시나리오 k6 스크립트를 실행하면 api 태그 기준 응답 시간이 분리되어 표시됩니다.
+      </p>
+    </section>
+  `;
 }
 
 export function createKoreanHtmlReport(data, scenarioName) {
-  const durationAvg = value(data, 'http_req_duration', 'avg');
-  const durationMed = value(data, 'http_req_duration', 'med');
-  const durationP90 = value(data, 'http_req_duration', 'p(90)');
-  const durationP95 = value(data, 'http_req_duration', 'p(95)');
-  const durationP99 = value(data, 'http_req_duration', 'p(99)');
-  const durationMax = value(data, 'http_req_duration', 'max');
-  const durationMaxForBar = Math.max(durationAvg, durationMed, durationP90, durationP95, durationP99, durationMax);
-
-  const requestCount = value(data, 'http_reqs', 'count');
-  const requestRate = value(data, 'http_reqs', 'rate');
-  const failedRate = value(data, 'http_req_failed', 'rate');
-  const failedCount = value(data, 'http_req_failed', 'passes');
-  const successCount = Math.max(0, requestCount - failedCount);
+  const overall = metricSet(data);
+  const requestCount = overall.requestCount;
   const iterationCount = value(data, 'iterations', 'count');
   const iterationRate = value(data, 'iterations', 'rate');
   const checksRate = value(data, 'checks', 'rate');
@@ -64,9 +209,10 @@ export function createKoreanHtmlReport(data, scenarioName) {
     || value(data, 'follow_created', 'count');
   const transactionTps = value(data, 'content_created', 'rate')
     || value(data, 'follow_created', 'rate');
+  const duplicateCount = value(data, 'follow_already_exists', 'count');
 
-  const status = statusText(failedRate);
-  const statusCss = statusClass(failedRate);
+  const status = statusText(overall.failedRate);
+  const statusCss = statusClass(overall.failedRate);
   const reportTime = new Date().toLocaleString('ko-KR');
 
   return `<!doctype html>
@@ -89,7 +235,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
       margin: 0 auto;
       padding: 32px 20px 48px;
     }
-    .header {
+    .header, .section-heading {
       display: flex;
       justify-content: space-between;
       gap: 20px;
@@ -101,6 +247,11 @@ export function createKoreanHtmlReport(data, scenarioName) {
       font-size: 28px;
       letter-spacing: 0;
     }
+    .section-heading h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+    .section-gap { margin-top: 28px; }
     .muted { color: #667085; }
     .badge {
       display: inline-flex;
@@ -184,7 +335,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
     th { color: #667085; font-weight: 700; }
     td:last-child, th:last-child { text-align: right; }
     @media (max-width: 820px) {
-      .header, .two-column { grid-template-columns: 1fr; display: grid; }
+      .header, .section-heading, .two-column { grid-template-columns: 1fr; display: grid; }
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .bar-row { grid-template-columns: 82px minmax(0, 1fr); }
       .bar-value { grid-column: 2; text-align: left; }
@@ -203,16 +354,16 @@ export function createKoreanHtmlReport(data, scenarioName) {
 
     <section class="grid">
       <div class="panel">
-        <div class="metric-label">총 요청 수</div>
+        <div class="metric-label">전체 요청 수</div>
         <div class="metric-value">${formatNumber(requestCount, 0)}</div>
       </div>
       <div class="panel">
         <div class="metric-label">${transactionTps > 0 ? 'TPS' : '초당 요청 수'}</div>
-        <div class="metric-value">${formatNumber(transactionTps > 0 ? transactionTps : requestRate, 2)}</div>
+        <div class="metric-value">${formatNumber(transactionTps > 0 ? transactionTps : overall.requestRate, 2)}</div>
       </div>
       <div class="panel">
-        <div class="metric-label">실패율</div>
-        <div class="metric-value">${formatRate(failedRate)}</div>
+        <div class="metric-label">전체 실패율</div>
+        <div class="metric-value">${formatRate(overall.failedRate)}</div>
       </div>
       <div class="panel">
         <div class="metric-label">반복 수</div>
@@ -220,22 +371,10 @@ export function createKoreanHtmlReport(data, scenarioName) {
       </div>
     </section>
 
-    <section class="panel">
-      <h2>응답 시간 막대그래프</h2>
-      ${row('평균', durationAvg, formatMs(durationAvg), durationMaxForBar)}
-      ${row('중앙값', durationMed, formatMs(durationMed), durationMaxForBar)}
-      ${row('p90', durationP90, formatMs(durationP90), durationMaxForBar, 'warn')}
-      ${row('p95', durationP95, formatMs(durationP95), durationMaxForBar, 'warn')}
-      ${durationP99 ? row('p99', durationP99, formatMs(durationP99), durationMaxForBar, 'warn') : ''}
-      ${row('최대', durationMax, formatMs(durationMax), durationMaxForBar, 'fail')}
-    </section>
+    ${responseTimePanel('전체 HTTP 응답 시간', overall)}
 
     <section class="two-column">
-      <div class="panel">
-        <h2>요청 성공/실패</h2>
-        ${row('성공', successCount, `${formatNumber(successCount, 0)}건`, requestCount)}
-        ${row('실패', failedCount, `${formatNumber(failedCount, 0)}건`, requestCount, 'fail')}
-      </div>
+      ${requestResultPanel('전체 요청 성공/실패', overall)}
       <div class="panel">
         <h2>체크 결과</h2>
         ${row('성공', checksPassed, `${formatNumber(checksPassed, 0)}건`, checksPassed + checksFailed)}
@@ -244,19 +383,16 @@ export function createKoreanHtmlReport(data, scenarioName) {
     </section>
 
     <section class="panel" style="margin-top:20px">
-      <h2>상세 지표</h2>
+      <h2>전체 상세 지표</h2>
       <table>
         <tr><th>항목</th><th>값</th></tr>
-        <tr><td>평균 응답 시간</td><td>${formatMs(durationAvg)}</td></tr>
-        <tr><td>p95 응답 시간</td><td>${formatMs(durationP95)}</td></tr>
-        <tr><td>최대 응답 시간</td><td>${formatMs(durationMax)}</td></tr>
+        ${detailRows(overall, transactionCount, transactionTps, duplicateCount)}
         <tr><td>초당 반복 수</td><td>${formatNumber(iterationRate, 2)}</td></tr>
-        <tr><td>성공 트랜잭션 수</td><td>${formatNumber(transactionCount, 0)}</td></tr>
-        <tr><td>TPS</td><td>${formatNumber(transactionTps, 2)}</td></tr>
         <tr><td>체크 성공률</td><td>${formatRate(checksRate)}</td></tr>
-        <tr><td>요청 실패율</td><td>${formatRate(failedRate)}</td></tr>
       </table>
     </section>
+
+    ${taggedApiSections(data, transactionCount, transactionTps)}
   </main>
 </body>
 </html>`;
@@ -266,6 +402,6 @@ export function koreanSummary(data, scenarioName) {
   const reportPath = __ENV.K6_KO_HTML_REPORT || `/scripts/reports/${scenarioName}.html`;
   return {
     [reportPath]: createKoreanHtmlReport(data, scenarioName),
-    stdout: `\n한글 HTML 리포트 생성: ${reportPath}\n`,
+    stdout: `\n한국어 HTML 리포트 생성: ${reportPath}\n`,
   };
 }
