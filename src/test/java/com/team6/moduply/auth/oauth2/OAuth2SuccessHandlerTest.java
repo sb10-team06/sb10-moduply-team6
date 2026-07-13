@@ -7,6 +7,8 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.oauth2.handler.OAuth2SuccessHandler;
+import com.team6.moduply.auth.session.BrowserIdResolver;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
@@ -34,11 +36,22 @@ class OAuth2SuccessHandlerTest {
   @Mock
   private RedisUtil redisUtil;
 
+  @Mock
+  private AuthService authService;
+
+  @Mock
+  private BrowserIdResolver browserIdResolver;
+
   @Test
   @DisplayName("OAuth2 로그인 성공 시 Refresh Token을 쿠키와 Redis에 저장하고 프론트로 리다이렉트한다")
   void oauth2_login_success() throws Exception {
     // Given
-    OAuth2SuccessHandler handler = new OAuth2SuccessHandler(jwtTokenProvider, redisUtil);
+    OAuth2SuccessHandler handler = new OAuth2SuccessHandler(
+        jwtTokenProvider,
+        redisUtil,
+        authService,
+        browserIdResolver
+    );
     ReflectionTestUtils.setField(handler, "refreshTokenExpirationMinutes", 420);
     ReflectionTestUtils.setField(handler, "redirectUrl", "http://localhost:8080/#/contents");
 
@@ -58,10 +71,14 @@ class OAuth2SuccessHandlerTest {
         userDetails.getAuthorities()
     );
 
-    given(jwtTokenProvider.generateRefreshToken(authentication)).willReturn("refresh-token");
-
+    String browserId = UUID.randomUUID().toString();
+    String sessionId = UUID.randomUUID().toString();
     MockHttpServletRequest request = new MockHttpServletRequest();
     MockHttpServletResponse response = new MockHttpServletResponse();
+
+    given(browserIdResolver.resolveOrCreate(request, response)).willReturn(browserId);
+    given(authService.createSession(userDto.getId(), browserId)).willReturn(sessionId);
+    given(jwtTokenProvider.generateRefreshToken(authentication, sessionId)).willReturn("refresh-token");
 
     // When
     handler.onAuthenticationSuccess(request, response, authentication);
@@ -73,14 +90,18 @@ class OAuth2SuccessHandlerTest {
     assertThat(response.getRedirectedUrl()).isEqualTo("http://localhost:8080/#/contents");
     assertThat(setCookie).contains("REFRESH_TOKEN=refresh-token");
     assertThat(setCookie).contains("HttpOnly");
-    assertThat(setCookie).doesNotContain("Secure");
+    assertThat(setCookie).contains("Secure");
     assertThat(setCookie).contains("Path=/");
     assertThat(setCookie).contains("Max-Age=25200");
     assertThat(response.getRedirectedUrl()).doesNotContain("access");
 
-    verify(jwtTokenProvider, never()).generateAccessToken(authentication, 0L);
+    verify(jwtTokenProvider, never()).generateAccessToken(
+        org.mockito.ArgumentMatchers.eq(authentication),
+        org.mockito.ArgumentMatchers.anyLong(),
+        org.mockito.ArgumentMatchers.anyString()
+    );
     verify(redisUtil).setDataExpire(
-        RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"),
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId),
         "refresh-token",
         RedisKeyPolicy.REFRESH_TOKEN.getTtl()
     );

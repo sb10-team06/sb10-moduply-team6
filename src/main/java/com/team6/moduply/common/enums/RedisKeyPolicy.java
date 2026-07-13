@@ -27,7 +27,9 @@ public enum RedisKeyPolicy {
   REFRESH_TOKEN("refresh:", Duration.ofHours(7)),
   BLACKLIST_ACCESS_TOKEN("blacklist:access:", Duration.ZERO),
   BLACKLIST_LOCKED("blacklist:locked:", Duration.ofHours(1)),
-  USER_TOKEN_VERSION("access:token-version:", Duration.ZERO);
+  USER_TOKEN_VERSION("access:token-version:", Duration.ZERO),
+  AUTH_SESSION("auth:session:", Duration.ofHours(7)),
+  USER_BROWSER_SESSION("auth:user-browser-session:", Duration.ofHours(7));
 
   // 추후에 목적에 맞는 레디스 키를 추가
 

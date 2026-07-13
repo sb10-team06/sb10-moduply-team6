@@ -51,10 +51,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         UUID userId = jwtTokenProvider.getUserId(token);
         String email = jwtTokenProvider.getEmail(token);
         long tokenVersion = jwtTokenProvider.getTokenVersion(token);
+        String sessionId = jwtTokenProvider.getSessionId(token);
         String blacklistKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(email);
         // 권한 변경으로 버전이 올라간 사용자의 기존 Access Token을 차단한다.
         if(!authService.isTokenVersionValid(email, tokenVersion)){
           throw new BadCredentialsException("토큰 버전이 유효하지 않습니다. 다시 로그인 해주세요.");
+        }
+        // Access Token의 sessionId가 Redis에서 ACTIVE일 때만 요청을 허용한다.
+        // 같은 브라우저에서 다시 로그인하면 이전 tokenVersion은 그대로여도 sessionId가 REVOKED 되므로 여기서 차단된다.
+        if (!authService.isSessionActive(sessionId)) {
+          throw new BadCredentialsException("로그인 세션이 유효하지 않습니다. 다시 로그인 해주세요.");
         }
         if (redisUtil.getData(blacklistKey) != null) {
           log.warn("[보안 경고] 정지된 계정의 접근 시도입니다. userId={}", userId);

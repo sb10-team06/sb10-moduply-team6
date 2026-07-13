@@ -49,6 +49,7 @@ class JwtAuthenticationFilterTest {
     UUID userId = UUID.randomUUID();
     String token = "valid-token";
     String email = "tester@example.com";
+    String sessionId = UUID.randomUUID().toString();
     Authentication authentication = new TestingAuthenticationToken("tester", null, "ROLE_USER");
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
@@ -64,7 +65,9 @@ class JwtAuthenticationFilterTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(token)).willReturn(sessionId);
     given(authService.isTokenVersionValid(email, 0L)).willReturn(true);
+    given(authService.isSessionActive(sessionId)).willReturn(true);
     given(authService.getAuthentication(userId)).willReturn(authentication);
 
     // When
@@ -77,6 +80,7 @@ class JwtAuthenticationFilterTest {
     verify(jwtTokenProvider).validateAccessToken(token);
     verify(jwtTokenProvider).getUserId(token);
     verify(authService).isTokenVersionValid(email, 0L);
+    verify(authService).isSessionActive(sessionId);
     verify(authService).getAuthentication(userId);
   }
 
@@ -100,6 +104,7 @@ class JwtAuthenticationFilterTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(token)).willReturn(UUID.randomUUID().toString());
     given(authService.isTokenVersionValid(email, 0L)).willReturn(false);
 
     filter.doFilter(request, response, new MockFilterChain());

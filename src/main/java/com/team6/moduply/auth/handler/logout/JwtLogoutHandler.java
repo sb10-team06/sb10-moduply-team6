@@ -40,18 +40,24 @@ public class JwtLogoutHandler implements LogoutHandler {
     deleteCookie.setMaxAge(0);
     deleteCookie.setPath("/");
     deleteCookie.setHttpOnly(true);
+    deleteCookie.setSecure(true);
     response.addCookie(deleteCookie);
 
     SecurityContextHolder.clearContext();
 
     blacklistAccessToken(request);
 
-    String email = resolveEmail(authentication, request);
-    if (email != null) {
-      String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    // Refresh Token whitelist와 로그인 세션은 sessionId 기준으로 관리한다.
+    // logout 요청이 Access Token만 가지고 오거나 Refresh Token 쿠키만 가지고 와도 가능한 쪽에서 sessionId를 복원한다.
+    String sessionId = resolveSessionId(request);
+    if (sessionId != null) {
+      String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId);
       redisUtil.deleteData(redisKey);
+      // 남은 Access/Refresh Token이 있더라도 다음 요청에서 세션 ACTIVE 검증에 실패하게 한다.
+      authService.revokeSession(sessionId);
       log.info("[로그아웃] Refresh Token 파기 완료, 요청 Id={}", MDC.get("requestId"));
     }
+    String email = resolveEmail(authentication, request);
     UUID userId = extractUserId(authentication, request);
     if (userId != null && email != null) {
       applicationEventPublisher.publishEvent(new UserLogoutEvent(userId, email));
@@ -104,11 +110,13 @@ public class JwtLogoutHandler implements LogoutHandler {
   }
 
   private String resolveEmail(Authentication authentication, HttpServletRequest request) {
+    // 인증정보에서 이메일을 가져옴
     if (authentication != null
         && authentication.getPrincipal() instanceof ModuPlyUserDetails userDetails) {
       return userDetails.getUserDto().getEmail();
     }
 
+    // 인증정보가 비어있을시 RT에서 가져옴
     String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
     if (refreshToken == null || refreshToken.isBlank()) {
       return null;
@@ -118,6 +126,31 @@ public class JwtLogoutHandler implements LogoutHandler {
       return jwtTokenProvider.getEmail(refreshToken);
     } catch (AuthException e) {
       log.warn("[로그아웃] Refresh Token 파싱 실패, 요청 Id={}", MDC.get("requestId"));
+      return null;
+    }
+  }
+
+  private String resolveSessionId(HttpServletRequest request) {
+    // AT에서 세션id를 가져옴
+    String accessToken = getBearerToken(request);
+    if (accessToken != null && !accessToken.isBlank()) {
+      try {
+        return jwtTokenProvider.getSessionId(accessToken);
+      } catch (AuthException e) {
+        log.warn("[로그아웃] Access Token 세션 파싱 실패, 요청 Id={}", MDC.get("requestId"));
+      }
+    }
+
+    // AT가 없을 시 RT에서 가져옴
+    String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
+    if (refreshToken == null || refreshToken.isBlank()) {
+      return null;
+    }
+
+    try {
+      return jwtTokenProvider.getSessionId(refreshToken);
+    } catch (AuthException e) {
+      log.warn("[로그아웃] Refresh Token 세션 파싱 실패, 요청 Id={}", MDC.get("requestId"));
       return null;
     }
   }
