@@ -114,6 +114,7 @@ public class PlaylistService {
         .map(user -> new PlaylistDto.OwnerDto(user.getId(), user.getName(), null))
         .orElse(null);
 
+    // TODO: 실시간성이 중요하지 않으므로 캐싱 적용하기
     long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
     boolean subscribedByMe = currentUserId != null &&
         playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId);
