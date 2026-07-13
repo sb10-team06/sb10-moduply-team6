@@ -16,6 +16,7 @@ import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.common.util.RedisUtil;
+import com.team6.moduply.notification.event.UserRoleUpdatedEvent;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
@@ -44,6 +45,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -65,6 +67,9 @@ public class UserServiceTest {
 
   @Mock
   private RedisUtil redisUtil;
+
+  @Mock
+  private ApplicationEventPublisher applicationEventPublisher;
 
   @InjectMocks
   private UserService userService;
@@ -279,6 +284,38 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(userMapper).toDto(user);
+    verify(redisUtil).increment(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user.getEmail())
+    );
+    verify(redisUtil).deleteData(
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(user.getEmail())
+    );
+    ArgumentCaptor<UserRoleUpdatedEvent> eventCaptor =
+        ArgumentCaptor.forClass(UserRoleUpdatedEvent.class);
+    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().getReceiverId()).isEqualTo(userId);
+    assertThat(eventCaptor.getValue().getOldRole()).isEqualTo(Role.USER);
+    assertThat(eventCaptor.getValue().getNewRole()).isEqualTo(Role.ADMIN);
+  }
+
+  @Test
+  @DisplayName("기존 권한과 요청 권한이 같으면 변경과 로그아웃 및 알림을 생략한다")
+  public void update_user_role_skip_when_role_is_same() {
+    UUID userId = UUID.randomUUID();
+    UserRoleUpdateRequest request = new UserRoleUpdateRequest(Role.USER);
+    User user = new User("test@example.com", "encoded-password", "tester", Role.USER);
+
+    given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+    userService.updateUserRole(userId, request);
+
+    assertThat(user.getRole()).isEqualTo(Role.USER);
+    verify(applicationEventPublisher, never()).publishEvent(any());
+    verify(redisUtil, never()).increment(anyString());
+    verify(redisUtil, never()).deleteData(
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(user.getEmail())
+    );
+    verify(userMapper, never()).toDto(any(User.class));
   }
 
   @Test
@@ -600,6 +637,12 @@ public class UserServiceTest {
         RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()),
         "locked",
         RedisKeyPolicy.BLACKLIST_LOCKED.getTtl()
+    );
+    verify(redisUtil).increment(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user.getEmail())
+    );
+    verify(redisUtil).deleteData(
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(user.getEmail())
     );
   }
 

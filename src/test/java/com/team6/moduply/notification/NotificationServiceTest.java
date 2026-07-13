@@ -14,6 +14,7 @@ import com.team6.moduply.notification.mapper.NotificationMapper;
 import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
 import com.team6.moduply.notification.service.NotificationService;
+import com.team6.moduply.user.enums.Role;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -30,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -206,5 +209,33 @@ class NotificationServiceTest {
         .isInstanceOf(NotificationException.class)
         .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
             .isEqualTo(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+  }
+
+  @Test
+  @DisplayName("권한 변경 알림을 저장하면 이전 권한과 새 권한이 내용에 포함된다.")
+  void sendRoleUpdatedNotification_success() {
+    UUID receiverId = UUID.randomUUID();
+    NotificationDto dto = new NotificationDto(
+        UUID.randomUUID(),
+        null,
+        receiverId,
+        NotificationType.ROLE_CHANGED.getTitle(),
+        "내 권한이 [USER]에서 [ADMIN]로 변경되었어요",
+        NotificationLevel.INFO
+    );
+    given(notificationRepository.save(any(Notification.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
+
+    NotificationDto result =
+        notificationService.sendRoleUpdatedNotification(receiverId, Role.USER, Role.ADMIN);
+
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(notificationRepository).save(captor.capture());
+    Notification saved = captor.getValue();
+    assertThat(saved.getReceiverId()).isEqualTo(receiverId);
+    assertThat(saved.getType()).isEqualTo(NotificationType.ROLE_CHANGED);
+    assertThat(saved.getContent()).isEqualTo("내 권한이 [USER]에서 [ADMIN]로 변경되었어요");
+    assertThat(result).isEqualTo(dto);
   }
 }

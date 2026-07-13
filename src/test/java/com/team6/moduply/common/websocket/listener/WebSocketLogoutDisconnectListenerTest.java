@@ -1,5 +1,9 @@
 package com.team6.moduply.common.websocket.listener;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+
 import com.team6.moduply.auth.event.UserLogoutEvent;
 import com.team6.moduply.common.websocket.service.WebsocketControlService;
 import java.util.UUID;
@@ -9,11 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class WebSocketLogoutDisconnectListenerTest {
@@ -36,7 +35,7 @@ class WebSocketLogoutDisconnectListenerTest {
     eventListener.on(event);
 
     // then
-    verify(websocketControlService, times(1)).sendForceLogoutSignal(email);
+    verify(websocketControlService).sendForceLogoutSignal(email);
   }
 
   @Test
@@ -52,6 +51,6 @@ class WebSocketLogoutDisconnectListenerTest {
     // when & then
     assertThatCode(() -> eventListener.on(event))
         .doesNotThrowAnyException();
-    verify(websocketControlService, times(1)).sendForceLogoutSignal(email);
+    verify(websocketControlService).sendForceLogoutSignal(email);
   }
 }
