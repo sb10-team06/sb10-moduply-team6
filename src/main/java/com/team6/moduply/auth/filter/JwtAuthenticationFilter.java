@@ -44,10 +44,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       if (!jwtTokenProvider.validateAccessToken(token)) {
         throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.");
       }
+      if (authService.isAccessTokenBlacklisted(token)) {
+        throw new BadCredentialsException("로그아웃된 엑세스 토큰입니다.");
+      }
       if(SecurityContextHolder.getContext().getAuthentication() == null){
         UUID userId = jwtTokenProvider.getUserId(token);
         String email = jwtTokenProvider.getEmail(token);
+        long tokenVersion = jwtTokenProvider.getTokenVersion(token);
         String blacklistKey = RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(email);
+        // 권한 변경으로 버전이 올라간 사용자의 기존 Access Token을 차단한다.
+        if(!authService.isTokenVersionValid(email, tokenVersion)){
+          throw new BadCredentialsException("토큰 버전이 유효하지 않습니다. 다시 로그인 해주세요.");
+        }
         if (redisUtil.getData(blacklistKey) != null) {
           log.warn("[보안 경고] 정지된 계정의 접근 시도입니다. userId={}", userId);
 
@@ -79,4 +87,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     return null;
   }
+
 }

@@ -5,6 +5,7 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.util.RedisUtil;
+import com.team6.moduply.notification.event.UserRoleUpdatedEvent;
 import com.team6.moduply.user.dto.ChangePasswordRequest;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.dto.UserDto;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +43,7 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final BinaryContentService binaryContentService;
   private final RedisUtil redisUtil;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -144,7 +147,19 @@ public class UserService {
             "userId", userId
         )));
 
-    user.updateRole(request.getRole());
+    Role oldRole = user.getRole();
+    Role newRole = request.getRole();
+    if (oldRole == newRole) {
+      log.debug("사용자 권한 변경 생략. userId={}, role={}", userId, oldRole);
+      return;
+    }
+
+    user.updateRole(newRole);
+    applicationEventPublisher.publishEvent(new UserRoleUpdatedEvent(userId, oldRole, newRole));
+    String email = user.getEmail();
+
+    // 기존 기기의 토큰을 모두 무효화하고 Refresh Token 재발급도 차단한다.
+    invalidateToken(email);
 
     UserDto response = userMapper.toDto(user);
     log.debug("사용자 권한 변경 처리 완료. userId={}, newRole={}", response.getId(), response.getRole());
@@ -212,19 +227,27 @@ public class UserService {
 
     user.updateBlocked(request.getLocked());
 
+    String email = user.getEmail();
     if (request.getLocked()) {
       redisUtil.setDataExpire(
           RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()),
           "locked",
           RedisKeyPolicy.BLACKLIST_LOCKED.getTtl()
       );
+      // 잠금 즉시 기존 Access/Refresh Token을 모두 사용할 수 없게 한다.
+      invalidateToken(email);
     } else {
-      redisUtil.deleteData(RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(user.getEmail()));
+      redisUtil.deleteData(RedisKeyPolicy.BLACKLIST_LOCKED.generateKey(email));
     }
   }
 
   private UserDto toDto(User user) {
     String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
     return userMapper.toDto(user, profileImageUrl);
+  }
+
+  private void invalidateToken(String email){
+    redisUtil.increment(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email));
+    redisUtil.deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey(email));
   }
 }

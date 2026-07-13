@@ -96,7 +96,10 @@ class WebSocketConfigTest {
     assertThat(moduPlyUserDetails).isNotNull();
     Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
         moduPlyUserDetails.getAuthorities());
-    userAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+    userAccessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    given(redisUtil.getData(
+        com.team6.moduply.common.enums.RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(
+            testUser.getEmail()))).willReturn("0");
     userRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
     //admin
@@ -110,7 +113,10 @@ class WebSocketConfigTest {
     assertThat(adminDetails).isNotNull();
     Authentication adminAuth = new UsernamePasswordAuthenticationToken(adminDetails,
         adminDetails.getAuthorities());
-    adminAccessToken = jwtTokenProvider.generateAccessToken(adminAuth);
+    adminAccessToken = jwtTokenProvider.generateAccessToken(adminAuth, 0L);
+    given(redisUtil.getData(
+        com.team6.moduply.common.enums.RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(
+            adminUser.getEmail()))).willReturn("0");
   }
 
   @Test

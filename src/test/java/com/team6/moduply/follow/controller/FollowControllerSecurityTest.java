@@ -1,6 +1,8 @@
 package com.team6.moduply.follow.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -33,6 +35,7 @@ import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.enums.Role;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -82,6 +85,13 @@ class FollowControllerSecurityTest {
 
   @MockitoBean
   private JwtLoginSuccessHandler jwtLoginSuccessHandler;
+
+  @BeforeEach
+  void setUpTokenVersion() {
+    given(jwtTokenProvider.getEmail(anyString())).willReturn(USER_EMAIL);
+    given(jwtTokenProvider.getTokenVersion(anyString())).willReturn(0L);
+    given(authService.isTokenVersionValid(eq(USER_EMAIL), anyLong())).willReturn(true);
+  }
 
   @Test
   @DisplayName("인증 토큰 없이 팔로워 수 조회 요청을 보내면 401을 반환한다.")

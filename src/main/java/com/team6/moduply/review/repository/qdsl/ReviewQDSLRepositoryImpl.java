@@ -26,7 +26,7 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
   public List<Review> findAllWithCursor(ReviewSearchRequest request) {
     return queryFactory.selectFrom(review)
         .where(
-            contentIdCondition(request.contentIdEqual()),
+            contentIdCondition(request.contentId()),
             cursorCondition(request)
         )
         .orderBy(orderSpecifiers(request))
@@ -38,7 +38,7 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
   public long countWithCondition(ReviewSearchRequest request) {
     Long result = queryFactory.select(review.count())
         .from(review)
-        .where(contentIdCondition(request.contentIdEqual()))
+        .where(contentIdCondition(request.contentId()))
         .fetchOne();
     return result != null ? result : 0L;
   }

@@ -11,6 +11,7 @@ import com.team6.moduply.notification.exception.NotificationException;
 import com.team6.moduply.notification.mapper.NotificationMapper;
 import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
+import com.team6.moduply.user.enums.Role;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -46,7 +47,8 @@ public class NotificationService {
         .receiverId(receiverId)
         .type(NotificationType.PLAYLIST_SUBSCRIBED)
         .title(NotificationType.PLAYLIST_SUBSCRIBED.getTitle())
-        .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), playlistTitle))
+        .content(
+            String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), playlistTitle))
         .level(NotificationLevel.INFO)
         .build();
     Notification saved = notificationRepository.save(notification);
@@ -54,13 +56,16 @@ public class NotificationService {
   }
 
   @Transactional
-  public List<NotificationDto> sendContentAddedNotification(List<UUID> receiverIds, String playlistTitle, String contentTitle) {
+  public List<NotificationDto> sendContentAddedNotification(List<UUID> receiverIds,
+      String playlistTitle, String contentTitle) {
     List<Notification> notifications = receiverIds.stream()
         .map(receiverId -> Notification.builder()
             .receiverId(receiverId)
             .type(NotificationType.CONTENT_ADDED)
             .title(NotificationType.CONTENT_ADDED.getTitle())
-            .content(String.format(NotificationType.CONTENT_ADDED.getMessageTemplate(), playlistTitle, contentTitle))
+            .content(
+                String.format(NotificationType.CONTENT_ADDED.getMessageTemplate(), playlistTitle,
+                    contentTitle))
             .level(NotificationLevel.INFO)
             .build())
         .toList();
@@ -69,8 +74,10 @@ public class NotificationService {
   }
 
   @Transactional(readOnly = true)
-  public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request, UUID receiverId) {
-    List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request, receiverId);
+  public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request,
+      UUID receiverId) {
+    List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request,
+        receiverId);
     long totalCount = notificationQDSLRepository.countWithCondition(receiverId);
 
     boolean hasNext = notifications.size() > request.limit();
@@ -159,5 +166,19 @@ public class NotificationService {
     return saved.stream()
         .map(notificationMapper::toDto)
         .toList();
+  }
+
+  @Transactional
+  public NotificationDto sendRoleUpdatedNotification(UUID receiverId, Role oldRole, Role newRole) {
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.ROLE_CHANGED)
+        .title(NotificationType.ROLE_CHANGED.getTitle())
+        .content(
+            String.format(NotificationType.ROLE_CHANGED.getMessageTemplate(), oldRole, newRole))
+        .level(NotificationLevel.INFO)
+        .build();
+    Notification saved = notificationRepository.save(notification);
+    return notificationMapper.toDto(saved);
   }
 }

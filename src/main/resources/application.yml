@@ -70,7 +70,7 @@ logging:
 
 cors:
   allowed-origins:
-    - "http://moduply.com"
+    - "http://moduply.co.kr"
 
 moduply:
   async:
