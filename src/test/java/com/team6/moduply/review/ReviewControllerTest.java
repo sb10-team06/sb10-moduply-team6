@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -30,6 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -258,6 +260,7 @@ class ReviewControllerTest {
   @DisplayName("리뷰 목록을 조회하면 200을 반환한다.")
   void getReviews_success() throws Exception {
     // given
+    UUID contentId = UUID.randomUUID();
     CursorResponse<ReviewDto> response = new CursorResponse<>(
         List.of(), null, null, false, 0L, "createdAt", SortDirection.DESCENDING
     );
@@ -266,7 +269,7 @@ class ReviewControllerTest {
 
     // when & then
     mockMvc.perform(get("/api/reviews")
-            .param("contentId", UUID.randomUUID().toString())
+            .param("contentId", contentId.toString())
             .param("limit", "10")
             .param("sortDirection", "DESCENDING")
             .param("sortBy", "createdAt"))
@@ -274,6 +277,8 @@ class ReviewControllerTest {
         .andExpect(jsonPath("$.hasNext").value(false))
         .andExpect(jsonPath("$.totalCount").value(0));
 
-    verify(reviewService).findAll(any(ReviewSearchRequest.class));
+    ArgumentCaptor<ReviewSearchRequest> captor = ArgumentCaptor.forClass(ReviewSearchRequest.class);
+    verify(reviewService).findAll(captor.capture());
+    assertThat(captor.getValue().contentId()).isEqualTo(contentId);
   }
 }
