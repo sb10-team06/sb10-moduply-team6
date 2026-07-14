@@ -43,6 +43,7 @@ public class NotificationEventListener {
     try {
       NotificationDto dto = notificationService.sendPlaylistSubscribedNotification(
           event.getPlaylistOwnerId(),
+          event.getSubscriberName(),
           event.getPlaylistTitle()
       );
       sseEmitterManager.send(event.getPlaylistOwnerId(), dto);

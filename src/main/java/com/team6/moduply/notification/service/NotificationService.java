@@ -42,13 +42,12 @@ public class NotificationService {
 
   /// 플레이리스트 알림 전송 메서드
   @Transactional
-  public NotificationDto sendPlaylistSubscribedNotification(UUID receiverId, String playlistTitle) {
+  public NotificationDto sendPlaylistSubscribedNotification(UUID receiverId, String subscriberName, String playlistTitle) {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.PLAYLIST_SUBSCRIBED)
         .title(NotificationType.PLAYLIST_SUBSCRIBED.getTitle())
-        .content(
-            String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), playlistTitle))
+        .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), subscriberName, playlistTitle))
         .level(NotificationLevel.INFO)
         .build();
     Notification saved = notificationRepository.save(notification);
