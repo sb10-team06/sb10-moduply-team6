@@ -15,6 +15,7 @@ import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
+import com.team6.moduply.auth.service.AuthSessionService;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
@@ -81,6 +82,9 @@ class AuthServiceTest {
 
   @Mock
   private RedisUtil redisUtil;
+
+  @Mock
+  private AuthSessionService authSessionService;
 
   @InjectMocks
   private AuthService authService;
@@ -341,7 +345,7 @@ class AuthServiceTest {
     String refreshToken = "refresh-token";
     String newAccessToken = "new-access-token";
     String newRefreshToken = "new-refresh-token";
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String sessionId = UUID.randomUUID().toString();
     User user = new User(email, "encoded-password", "tester", Role.USER);
     UserDto userDto = new UserDto(
         userId,
@@ -356,6 +360,8 @@ class AuthServiceTest {
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getSessionId(refreshToken)).willReturn(sessionId);
+    given(authSessionService.isSessionActive(sessionId)).willReturn(true);
     given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -363,11 +369,15 @@ class AuthServiceTest {
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
+    given(jwtTokenProvider.generateAccessToken(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.anyLong(),
+        eq(sessionId)
+    ))
         .willReturn(newAccessToken);
-    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any(), eq(sessionId)))
         .willReturn(newRefreshToken);
-    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("OK");
+    given(refreshTokenRedisUtil.rotate(sessionId, refreshToken, newRefreshToken)).willReturn("OK");
 
     // When
     TokenRefreshDto result = authService.refreshTokens(refreshToken);
@@ -375,7 +385,7 @@ class AuthServiceTest {
     // Then
     assertThat(result.getJwtDto().getAccessToken()).isEqualTo(newAccessToken);
     assertThat(result.getRefreshToken()).isEqualTo(newRefreshToken);
-    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
+    verify(refreshTokenRedisUtil).rotate(sessionId, refreshToken, newRefreshToken);
   }
 
   @Test
@@ -396,11 +406,13 @@ class AuthServiceTest {
     String refreshToken = "refresh-token";
     String newRefreshToken = "new-refresh-token";
     String email = user.getEmail();
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String sessionId = UUID.randomUUID().toString();
     List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getSessionId(refreshToken)).willReturn(sessionId);
+    given(authSessionService.isSessionActive(sessionId)).willReturn(true);
     given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -408,11 +420,15 @@ class AuthServiceTest {
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
+    given(jwtTokenProvider.generateAccessToken(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.anyLong(),
+        eq(sessionId)
+    ))
         .willReturn("new-access-token");
-    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any(), eq(sessionId)))
         .willReturn(newRefreshToken);
-    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("MISMATCH");
+    given(refreshTokenRedisUtil.rotate(sessionId, refreshToken, newRefreshToken)).willReturn("MISMATCH");
 
     // When & Then
     assertThatThrownBy(() -> authService.refreshTokens(refreshToken))
@@ -420,7 +436,7 @@ class AuthServiceTest {
             assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION)
         );
 
-    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
+    verify(refreshTokenRedisUtil).rotate(sessionId, refreshToken, newRefreshToken);
   }
 
   @Test
@@ -440,11 +456,13 @@ class AuthServiceTest {
     );
     String refreshToken = "refresh-token";
     String email = user.getEmail();
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String sessionId = UUID.randomUUID().toString();
     List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getSessionId(refreshToken)).willReturn(sessionId);
+    given(authSessionService.isSessionActive(sessionId)).willReturn(true);
     given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -452,11 +470,15 @@ class AuthServiceTest {
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyLong()))
+    given(jwtTokenProvider.generateAccessToken(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.anyLong(),
+        eq(sessionId)
+    ))
         .willReturn("new-access-token");
-    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any(), eq(sessionId)))
         .willReturn("new-refresh-token");
-    given(refreshTokenRedisUtil.rotate(email, refreshToken, "new-refresh-token"))
+    given(refreshTokenRedisUtil.rotate(sessionId, refreshToken, "new-refresh-token"))
         .willReturn("OK")
         .willReturn("MISMATCH");
 
@@ -492,7 +514,7 @@ class AuthServiceTest {
 
     assertThat(successCount).isEqualTo(1);
     assertThat(failureCount).isEqualTo(1);
-    verify(refreshTokenRedisUtil, times(2)).rotate(email, refreshToken, "new-refresh-token");
+    verify(refreshTokenRedisUtil, times(2)).rotate(sessionId, refreshToken, "new-refresh-token");
   }
 
   private ResetPasswordRequest resetPasswordRequest(String email) {

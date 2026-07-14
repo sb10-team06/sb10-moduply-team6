@@ -48,8 +48,11 @@ public class RefreshTokenRedisUtil {
     return script;
   }
 
-  public String rotate(String email, String presentedRefreshToken, String newRefreshToken) {
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+  public String rotate(String sessionId, String presentedRefreshToken, String newRefreshToken) {
+    // sessionId 기준 whitelist를 사용한다.
+    // email 기준 key를 쓰면 여러 브라우저가 하나의 Refresh Token 저장소를 공유하게 되어
+    // 새 브라우저 로그인이 기존 브라우저의 Refresh Token을 덮어쓴다.
+    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId);
     Duration ttl = RedisKeyPolicy.REFRESH_TOKEN.getTtl();
 
     return stringRedisTemplate.execute(

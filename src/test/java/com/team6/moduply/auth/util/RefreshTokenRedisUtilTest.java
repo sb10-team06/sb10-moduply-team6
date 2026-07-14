@@ -28,17 +28,17 @@ class RefreshTokenRedisUtilTest {
   @DisplayName("refresh token 원자 갱신은 Lua 스크립트 실행으로 위임된다")
   void rotate_success() {
     // Given
-    String email = "tester@example.com";
+    String sessionId = "session-id";
     String presentedRefreshToken = "refresh-token";
     String newRefreshToken = "new-refresh-token";
 
     // When
-    refreshTokenRedisUtil.rotate(email, presentedRefreshToken, newRefreshToken);
+    refreshTokenRedisUtil.rotate(sessionId, presentedRefreshToken, newRefreshToken);
 
     // Then
     verify(stringRedisTemplate).execute(
         eq(getRotateScript()),
-        eq(Collections.singletonList(RedisKeyPolicy.REFRESH_TOKEN.generateKey(email))),
+        eq(Collections.singletonList(RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId))),
         eq(presentedRefreshToken),
         eq(newRefreshToken),
         eq(String.valueOf(RedisKeyPolicy.REFRESH_TOKEN.getTtl().toMillis()))

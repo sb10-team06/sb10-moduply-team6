@@ -23,7 +23,12 @@ public enum AuthErrorCode implements ErrorCode {
       "임시 비밀번호의 길이는 최소 8자리 이상이어야 합니다."),
   COMPROMISED_TOKEN_EXCEPTION(HttpStatus.UNAUTHORIZED, "auth12", "인증에 실패했거나 유효하지 않은 토큰입니다"),
   INVALID_PROVIDER_EXCEPTION(HttpStatus.BAD_REQUEST, "auth13", "지원하지 않는 소셜 로그인 제공자입니다."),
-  DUPLICATED_ACCOUNT_EXCEPTION(HttpStatus.CONFLICT, "auth14", "이미 가입된 계정입니다.");
+  DUPLICATED_ACCOUNT_EXCEPTION(HttpStatus.CONFLICT, "auth14", "이미 가입된 계정입니다."),
+  TOKEN_VERSION_MISMATCH_EXCEPTION(HttpStatus.UNAUTHORIZED, "auth15",
+      "인증 정보가 변경되었습니다. 다시 로그인해주세요."),
+  SESSION_REVOKED_EXCEPTION(HttpStatus.UNAUTHORIZED, "auth16",
+      "다른 로그인으로 현재 세션이 만료되었습니다."),
+  BLACKLISTED_TOKEN_EXCEPTION(HttpStatus.UNAUTHORIZED, "auth17", "로그아웃된 토큰입니다.");
 
   private final HttpStatus httpStatus;
   private final String code;
