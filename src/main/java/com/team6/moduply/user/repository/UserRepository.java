@@ -19,3 +19,4 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserQDSLRepos
   @Query("select u from User u where u.id in :ids")
   List<User> findAllByIdWithProfileImg(@Param("ids") List<UUID> ids);
 }
+

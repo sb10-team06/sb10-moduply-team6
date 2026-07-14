@@ -18,6 +18,7 @@ import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
+import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
@@ -85,6 +86,8 @@ class ReviewServiceTest {
     UUID contentId = UUID.randomUUID();
     ModuPlyUserDetails userDetails = createUserDetails(authorId);
     ReviewCreateRequest request = new ReviewCreateRequest(contentId, "좋아요", 4.5);
+    User mockUser = new User("test@test.com", "password", "테스트", Role.USER);
+    given(userRepository.findById(authorId)).willReturn(Optional.of(mockUser));
 
     Review savedReview = Review.builder()
         .contentId(contentId)
@@ -164,6 +167,8 @@ class ReviewServiceTest {
     UUID contentId = UUID.randomUUID();
     ModuPlyUserDetails userDetails = createUserDetails(authorId);
     ReviewUpdateRequest request = new ReviewUpdateRequest("수정된 내용", 3.0);
+    User mockUser = new User("test@test.com", "password", "테스트", Role.USER);
+    given(userRepository.findById(authorId)).willReturn(Optional.of(mockUser));
 
     Review review = Review.builder()
         .contentId(contentId)
