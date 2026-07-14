@@ -35,6 +35,7 @@ public class StompChannelInterceptor implements ChannelInterceptor {
   private static final String EMAIL_KEY = "email";
   private static final String TOKEN_VERSION_KEY = "tokenVersion";
   private static final String ACCESS_TOKEN_KEY = "accessToken";
+  private static final String AUTH_SESSION_ID_KEY = "authSessionId";
 
   //JWT 인증
   private final JwtTokenProvider jwtTokenProvider;
@@ -88,16 +89,26 @@ public class StompChannelInterceptor implements ChannelInterceptor {
     Object email = sessionAttributes.get(EMAIL_KEY);
     Object tokenVersion = sessionAttributes.get(TOKEN_VERSION_KEY);
     Object accessToken = sessionAttributes.get(ACCESS_TOKEN_KEY);
+    Object authSessionId = sessionAttributes.get(AUTH_SESSION_ID_KEY);
     if (!(email instanceof String) || !(tokenVersion instanceof Long)) {
       throw new MessageDeliveryException("웹소켓 세션에 토큰 버전 정보가 존재하지 않습니다.");
     }
     if (!(accessToken instanceof String token) || token.isBlank()) {
       throw new MessageDeliveryException("웹소켓 세션에 Access Token 정보가 존재하지 않습니다.");
     }
+    if (!(authSessionId instanceof String sessionId) || sessionId.isBlank()) {
+      throw new MessageDeliveryException("웹소켓 세션에 로그인 세션 정보가 존재하지 않습니다.");
+    }
 
     // 연결 후의 SEND/SUBSCRIBE 요청도 최신 토큰 버전인지 확인한다.
     if (!authService.isTokenVersionValid((String) email, (Long) tokenVersion)) {
       throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+    }
+    // 같은 브라우저 재로그인 등으로 폐기된 로그인 세션의 후속 프레임을 차단한다.
+    // WebSocket은 CONNECT 이후 같은 연결을 계속 쓰므로 HTTP 필터처럼 요청마다 JWT를 다시 받지 않는다.
+    // 따라서 CONNECT 때 저장한 authSessionId를 후속 프레임에서도 Redis로 재검증한다.
+    if (!authService.isSessionActive(sessionId)) {
+      throw new BadCredentialsException("로그인 세션이 유효하지 않습니다.");
     }
     // 로그아웃 이후 이미 연결된 세션에서 보내는 후속 프레임도 차단한다.
     if (authService.isAccessTokenBlacklisted(token)) {
@@ -193,9 +204,13 @@ public class StompChannelInterceptor implements ChannelInterceptor {
       UUID userId = jwtTokenProvider.getUserId(token);
       String email = jwtTokenProvider.getEmail(token);
       long tokenVersion = jwtTokenProvider.getTokenVersion(token);
+      String authSessionId = jwtTokenProvider.getSessionId(token);
       // 버전이 달라 무효화된 토큰으로 WebSocket 연결을 생성하지 못하게 한다.
       if(!authService.isTokenVersionValid(email,tokenVersion)){
         throw new BadCredentialsException("토큰 버전이 유효하지 않습니다.");
+      }
+      if (!authService.isSessionActive(authSessionId)) {
+        throw new BadCredentialsException("로그인 세션이 유효하지 않습니다.");
       }
       Authentication authentication = authService.getAuthentication(userId);
       accessor.setUser(authentication);
@@ -204,6 +219,8 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         sessionAttributes.put(EMAIL_KEY, email);
         sessionAttributes.put(TOKEN_VERSION_KEY, tokenVersion);
         sessionAttributes.put(ACCESS_TOKEN_KEY, token);
+        // 후속 SEND/SUBSCRIBE/UNSUBSCRIBE 프레임에서 세션 폐기 여부를 다시 확인하기 위해 저장한다.
+        sessionAttributes.put(AUTH_SESSION_ID_KEY, authSessionId);
       }
     } catch (AuthenticationException e) {
       throw new BadCredentialsException("엑세스 토큰이 유효하지 않습니다.", e);

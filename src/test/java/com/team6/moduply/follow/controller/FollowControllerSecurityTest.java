@@ -58,6 +58,7 @@ import org.springframework.test.web.servlet.MockMvc;
 })
 class FollowControllerSecurityTest {
   private static final String USER_EMAIL = "user@example.com";
+  private static final String SESSION_ID = "test-session-id";
 
   @Autowired
   private MockMvc mockMvc;
@@ -90,7 +91,9 @@ class FollowControllerSecurityTest {
   void setUpTokenVersion() {
     given(jwtTokenProvider.getEmail(anyString())).willReturn(USER_EMAIL);
     given(jwtTokenProvider.getTokenVersion(anyString())).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(anyString())).willReturn(SESSION_ID);
     given(authService.isTokenVersionValid(eq(USER_EMAIL), anyLong())).willReturn(true);
+    given(authService.isSessionActive(SESSION_ID)).willReturn(true);
   }
 
   @Test
