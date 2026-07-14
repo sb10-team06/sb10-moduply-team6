@@ -12,6 +12,8 @@ import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
@@ -63,6 +65,8 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
   private ModuPlyUserDetailsService moduPlyUserDetailsService;
   @Autowired
   private JwtTokenProvider jwtTokenProvider;
+  @Autowired
+  private RedisUtil redisUtil;
 
   private UUID user1Id;
   private UUID user2Id;
@@ -139,21 +143,54 @@ public class ContentChatIntegrationTest extends IntegrationTestSupport {
         user1.getEmail());
     Authentication authentication1 = new UsernamePasswordAuthenticationToken(moduPlyUserDetails1,
         moduPlyUserDetails1.getAuthorities());
-    accessToken1 = jwtTokenProvider.generateAccessToken(authentication1);
+    String sessionId1 = UUID.randomUUID().toString();
+    accessToken1 = jwtTokenProvider.generateAccessToken(authentication1, 0L, sessionId1);
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user1.getEmail()),
+        "0",
+        RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId1),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
+    );
     user1Id = user1.getId();
 
     ModuPlyUserDetails moduPlyUserDetails2 = moduPlyUserDetailsService.loadUserByUsername(
         user2.getEmail());
     Authentication authentication2 = new UsernamePasswordAuthenticationToken(moduPlyUserDetails2,
         moduPlyUserDetails2.getAuthorities());
-    accessToken2 = jwtTokenProvider.generateAccessToken(authentication2);
+    String sessionId2 = UUID.randomUUID().toString();
+    accessToken2 = jwtTokenProvider.generateAccessToken(authentication2, 0L, sessionId2);
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user2.getEmail()),
+        "0",
+        RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId2),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
+    );
     user2Id = user2.getId();
 
     ModuPlyUserDetails moduPlyUserDetails3 = moduPlyUserDetailsService.loadUserByUsername(
         user3.getEmail());
     Authentication authentication3 = new UsernamePasswordAuthenticationToken(moduPlyUserDetails3,
         moduPlyUserDetails3.getAuthorities());
-    accessToken3 = jwtTokenProvider.generateAccessToken(authentication3);
+    String sessionId3 = UUID.randomUUID().toString();
+    accessToken3 = jwtTokenProvider.generateAccessToken(authentication3, 0L, sessionId3);
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(user3.getEmail()),
+        "0",
+        RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId3),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
+    );
     user3Id = user3.getId();
 
     //대화방 구독 user1-content1, user2, user3 -content3

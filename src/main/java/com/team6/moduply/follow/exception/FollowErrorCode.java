@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 public enum FollowErrorCode implements ErrorCode {
   SELF_FOLLOW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "follow01", "자기 자신은 팔로우할 수 없습니다."),
   FOLLOW_ALREADY_EXISTS(HttpStatus.CONFLICT, "follow02", "이미 팔로우한 사용자입니다."),
-  FOLLOW_NOT_FOUND(HttpStatus.NOT_FOUND, "follow03", "팔로우 정보를 찾을 수 없습니다."),
+  FOLLOW_NOT_FOUND(HttpStatus.NOT_FOUND, "follow03", "팔로우하지 않은 사용자입니다."),
   FOLLOW_FORBIDDEN(HttpStatus.FORBIDDEN, "follow04", "해당 팔로우에 대한 권한이 없습니다.");
 
   private final HttpStatus httpStatus;

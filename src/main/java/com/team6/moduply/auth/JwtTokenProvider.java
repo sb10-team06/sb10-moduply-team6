@@ -16,6 +16,8 @@ import com.team6.moduply.user.dto.UserDto;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +33,10 @@ public class JwtTokenProvider {
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
   private static final String EMAIL_CLAIM = "email";
+  private static final String TOKEN_VERSION_CLAIM = "tokenVersion";
+  // Access/Refresh Token이 어떤 로그인 세션에 속하는지 식별하는 claim이다.
+  // 요청마다 Redis auth:session:{sessionId}를 확인해 같은 브라우저 재로그인으로 폐기된 토큰을 차단한다.
+  private static final String SESSION_ID_CLAIM = "sessionId";
 
   @Value("${jwt.key}")
   private String secretKey;
@@ -56,12 +62,28 @@ public class JwtTokenProvider {
     this.signingKey = keyBytes;
   }
 
-  public String generateAccessToken(Authentication authentication) {
-    return generateToken(authentication, ACCESS_TOKEN_TYPE, accessTokenExpirationMinutes);
+  public String generateAccessToken(
+      Authentication authentication,
+      long tokenVersion,
+      String sessionId
+  ) {
+    return generateToken(
+        authentication,
+        ACCESS_TOKEN_TYPE,
+        accessTokenExpirationMinutes,
+        tokenVersion,
+        sessionId
+    );
   }
 
-  public String generateRefreshToken(Authentication authentication) {
-    return generateToken(authentication, REFRESH_TOKEN_TYPE, refreshTokenExpirationMinutes);
+  public String generateRefreshToken(Authentication authentication, String sessionId) {
+    return generateToken(
+        authentication,
+        REFRESH_TOKEN_TYPE,
+        refreshTokenExpirationMinutes,
+        null,
+        sessionId
+    );
   }
 
   public boolean validateAccessToken(String token) {
@@ -100,12 +122,77 @@ public class JwtTokenProvider {
     }
   }
 
+  public Duration getRemainingExpiration(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+      if (expirationTime == null) {
+        throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      }
+
+      Duration remaining = Duration.between(Instant.now(), expirationTime.toInstant());
+      return remaining.isNegative() ? Duration.ZERO : remaining;
+    } catch (ParseException e) {
+      log.warn("유효하지 않은 JWT 토큰입니다.", e);
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
+    }
+  }
+
+  public long getTokenVersion(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+      Object tokenVersionClaim = claimsSet.getClaim(TOKEN_VERSION_CLAIM);
+
+      // 숫자가 아닌 버전 클레임은 변조되거나 잘못 발급된 토큰으로 처리한다.
+      if(!(tokenVersionClaim instanceof Number number)){
+        throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      }
+
+      return number.longValue();
+    } catch (ParseException e) {
+      log.warn("유효하지 않은 JWT 토큰입니다.", e);
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
+    }
+  }
+
+  public String getSessionId(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+      String sessionId = claimsSet.getStringClaim(SESSION_ID_CLAIM);
+      // sessionId가 없는 토큰은 세션 registry로 유효성을 확인할 수 없으므로 거부한다.
+      if (sessionId == null || sessionId.isBlank()) {
+        throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of());
+      }
+      return sessionId;
+    } catch (ParseException e) {
+      log.warn("유효하지 않은 JWT 토큰입니다.", e);
+      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+          "details", e.getMessage()
+      ));
+    }
+  }
+
   // 토큰 생성
+
   private String generateToken(
       Authentication authentication,
       String tokenType,
-      int expirationMinutes
+      int expirationMinutes,
+      Long tokenVersion,
+      String sessionId
   ) {
+    if (sessionId == null || sessionId.isBlank()) {
+      throw new AuthException(AuthErrorCode.TOKEN_GENERATION_FAILED_EXCEPTION, Map.of(
+          "tokenType", tokenType,
+          "reason", "sessionId is blank"));
+      }
+
     try {
       // 서명자 생성
       JWSSigner jwtSigner = new MACSigner(signingKey);
@@ -117,13 +204,19 @@ public class JwtTokenProvider {
       Date issuedAt = new Date();
       Date expiresAt = new Date(issuedAt.getTime() + expirationMinutes * 60_000L);
 
-      // 공통 페이로드 생성 - 유저 식별id,  토큰 타입, 발급 시간, 만료 시간
+      // 공통 페이로드 생성 - 유저 식별id,  토큰 타입, 이메일, 세션Id, 발급 시간, 만료 시간
       JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder()
           .subject(userDto.getId().toString())
           .claim("type", tokenType)
           .claim(EMAIL_CLAIM, userDto.getEmail())
+          .claim(SESSION_ID_CLAIM, sessionId)
           .issueTime(issuedAt)
           .expirationTime(expiresAt);
+
+      // 권한 변경 전후의 토큰을 구분하기 위해 Access Token에만 버전을 기록한다.
+      if(ACCESS_TOKEN_TYPE.equals(tokenType)){
+        claimsBuilder.claim(TOKEN_VERSION_CLAIM, tokenVersion);
+      }
 
       // 토큰 타입에 따른 페이로드 추가 정보 설정 - RT면 토큰 식별 id(Redis 조회용) 추가
       if (REFRESH_TOKEN_TYPE.equals(tokenType)) {

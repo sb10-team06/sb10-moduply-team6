@@ -13,7 +13,7 @@ public record ReviewSearchRequest(
 
     @NotNull
     @Schema(description = "콘텐츠 ID")
-    UUID contentIdEqual,
+    UUID contentId,
 
     @Schema(description = "커서")
     String cursor,

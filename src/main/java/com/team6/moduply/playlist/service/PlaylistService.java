@@ -1,6 +1,8 @@
 package com.team6.moduply.playlist.service;
 
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
+import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.notification.event.ContentAddedEvent;
 import com.team6.moduply.notification.event.FollowActivityEvent;
@@ -26,6 +28,8 @@ import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +49,7 @@ public class PlaylistService {
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final UserRepository userRepository;
+  private final BinaryContentService binaryContentService;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -65,7 +70,7 @@ public class PlaylistService {
         "새 플레이리스트를 생성했습니다."
     ));
 
-    return playlistMapper.toDto(saved);
+    return playlistMapper.toDto(saved, null, 0L, false, List.of());
   }
 
   @Transactional
@@ -81,7 +86,7 @@ public class PlaylistService {
 
     playlist.update(request.title(), request.description());
 
-    return playlistMapper.toDto(playlist);
+    return playlistMapper.toDto(playlist, null, 0L, false, List.of());
   }
 
   @Transactional
@@ -98,14 +103,47 @@ public class PlaylistService {
   }
 
   @Transactional(readOnly = true)
-  public PlaylistDto findById(UUID playlistId) {
+  public PlaylistDto findById(UUID playlistId, UUID currentUserId) {
     Playlist playlist = playlistRepository.findById(playlistId)
         .orElseThrow(() -> new PlaylistException(
             PlaylistErrorCode.PLAYLIST_NOT_FOUND,
             Map.of("playlistId", playlistId)
         ));
 
-    return playlistMapper.toDto(playlist);
+    PlaylistDto.OwnerDto ownerDto = userRepository.findById(playlist.getOwnerId())
+        .map(user -> new PlaylistDto.OwnerDto(user.getId(), user.getName(), null))
+        .orElse(null);
+
+    // TODO: 실시간성이 중요하지 않으므로 캐싱 적용하기
+    long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
+    boolean subscribedByMe = currentUserId != null &&
+        playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId);
+
+    List<PlaylistContent> playlistContents = playlistContentRepository.findAllByPlaylist(playlist);
+    List<UUID> contentIds = playlistContents.stream()
+        .map(PlaylistContent::getContentId)
+        .toList();
+    Map<UUID, Content> contentMap = contentRepository.findAllById(contentIds).stream()
+        .collect(Collectors.toMap(Content::getId, c -> c));
+
+    List<PlaylistDto.ContentSummaryDto> contents = playlistContents.stream()
+        .map(pc -> {
+          Content c = contentMap.get(pc.getContentId());
+          if (c == null) return null;
+          return new PlaylistDto.ContentSummaryDto(
+              c.getId(),
+              c.getType(),
+              c.getTitle(),
+              c.getDescription(),
+              binaryContentService.generateUrl(c.getContentImg()),
+              List.of(),
+              c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
+              c.getReviewCount());
+        })
+        .filter(Objects::nonNull)
+        .toList();
+
+    return playlistMapper.toDto(playlist, ownerDto, subscriberCount, subscribedByMe, contents);
   }
 
   @Transactional(readOnly = true)
@@ -131,9 +169,8 @@ public class PlaylistService {
     }
 
     List<PlaylistDto> data = playlists.stream()
-        .map(playlistMapper::toDto)
+        .map(playlist -> playlistMapper.toDto(playlist, null, 0L, false, List.of()))
         .toList();
-
     return new CursorResponse<>(
         data,
         nextCursor,

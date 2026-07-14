@@ -8,12 +8,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetailsService;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -96,8 +98,12 @@ class WebSocketConfigTest {
     assertThat(moduPlyUserDetails).isNotNull();
     Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
         moduPlyUserDetails.getAuthorities());
-    userAccessToken = jwtTokenProvider.generateAccessToken(authentication);
-    userRefreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+    String userSessionId = UUID.randomUUID().toString();
+    userAccessToken = jwtTokenProvider.generateAccessToken(authentication, 0L, userSessionId);
+    given(redisUtil.getData(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(testUser.getEmail()))).willReturn("0");
+    given(redisUtil.getData(RedisKeyPolicy.AUTH_SESSION.generateKey(userSessionId))).willReturn("ACTIVE");
+    userRefreshToken = jwtTokenProvider.generateRefreshToken(authentication, userSessionId);
 
     //admin
     userService.createUser(
@@ -110,7 +116,11 @@ class WebSocketConfigTest {
     assertThat(adminDetails).isNotNull();
     Authentication adminAuth = new UsernamePasswordAuthenticationToken(adminDetails,
         adminDetails.getAuthorities());
-    adminAccessToken = jwtTokenProvider.generateAccessToken(adminAuth);
+    String adminSessionId = UUID.randomUUID().toString();
+    adminAccessToken = jwtTokenProvider.generateAccessToken(adminAuth, 0L, adminSessionId);
+    given(redisUtil.getData(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(adminUser.getEmail()))).willReturn("0");
+    given(redisUtil.getData(RedisKeyPolicy.AUTH_SESSION.generateKey(adminSessionId))).willReturn("ACTIVE");
   }
 
   @Test

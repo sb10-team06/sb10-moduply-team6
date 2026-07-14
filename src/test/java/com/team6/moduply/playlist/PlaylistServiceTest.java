@@ -39,6 +39,9 @@ import static com.team6.moduply.playlist.dto.PlaylistSortBy.updatedAt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -91,14 +94,14 @@ class PlaylistServiceTest {
     );
 
     given(playlistRepository.save(any(Playlist.class))).willReturn(savedPlaylist);
-    given(playlistMapper.toDto(savedPlaylist)).willReturn(expectedDto);
+    given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(expectedDto);
     given(userRepository.findById(ownerId)).willReturn(Optional.of(user("owner")));
 
     // when
     PlaylistDto result = playlistService.create(request, ownerId);
 
     // then
-    verify(playlistMapper).toDto(savedPlaylist);
+    verify(playlistMapper).toDto(eq(savedPlaylist), any(), anyLong(), anyBoolean(), any());
     assertThat(result.title()).isEqualTo("내 최애 영화");
     assertThat(result.description()).isEqualTo("비 오는 날 보기 좋은 영화들");
   }
@@ -138,7 +141,7 @@ class PlaylistServiceTest {
     );
 
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-    given(playlistMapper.toDto(playlist)).willReturn(expectedDto);
+    given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(expectedDto);
 
     // when
     PlaylistDto result = playlistService.update(playlistId, request, ownerId);
@@ -148,7 +151,7 @@ class PlaylistServiceTest {
     assertThat(result.description()).isEqualTo("수정된 설명");
     assertThat(playlist.getTitle()).isEqualTo("수정된 제목");
     assertThat(playlist.getDescription()).isEqualTo("수정된 설명");
-    verify(playlistMapper).toDto(playlist);
+    verify(playlistMapper).toDto(eq(playlist), any(), anyLong(), anyBoolean(), any());
   }
 
   @Test
@@ -268,15 +271,15 @@ class PlaylistServiceTest {
     );
 
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
-    given(playlistMapper.toDto(playlist)).willReturn(expectedDto);
+    given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(expectedDto);
 
     // when
-    PlaylistDto result = playlistService.findById(playlistId);
+    PlaylistDto result = playlistService.findById(playlistId, null);
 
     // then
     assertThat(result.title()).isEqualTo("내 최애 영화");
     assertThat(result.description()).isEqualTo("비 오는 날 보기 좋은 영화들");
-    verify(playlistMapper).toDto(playlist);
+    verify(playlistMapper).toDto(eq(playlist), any(), anyLong(), anyBoolean(), any());
   }
 
   @Test
@@ -288,7 +291,7 @@ class PlaylistServiceTest {
     given(playlistRepository.findById(playlistId)).willReturn(Optional.empty());
 
     // when & then
-    assertThatThrownBy(() -> playlistService.findById(playlistId))
+    assertThatThrownBy(() -> playlistService.findById(playlistId, null))
         .isInstanceOf(PlaylistException.class);
   }
 
@@ -315,7 +318,7 @@ class PlaylistServiceTest {
 
     given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist));
     given(playlistQDSLRepository.countWithCondition(request)).willReturn(1L);
-    given(playlistMapper.toDto(playlist)).willReturn(dto);
+    given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(dto);
 
     // when
     CursorResponse<PlaylistDto> result = playlistService.findAll(request);
@@ -348,7 +351,7 @@ class PlaylistServiceTest {
     // limit+1개 반환 (sentinel)
     given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(new ArrayList<>(List.of(playlist1, playlist2)));
     given(playlistQDSLRepository.countWithCondition(request)).willReturn(2L);
-    given(playlistMapper.toDto(playlist1)).willReturn(dto1);
+    given(playlistMapper.toDto(eq(playlist1), any(), anyLong(), anyBoolean(), any())).willReturn(dto1);
 
     // when
     CursorResponse<PlaylistDto> result = playlistService.findAll(request);
@@ -383,8 +386,8 @@ class PlaylistServiceTest {
     // limit개만 반환 (마지막 페이지)
     given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist1, playlist2));
     given(playlistQDSLRepository.countWithCondition(request)).willReturn(2L);
-    given(playlistMapper.toDto(playlist1)).willReturn(dto1);
-    given(playlistMapper.toDto(playlist2)).willReturn(dto2);
+    given(playlistMapper.toDto(eq(playlist1), any(), anyLong(), anyBoolean(), any())).willReturn(dto1);
+    given(playlistMapper.toDto(eq(playlist2), any(), anyLong(), anyBoolean(), any())).willReturn(dto2);
 
     // when
     CursorResponse<PlaylistDto> result = playlistService.findAll(request);

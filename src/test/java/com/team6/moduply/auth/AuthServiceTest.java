@@ -2,7 +2,9 @@ package com.team6.moduply.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,17 +15,20 @@ import com.team6.moduply.auth.dto.TokenRefreshDto;
 import com.team6.moduply.auth.event.TempPasswordEvent;
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
+import com.team6.moduply.auth.service.AuthSessionService;
 import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -75,8 +80,124 @@ class AuthServiceTest {
   @Mock
   private RoleHierarchy roleHierarchy;
 
+  @Mock
+  private RedisUtil redisUtil;
+
+  @Mock
+  private AuthSessionService authSessionService;
+
   @InjectMocks
   private AuthService authService;
+
+  @Test
+  @DisplayName("Access Token 원문이 아니라 해시 기반 키로 블랙리스트에 등록한다")
+  void blacklist_access_token_stores_hashed_token_key() {
+    // Given
+    String token = "access-token";
+    Duration ttl = Duration.ofMinutes(10);
+
+    // When
+    authService.blacklistAccessToken(token, ttl);
+
+    // Then
+    verify(redisUtil).setDataExpire(
+        argThat(key -> key.startsWith("blacklist:access:") && !key.contains(token)),
+        eq("logout"),
+        eq(ttl)
+    );
+  }
+
+  @Test
+  @DisplayName("만료시간이 남지 않은 Access Token은 블랙리스트에 저장하지 않는다")
+  void blacklist_access_token_skip_when_ttl_is_zero() {
+    // When
+    authService.blacklistAccessToken("access-token", Duration.ZERO);
+
+    // Then
+    verify(redisUtil, never()).setDataExpire(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.any()
+    );
+  }
+
+  @Test
+  @DisplayName("Access Token 블랙리스트 키가 존재하면 true를 반환한다")
+  void is_access_token_blacklisted_returns_true_when_key_exists() {
+    // Given
+    given(redisUtil.getData(org.mockito.ArgumentMatchers.startsWith("blacklist:access:")))
+        .willReturn("logout");
+
+    // When
+    boolean result = authService.isAccessTokenBlacklisted("access-token");
+
+    // Then
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  @DisplayName("Access Token 버전이 Redis에 저장된 사용자 토큰 버전과 같으면 유효하다")
+  void is_token_version_valid_returns_true_when_versions_match() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn("2");
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 2L);
+
+    // Then
+    assertThat(result).isTrue();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
+  @DisplayName("Access Token 버전이 Redis에 저장된 사용자 토큰 버전과 다르면 유효하지 않다")
+  void is_token_version_valid_returns_false_when_versions_mismatch() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn("3");
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 2L);
+
+    // Then
+    assertThat(result).isFalse();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
+  @DisplayName("Redis에 사용자 토큰 버전이 없으면 유효하지 않다")
+  void is_token_version_valid_returns_false_when_stored_version_is_missing() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn(null);
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 0L);
+
+    // Then
+    assertThat(result).isFalse();
+    verify(redisUtil).getData(key);
+  }
+
+  @Test
+  @DisplayName("Redis의 사용자 토큰 버전이 숫자가 아니면 유효하지 않다")
+  void is_token_version_valid_returns_false_when_stored_version_is_malformed() {
+    // Given
+    String email = "tester@example.com";
+    String key = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email);
+    given(redisUtil.getData(key)).willReturn("invalid-version");
+
+    // When
+    boolean result = authService.isTokenVersionValid(email, 0L);
+
+    // Then
+    assertThat(result).isFalse();
+    verify(redisUtil).getData(key);
+  }
 
   @Test
   @DisplayName("사용자 ID로 최신 사용자 상태를 조회해 인증 객체를 생성한다")
@@ -224,7 +345,7 @@ class AuthServiceTest {
     String refreshToken = "refresh-token";
     String newAccessToken = "new-access-token";
     String newRefreshToken = "new-refresh-token";
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String sessionId = UUID.randomUUID().toString();
     User user = new User(email, "encoded-password", "tester", Role.USER);
     UserDto userDto = new UserDto(
         userId,
@@ -239,17 +360,24 @@ class AuthServiceTest {
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getSessionId(refreshToken)).willReturn(sessionId);
+    given(authSessionService.isSessionActive(sessionId)).willReturn(true);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateAccessToken(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.anyLong(),
+        eq(sessionId)
+    ))
         .willReturn(newAccessToken);
-    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any(), eq(sessionId)))
         .willReturn(newRefreshToken);
-    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("OK");
+    given(refreshTokenRedisUtil.rotate(sessionId, refreshToken, newRefreshToken)).willReturn("OK");
 
     // When
     TokenRefreshDto result = authService.refreshTokens(refreshToken);
@@ -257,7 +385,7 @@ class AuthServiceTest {
     // Then
     assertThat(result.getJwtDto().getAccessToken()).isEqualTo(newAccessToken);
     assertThat(result.getRefreshToken()).isEqualTo(newRefreshToken);
-    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
+    verify(refreshTokenRedisUtil).rotate(sessionId, refreshToken, newRefreshToken);
   }
 
   @Test
@@ -278,22 +406,29 @@ class AuthServiceTest {
     String refreshToken = "refresh-token";
     String newRefreshToken = "new-refresh-token";
     String email = user.getEmail();
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String sessionId = UUID.randomUUID().toString();
     List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getSessionId(refreshToken)).willReturn(sessionId);
+    given(authSessionService.isSessionActive(sessionId)).willReturn(true);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateAccessToken(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.anyLong(),
+        eq(sessionId)
+    ))
         .willReturn("new-access-token");
-    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any(), eq(sessionId)))
         .willReturn(newRefreshToken);
-    given(refreshTokenRedisUtil.rotate(email, refreshToken, newRefreshToken)).willReturn("MISMATCH");
+    given(refreshTokenRedisUtil.rotate(sessionId, refreshToken, newRefreshToken)).willReturn("MISMATCH");
 
     // When & Then
     assertThatThrownBy(() -> authService.refreshTokens(refreshToken))
@@ -301,7 +436,7 @@ class AuthServiceTest {
             assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.COMPROMISED_TOKEN_EXCEPTION)
         );
 
-    verify(refreshTokenRedisUtil).rotate(email, refreshToken, newRefreshToken);
+    verify(refreshTokenRedisUtil).rotate(sessionId, refreshToken, newRefreshToken);
   }
 
   @Test
@@ -321,22 +456,29 @@ class AuthServiceTest {
     );
     String refreshToken = "refresh-token";
     String email = user.getEmail();
-    String redisKey = RedisKeyPolicy.REFRESH_TOKEN.generateKey(email);
+    String sessionId = UUID.randomUUID().toString();
     List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 
     given(jwtTokenProvider.validateRefreshToken(refreshToken)).willReturn(true);
     given(jwtTokenProvider.getEmail(refreshToken)).willReturn(email);
+    given(jwtTokenProvider.getSessionId(refreshToken)).willReturn(sessionId);
+    given(authSessionService.isSessionActive(sessionId)).willReturn(true);
+    given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
     given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
-    given(jwtTokenProvider.generateAccessToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateAccessToken(
+        org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.anyLong(),
+        eq(sessionId)
+    ))
         .willReturn("new-access-token");
-    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any()))
+    given(jwtTokenProvider.generateRefreshToken(org.mockito.ArgumentMatchers.any(), eq(sessionId)))
         .willReturn("new-refresh-token");
-    given(refreshTokenRedisUtil.rotate(email, refreshToken, "new-refresh-token"))
+    given(refreshTokenRedisUtil.rotate(sessionId, refreshToken, "new-refresh-token"))
         .willReturn("OK")
         .willReturn("MISMATCH");
 
@@ -372,7 +514,7 @@ class AuthServiceTest {
 
     assertThat(successCount).isEqualTo(1);
     assertThat(failureCount).isEqualTo(1);
-    verify(refreshTokenRedisUtil, times(2)).rotate(email, refreshToken, "new-refresh-token");
+    verify(refreshTokenRedisUtil, times(2)).rotate(sessionId, refreshToken, "new-refresh-token");
   }
 
   private ResetPasswordRequest resetPasswordRequest(String email) {

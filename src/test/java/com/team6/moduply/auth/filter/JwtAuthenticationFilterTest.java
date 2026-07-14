@@ -48,6 +48,8 @@ class JwtAuthenticationFilterTest {
     // Given
     UUID userId = UUID.randomUUID();
     String token = "valid-token";
+    String email = "tester@example.com";
+    String sessionId = UUID.randomUUID().toString();
     Authentication authentication = new TestingAuthenticationToken("tester", null, "ROLE_USER");
     ModuPlyAuthenticationEntryPoint entryPoint =
         new ModuPlyAuthenticationEntryPoint(objectMapper());
@@ -61,6 +63,11 @@ class JwtAuthenticationFilterTest {
 
     given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(email);
+    given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(token)).willReturn(sessionId);
+    given(authService.isTokenVersionValid(email, 0L)).willReturn(true);
+    given(authService.isSessionActive(sessionId)).willReturn(true);
     given(authService.getAuthentication(userId)).willReturn(authentication);
 
     // When
@@ -72,7 +79,79 @@ class JwtAuthenticationFilterTest {
 
     verify(jwtTokenProvider).validateAccessToken(token);
     verify(jwtTokenProvider).getUserId(token);
+    verify(authService).isTokenVersionValid(email, 0L);
+    verify(authService).isSessionActive(sessionId);
     verify(authService).getAuthentication(userId);
+  }
+
+  @Test
+  @DisplayName("Access Token 버전이 현재 사용자 버전과 다르면 401을 반환한다")
+  void do_filter_fail_when_token_version_is_mismatched() throws Exception {
+    UUID userId = UUID.randomUUID();
+    String token = "old-token";
+    String email = "tester@example.com";
+    JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+        jwtTokenProvider,
+        authService,
+        new ModuPlyAuthenticationEntryPoint(objectMapper()),
+        redisUtil
+    );
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(userId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(email);
+    given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(token)).willReturn(UUID.randomUUID().toString());
+    given(authService.isTokenVersionValid(email, 0L)).willReturn(false);
+
+    filter.doFilter(request, response, new MockFilterChain());
+
+    assertThat(response.getStatus()).isEqualTo(401);
+    verify(authService).isTokenVersionValid(email, 0L);
+    verify(authService, never()).getAuthentication(any());
+  }
+
+  @Test
+  @DisplayName("SecurityContext에 인증 정보가 있어도 Redis 세션이 폐기되면 401을 반환한다")
+  void do_filter_fail_when_existing_security_context_session_is_revoked() throws Exception {
+    // Given
+    UUID userId = UUID.randomUUID();
+    String token = "revoked-session-token";
+    String email = "tester@example.com";
+    String sessionId = UUID.randomUUID().toString();
+    JwtAuthenticationFilter filter = new JwtAuthenticationFilter(
+        jwtTokenProvider,
+        authService,
+        new ModuPlyAuthenticationEntryPoint(objectMapper()),
+        redisUtil
+    );
+    SecurityContextHolder.getContext()
+        .setAuthentication(new TestingAuthenticationToken("existing-user", null, "ROLE_USER"));
+
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(jwtTokenProvider.getUserId(token)).willReturn(userId);
+    given(jwtTokenProvider.getEmail(token)).willReturn(email);
+    given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(token)).willReturn(sessionId);
+    given(authService.isTokenVersionValid(email, 0L)).willReturn(true);
+    given(authService.isSessionActive(sessionId)).willReturn(false);
+
+    // When
+    filter.doFilter(request, response, new MockFilterChain());
+
+    // Then
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getContentAsString()).contains("auth16");
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    verify(authService).isSessionActive(sessionId);
+    verify(authService, never()).getAuthentication(any());
   }
 
   @Test
@@ -125,6 +204,38 @@ class JwtAuthenticationFilterTest {
     assertThat(response.getContentAsString()).contains("auth06");
 
     verify(jwtTokenProvider).validateAccessToken(token);
+    verify(jwtTokenProvider, never()).getUserId(token);
+    verify(authService, never()).getAuthentication(any());
+  }
+
+  @Test
+  @DisplayName("블랙리스트에 등록된 Access Token이면 401 응답을 반환한다")
+  void do_filter_fail_when_access_token_is_blacklisted() throws Exception {
+    // Given
+    String token = "blacklisted-token";
+    ModuPlyAuthenticationEntryPoint entryPoint =
+        new ModuPlyAuthenticationEntryPoint(objectMapper());
+    JwtAuthenticationFilter filter =
+        new JwtAuthenticationFilter(jwtTokenProvider, authService, entryPoint, redisUtil);
+
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain filterChain = new MockFilterChain();
+
+    given(jwtTokenProvider.validateAccessToken(token)).willReturn(true);
+    given(authService.isAccessTokenBlacklisted(token)).willReturn(true);
+
+    // When
+    filter.doFilter(request, response, filterChain);
+
+    // Then
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    assertThat(response.getStatus()).isEqualTo(401);
+    assertThat(response.getContentAsString()).contains("auth17");
+
+    verify(jwtTokenProvider).validateAccessToken(token);
+    verify(authService).isAccessTokenBlacklisted(token);
     verify(jwtTokenProvider, never()).getUserId(token);
     verify(authService, never()).getAuthentication(any());
   }

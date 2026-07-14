@@ -10,6 +10,8 @@ import com.team6.moduply.config.support.IntegrationTestSupport;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.common.enums.RedisKeyPolicy;
+import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.UserCreateRequest;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.repository.UserRepository;
@@ -71,6 +73,8 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
   @Autowired
   private JwtTokenProvider jwtTokenProvider;
   @Autowired
+  private RedisUtil redisUtil;
+  @Autowired
   private ModuPlyUserDetailsService moduPlyUserDetailsService;
   @Autowired
   private ContentRepository contentRepository;
@@ -119,7 +123,18 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     assertThat(moduPlyUserDetails).isNotNull();
     Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
         moduPlyUserDetails.getAuthorities());
-    accessToken1 = jwtTokenProvider.generateAccessToken(authentication);
+    String sessionId1 = UUID.randomUUID().toString();
+    accessToken1 = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId1);
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(testUser.getEmail()),
+        "0",
+        RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId1),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
+    );
     userId1 = testUser.getId();
 
     // user 인증 정보 설정
@@ -132,7 +147,18 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     assertThat(moduPlyUserDetails2).isNotNull();
     Authentication authentication2 = new UsernamePasswordAuthenticationToken(moduPlyUserDetails2,
         moduPlyUserDetails2.getAuthorities());
-    accessToken2 = jwtTokenProvider.generateAccessToken(authentication2);
+    String sessionId2 = UUID.randomUUID().toString();
+    accessToken2 = jwtTokenProvider.generateAccessToken(authentication2, 0L, sessionId2);
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(testUser2.getEmail()),
+        "0",
+        RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId2),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
+    );
     userId2 = testUser2.getId();
 
     //Content
