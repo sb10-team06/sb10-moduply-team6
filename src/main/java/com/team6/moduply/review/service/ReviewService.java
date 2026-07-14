@@ -18,6 +18,8 @@ import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
+import com.team6.moduply.user.exception.UserErrorCode;
+import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.time.Instant;
@@ -50,6 +52,19 @@ public class ReviewService {
           Map.of("reviewId", reviewId)
       );
     }
+  }
+
+  private ReviewDto.AuthorDto getAuthorDto(UUID authorId) {
+    User author = userRepository.findById(authorId)
+        .orElseThrow(() -> new UserException(
+            UserErrorCode.USER_NOT_FOUND_EXCEPTION,
+            Map.of("authorId", authorId)
+        ));
+    return new ReviewDto.AuthorDto(
+        authorId,
+        author.getName(),
+        binaryContentService.generateUrl(author.getProfileImg())
+    );
   }
 
   @Transactional
@@ -85,17 +100,7 @@ public class ReviewService {
         "새 리뷰를 작성했습니다."
     ));
 
-    User authorUser = userRepository.findById(authorId)
-        .orElseThrow(() -> new ReviewException(
-            ReviewErrorCode.REVIEW_NOT_FOUND,
-            Map.of("authorId", authorId)
-        ));
-    ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
-        authorId,
-        authorUser.getName(),
-        binaryContentService.generateUrl(authorUser.getProfileImg())
-    );
-
+    ReviewDto.AuthorDto author = getAuthorDto(authorId);
     return reviewMapper.toDto(saved, author);
   }
 
@@ -113,17 +118,7 @@ public class ReviewService {
 
     review.update(request.text(), request.rating());
 
-    User authorUser = userRepository.findById(authorId)
-        .orElseThrow(() -> new ReviewException(
-            ReviewErrorCode.REVIEW_NOT_FOUND,
-            Map.of("authorId", authorId)
-        ));
-    ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
-        authorId,
-        authorUser.getName(),
-        binaryContentService.generateUrl(authorUser.getProfileImg())
-    );
-
+    ReviewDto.AuthorDto author = getAuthorDto(authorId);
     return reviewMapper.toDto(review, author);
   }
 
@@ -177,7 +172,7 @@ public class ReviewService {
         .distinct()
         .toList();
 
-    Map<UUID, UserDto> authorMap = userRepository.findAllById(authorIds)
+    Map<UUID, UserDto> authorMap = userRepository.findAllByIdWithProfileImg(authorIds)
         .stream()
         .collect(Collectors.toMap(
             User::getId,
