@@ -28,6 +28,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
+  private static final String SAME_SITE_ATTRIBUTE = "SameSite";
+  private static final String SAME_SITE_LAX = "Lax";
+
   private final JwtTokenProvider jwtTokenProvider;
   private final ObjectMapper objectMapper;
   private final CsrfTokenRepository csrfTokenRepository;
@@ -83,6 +86,7 @@ public class JwtLoginSuccessHandler implements AuthenticationSuccessHandler {
     refreshTokenCookie.setSecure(true);
     refreshTokenCookie.setPath("/");
     refreshTokenCookie.setMaxAge(refreshTokenExpirationMinutes * 60);
+    refreshTokenCookie.setAttribute(SAME_SITE_ATTRIBUTE, SAME_SITE_LAX);
     response.addCookie(refreshTokenCookie);
 
     CsrfToken csrfToken = csrfTokenRepository.generateToken(request);

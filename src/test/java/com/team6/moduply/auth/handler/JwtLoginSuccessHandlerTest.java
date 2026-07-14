@@ -102,6 +102,7 @@ class JwtLoginSuccessHandlerTest {
     assertThat(refreshTokenCookie.isHttpOnly()).isTrue();
     assertThat(refreshTokenCookie.getSecure()).isTrue();
     assertThat(refreshTokenCookie.getPath()).isEqualTo("/");
+    assertThat(refreshTokenCookie.getAttribute("SameSite")).isEqualTo("Lax");
     assertThat(csrfTokenCookie).isNotNull();
     assertThat(csrfTokenCookie.isHttpOnly()).isFalse();
     assertThat(csrfTokenCookie.getPath()).isEqualTo("/");

@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 public class BrowserIdResolver {
 
   public static final String BROWSER_ID_COOKIE_NAME = "BROWSER_ID";
+  private static final String SAME_SITE_ATTRIBUTE = "SameSite";
+  private static final String SAME_SITE_LAX = "Lax";
   private static final int BROWSER_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 90;
 
   /**
@@ -34,6 +36,7 @@ public class BrowserIdResolver {
     cookie.setSecure(true);
     cookie.setPath("/");
     cookie.setMaxAge(BROWSER_ID_MAX_AGE_SECONDS);
+    cookie.setAttribute(SAME_SITE_ATTRIBUTE, SAME_SITE_LAX);
     response.addCookie(cookie);
     return newBrowserId;
   }

@@ -109,7 +109,7 @@ public class AuthService {
     // 같은 브라우저 재로그인이나 로그아웃으로 폐기된 세션이면 Refresh Token 자체가
     // 아직 만료되지 않았더라도 재발급을 거부한다.
     if (!authSessionService.isSessionActive(sessionId)) {
-      throw new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
+      throw new AuthException(AuthErrorCode.SESSION_REVOKED_EXCEPTION, Map.of(
           "reason", "session not active"
       ));
     }
@@ -120,7 +120,7 @@ public class AuthService {
 
     if(storedVersion == null){
       throw new AuthException(
-          AuthErrorCode.INVALID_TOKEN_EXCEPTION,
+          AuthErrorCode.TOKEN_VERSION_MISMATCH_EXCEPTION,
           Map.of("reason", "token version not found")
       );
     }

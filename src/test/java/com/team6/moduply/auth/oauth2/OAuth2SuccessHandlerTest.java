@@ -93,6 +93,7 @@ class OAuth2SuccessHandlerTest {
     assertThat(setCookie).contains("Secure");
     assertThat(setCookie).contains("Path=/");
     assertThat(setCookie).contains("Max-Age=25200");
+    assertThat(setCookie).contains("SameSite=Lax");
     assertThat(response.getRedirectedUrl()).doesNotContain("access");
 
     verify(jwtTokenProvider, never()).generateAccessToken(

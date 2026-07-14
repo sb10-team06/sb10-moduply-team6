@@ -187,6 +187,12 @@ public class JwtTokenProvider {
       Long tokenVersion,
       String sessionId
   ) {
+    if (sessionId == null || sessionId.isBlank()) {
+      throw new AuthException(AuthErrorCode.TOKEN_GENERATION_FAILED_EXCEPTION, Map.of(
+          "tokenType", tokenType,
+          "reason", "sessionId is blank"));
+      }
+
     try {
       // 서명자 생성
       JWSSigner jwtSigner = new MACSigner(signingKey);

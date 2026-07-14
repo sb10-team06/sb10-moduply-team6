@@ -26,6 +26,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @RequiredArgsConstructor
 public class JwtLogoutHandler implements LogoutHandler {
+  private static final String SAME_SITE_ATTRIBUTE = "SameSite";
+  private static final String SAME_SITE_LAX = "Lax";
 
   private final JwtTokenProvider jwtTokenProvider;
   private final RedisUtil redisUtil;
@@ -41,6 +43,7 @@ public class JwtLogoutHandler implements LogoutHandler {
     deleteCookie.setPath("/");
     deleteCookie.setHttpOnly(true);
     deleteCookie.setSecure(true);
+    deleteCookie.setAttribute(SAME_SITE_ATTRIBUTE, SAME_SITE_LAX);
     response.addCookie(deleteCookie);
 
     SecurityContextHolder.clearContext();
