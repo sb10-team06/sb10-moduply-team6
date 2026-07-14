@@ -297,8 +297,8 @@ public class PlaylistService {
     }
 
     User subscriber = userRepository.findById(subscriberId)
-        .orElseThrow(() -> new PlaylistException(
-            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+        .orElseThrow(() -> new UserException(
+            UserErrorCode.USER_NOT_FOUND_EXCEPTION,
             Map.of("subscriberId", subscriberId)
         ));
 
