@@ -1,6 +1,7 @@
 package com.team6.moduply.review.service;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.notification.event.FollowActivityEvent;
@@ -40,6 +41,7 @@ public class ReviewService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final ApplicationEventPublisher eventPublisher;
+  private final BinaryContentService binaryContentService;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
     if (!review.getAuthorId().equals(authorId)) {
@@ -83,11 +85,15 @@ public class ReviewService {
         "새 리뷰를 작성했습니다."
     ));
 
-    // TODO: S3 이미지 저장 로직 완성 후 profileImageUrl 실제 URL로 교체 필요 (현재 null 반환)
+    User authorUser = userRepository.findById(authorId)
+        .orElseThrow(() -> new ReviewException(
+            ReviewErrorCode.REVIEW_NOT_FOUND,
+            Map.of("authorId", authorId)
+        ));
     ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
         authorId,
-        userDetails.getUserDto().getName(),
-        userDetails.getUserDto().getProfileImageUrl()
+        authorUser.getName(),
+        binaryContentService.generateUrl(authorUser.getProfileImg())
     );
 
     return reviewMapper.toDto(saved, author);
@@ -107,10 +113,15 @@ public class ReviewService {
 
     review.update(request.text(), request.rating());
 
+    User authorUser = userRepository.findById(authorId)
+        .orElseThrow(() -> new ReviewException(
+            ReviewErrorCode.REVIEW_NOT_FOUND,
+            Map.of("authorId", authorId)
+        ));
     ReviewDto.AuthorDto author = new ReviewDto.AuthorDto(
         authorId,
-        userDetails.getUserDto().getName(),
-        userDetails.getUserDto().getProfileImageUrl()
+        authorUser.getName(),
+        binaryContentService.generateUrl(authorUser.getProfileImg())
     );
 
     return reviewMapper.toDto(review, author);
@@ -168,7 +179,10 @@ public class ReviewService {
 
     Map<UUID, UserDto> authorMap = userRepository.findAllById(authorIds)
         .stream()
-        .collect(Collectors.toMap(User::getId, userMapper::toDto));
+        .collect(Collectors.toMap(
+            User::getId,
+            user -> userMapper.toDto(user, binaryContentService.generateUrl(user.getProfileImg()))
+        ));
 
     List<ReviewDto> data = reviews.stream()
         .map(review -> {
