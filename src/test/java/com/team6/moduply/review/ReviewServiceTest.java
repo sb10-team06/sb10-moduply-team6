@@ -1,6 +1,7 @@
 package com.team6.moduply.review;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.repository.ContentRepository;
@@ -69,6 +70,9 @@ class ReviewServiceTest {
 
   @Mock
   private ApplicationEventPublisher eventPublisher;
+
+  @Mock
+  private BinaryContentService binaryContentService;
 
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(
@@ -329,7 +333,7 @@ class ReviewServiceTest {
     given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class)))
         .willReturn(dto1, dto2);
-    given(userRepository.findAllById(any())).willReturn(List.of());
+    given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
     // when
     CursorResponse<ReviewDto> result = reviewService.findAll(request);
@@ -369,7 +373,7 @@ class ReviewServiceTest {
         .willReturn(new ArrayList<>(List.of(review1, review2)));
     given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
-    given(userRepository.findAllById(any())).willReturn(List.of());
+    given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
     // when
     CursorResponse<ReviewDto> result = reviewService.findAll(request);
@@ -410,7 +414,7 @@ class ReviewServiceTest {
         .willReturn(new ArrayList<>(List.of(review1, review2)));
     given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
-    given(userRepository.findAllById(any())).willReturn(List.of());
+    given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
     // when
     CursorResponse<ReviewDto> result = reviewService.findAll(request);
