@@ -122,6 +122,29 @@ class OAuth2UserSyncServiceTest {
   }
 
   @Test
+  @DisplayName("같은 provider라도 providerId가 다르면 OAuth2 로그인 실패 예외를 던진다")
+  void sync_throws_oauth2_exception_when_same_provider_has_different_provider_id() {
+    // Given
+    OAuth2UserSyncService syncService = new OAuth2UserSyncService(userRepository, socialAccountRepository);
+    UUID userId = UUID.randomUUID();
+    User user = user("tester@example.com", Role.USER, false, userId);
+    SocialAccount linkedAccount = new SocialAccount(Provider.GOOGLE, "linked-google-sub", user);
+    givenUserInfo("google", "other-google-sub", "tester@example.com", "tester");
+
+    given(userRepository.findByEmail("tester@example.com")).willReturn(Optional.of(user));
+    given(socialAccountRepository.findByUserId(userId)).willReturn(Optional.of(linkedAccount));
+
+    // When & Then
+    assertThatThrownBy(() -> syncService.sync("google", oAuth2UserInfo))
+        .isInstanceOfSatisfying(OAuth2AuthenticationException.class, exception ->
+            assertThat(exception.getError().getErrorCode())
+                .isEqualTo(AuthErrorCode.DUPLICATED_ACCOUNT_EXCEPTION.getCode())
+        );
+
+    verify(socialAccountRepository, never()).save(any(SocialAccount.class));
+  }
+
+  @Test
   @DisplayName("잠금 사용자는 OAuth2 로그인 실패 예외를 던진다")
   void sync_throws_oauth2_exception_when_user_is_locked() {
     // Given
