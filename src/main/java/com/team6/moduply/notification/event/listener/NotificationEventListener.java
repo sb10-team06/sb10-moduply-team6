@@ -103,7 +103,8 @@ public class NotificationEventListener {
     try {
       NotificationDto dto = notificationService.sendDmReceivedNotification(
           event.getReceiverId(),
-          event.getSenderName()
+          event.getSenderName(),
+          event.getContent()
       );
       sseEmitterManager.send(event.getReceiverId(), dto);
     } catch (Exception e) {

@@ -91,12 +91,6 @@ public class NotificationService {
 
     if (hasNext) {
       Notification last = notifications.get(notifications.size() - 1);
-      if (last.getCreatedAt() == null) {
-        throw new NotificationException(
-            NotificationErrorCode.NOTIFICATION_INVALID_STATE,
-            Map.of("notificationId", last.getId())
-        );
-      }
       nextCursor = last.getCreatedAt().toString();
       nextIdAfter = last.getId();
     }
@@ -131,12 +125,12 @@ public class NotificationService {
   }
 
   @Transactional
-  public NotificationDto sendDmReceivedNotification(UUID receiverId, String senderName) {
+  public NotificationDto sendDmReceivedNotification(UUID receiverId, String senderName, String content) {
     Notification notification = Notification.builder()
         .receiverId(receiverId)
         .type(NotificationType.DM_RECEIVED)
-        .title(NotificationType.DM_RECEIVED.getTitle())
-        .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), senderName))
+        .title(String.format(NotificationType.DM_RECEIVED.getTitle(), senderName))
+        .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), content))
         .level(NotificationLevel.INFO)
         .build();
     Notification saved = notificationRepository.save(notification);

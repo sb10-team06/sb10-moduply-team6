@@ -107,7 +107,7 @@ function requestResultPanel(title, metrics) {
   `;
 }
 
-function detailRows(metrics, transactionCount, transactionTps, duplicateCount = 0) {
+function detailRows(metrics, transactionCount, transactionTps, duplicateCount) {
   return `
     <tr><td>총 요청 수</td><td>${formatNumber(metrics.requestCount, 0)}</td></tr>
     <tr><td>초당 요청 수</td><td>${formatNumber(metrics.requestRate, 2)}</td></tr>
@@ -116,13 +116,13 @@ function detailRows(metrics, transactionCount, transactionTps, duplicateCount = 
     <tr><td>p99 응답 시간</td><td>${formatMs(metrics.durationP99)}</td></tr>
     <tr><td>최대 응답 시간</td><td>${formatMs(metrics.durationMax)}</td></tr>
     <tr><td>성공 트랜잭션 수</td><td>${formatNumber(transactionCount, 0)}</td></tr>
-    <tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>
+    ${duplicateCount === undefined ? '' : `<tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>`}
     <tr><td>TPS</td><td>${formatNumber(transactionTps, 2)}</td></tr>
     <tr><td>요청 실패율</td><td>${formatRate(metrics.failedRate)}</td></tr>
   `;
 }
 
-function taggedApiSection(data, tagValue, title, transactionCount = 0, transactionTps = 0, duplicateCount = 0) {
+function taggedApiSection(data, tagValue, title, transactionCount = 0, transactionTps = 0, duplicateCount) {
   const tagName = 'api';
   const durationMetric = taggedMetric('http_req_duration', tagName, tagValue);
 
@@ -176,7 +176,9 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
 }
 
 function taggedApiSections(data, transactionCount, transactionTps) {
-  const duplicateCount = value(data, 'follow_already_exists', 'count');
+  const duplicateCount = hasMetric(data, 'follow_already_exists')
+    ? value(data, 'follow_already_exists', 'count')
+    : undefined;
   const sections = [
     taggedApiSection(data, 'profile-read', '프로필 조회 API'),
     taggedApiSection(data, 'follow-status', '팔로우 여부 조회 API'),
@@ -210,7 +212,9 @@ export function createKoreanHtmlReport(data, scenarioName) {
     || value(data, 'follow_created', 'count');
   const transactionTps = value(data, 'content_created', 'rate')
     || value(data, 'follow_created', 'rate');
-  const duplicateCount = value(data, 'follow_already_exists', 'count');
+  const duplicateCount = hasMetric(data, 'follow_already_exists')
+    ? value(data, 'follow_already_exists', 'count')
+    : undefined;
 
   const status = statusText(overall.failedRate);
   const statusCss = statusClass(overall.failedRate);
