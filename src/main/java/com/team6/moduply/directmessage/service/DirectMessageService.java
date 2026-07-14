@@ -70,7 +70,8 @@ public class DirectMessageService {
             withUserId,
             currentUserId,
             currentUser.getName(),
-            conversationId
+            conversationId,
+            request.content()
     ));
 
     DirectMessageDto response = directMessageMapper.toDto(

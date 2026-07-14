@@ -24,6 +24,7 @@ public class NotificationQDSLRepositoryImpl implements NotificationQDSLRepositor
     return queryFactory.selectFrom(notification)
         .where(
             notification.receiverId.eq(receiverId),
+            notification.isRead.eq(false),
             cursorCondition(request)
         )
         .orderBy(
@@ -40,7 +41,9 @@ public class NotificationQDSLRepositoryImpl implements NotificationQDSLRepositor
   public long countWithCondition(UUID receiverId) {
     Long result = queryFactory.select(notification.count())
         .from(notification)
-        .where(notification.receiverId.eq(receiverId))
+        .where(
+            notification.receiverId.eq(receiverId),
+            notification.isRead.eq(false))
         .fetchOne();
     return result != null ? result : 0L;
   }

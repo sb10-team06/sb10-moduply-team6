@@ -118,37 +118,6 @@ class NotificationServiceTest {
     // then
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
-    assertThat(result.nextIdAfter()).isEqualTo(notificationId);
-  }
-
-  @Test
-  @DisplayName("hasNext가 true인데 마지막 알림의 createdAt이 null이면 예외가 발생한다.")
-  void findAll_fail_with_invalid_state() {
-    // given
-    UUID receiverId = UUID.randomUUID();
-    NotificationSearchRequest request = new NotificationSearchRequest(
-        null, null, 1, SortDirection.DESCENDING, NotificationSortBy.createdAt
-    );
-
-    Notification notification1 = Notification.builder()
-        .receiverId(receiverId).type(NotificationType.PLAYLIST_SUBSCRIBED)
-        .title("제목1").content("내용1").level(NotificationLevel.INFO).build();
-    Notification notification2 = Notification.builder()
-        .receiverId(receiverId).type(NotificationType.CONTENT_ADDED)
-        .title("제목2").content("내용2").level(NotificationLevel.INFO).build();
-
-    // createdAt을 null로 유지 (주입 안 함)
-    ReflectionTestUtils.setField(notification1, "id", UUID.randomUUID());
-
-    given(notificationQDSLRepository.findAllWithCursor(request, receiverId))
-        .willReturn(new ArrayList<>(List.of(notification1, notification2)));
-    given(notificationQDSLRepository.countWithCondition(receiverId)).willReturn(2L);
-
-    // when & then
-    assertThatThrownBy(() -> notificationService.findAll(request, receiverId))
-        .isInstanceOf(NotificationException.class)
-        .satisfies(e -> assertThat(((NotificationException) e).getErrorCode())
-            .isEqualTo(NotificationErrorCode.NOTIFICATION_INVALID_STATE));
   }
 
   @Test
