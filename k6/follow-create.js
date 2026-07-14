@@ -8,6 +8,7 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const PASSWORD = __ENV.TEST_USER_PASSWORD || 'k6-password';
 const FOLLOWER_COUNT = Number(__ENV.FOLLOWER_COUNT || 1000);
 const FOLLOWEE_COUNT = Number(__ENV.FOLLOWEE_COUNT || 3000);
+const SETUP_LOGIN_BATCH_SIZE = Math.max(1, Number(__ENV.SETUP_LOGIN_BATCH_SIZE || 100));
 const EMAIL_DOMAIN = __ENV.EMAIL_DOMAIN || '@moduply.test';
 const FOLLOWER_PREFIX = __ENV.FOLLOWER_PREFIX || 'k6-follower';
 const FOLLOWEE_PREFIX = __ENV.FOLLOWEE_PREFIX || 'k6-followee';
@@ -47,16 +48,9 @@ export const options = {
 };
 
 export function setup() {
-  const followers = [];
-  const followees = [];
-
-  for (let i = 1; i <= FOLLOWER_COUNT; i += 1) {
-    followers.push(login(createEmail(FOLLOWER_PREFIX, i), true));
-  }
-
-  for (let i = 1; i <= FOLLOWEE_COUNT; i += 1) {
-    followees.push(login(createEmail(FOLLOWEE_PREFIX, i), false).userId);
-  }
+  const followers = batchLogin(FOLLOWER_PREFIX, FOLLOWER_COUNT, true);
+  const followees = batchLogin(FOLLOWEE_PREFIX, FOLLOWEE_COUNT, false)
+    .map((followee) => followee.userId);
 
   return { followers, followees };
 }
@@ -125,22 +119,54 @@ function buildStages() {
   return stages;
 }
 
-function login(email, requireCsrf) {
-  const res = http.post(
-    `${BASE_URL}/api/auth/sign-in`,
-    {
+function batchLogin(prefix, count, requireCsrf) {
+  const users = [];
+
+  for (let start = 1; start <= count; start += SETUP_LOGIN_BATCH_SIZE) {
+    const end = Math.min(start + SETUP_LOGIN_BATCH_SIZE - 1, count);
+    const emails = [];
+    const requests = [];
+
+    for (let i = start; i <= end; i += 1) {
+      const email = createEmail(prefix, i);
+      emails.push(email);
+      requests.push(createLoginRequest(email, requireCsrf));
+    }
+
+    const responses = http.batch(requests);
+    const chunkUsers = responses.map((res, index) =>
+      parseLoginResponse(res, emails[index])
+    );
+
+    if (requireCsrf) {
+      fillMissingCsrfCookies(chunkUsers);
+    }
+
+    users.push(...chunkUsers);
+  }
+
+  return users;
+}
+
+function createLoginRequest(email, requireCsrf) {
+  return {
+    method: 'POST',
+    url: `${BASE_URL}/api/auth/sign-in`,
+    body: {
       username: email,
       password: PASSWORD,
     },
-    {
+    params: {
       responseCallback: http.expectedStatuses(200),
       tags: {
         api: requireCsrf ? 'follower-login' : 'followee-login',
         name: 'POST /api/auth/sign-in',
       },
-    }
-  );
+    },
+  };
+}
 
+function parseLoginResponse(res, email) {
   check(res, {
     'login succeeded': (response) => response.status === 200,
   });
@@ -150,31 +176,51 @@ function login(email, requireCsrf) {
   }
 
   const body = res.json();
-  let csrfCookie = getCookieValue(res, 'XSRF-TOKEN');
-  if (requireCsrf && !csrfCookie) {
-    const csrfRes = http.get(`${BASE_URL}/api/auth/csrf-token`, {
-      headers: {
-        Authorization: `Bearer ${body.accessToken}`,
-      },
-      responseCallback: http.expectedStatuses(200, 204),
-      tags: {
-        api: 'csrf-token',
-        name: 'GET /api/auth/csrf-token',
-      },
-    });
-    csrfCookie = getCookieValue(csrfRes, 'XSRF-TOKEN');
-  }
-
-  if (requireCsrf && !csrfCookie) {
-    throw new Error(`XSRF-TOKEN cookie was not issued. email=${email}`);
-  }
+  const csrfCookie = getCookieValue(res, 'XSRF-TOKEN');
 
   return {
+    email,
     userId: body.userDto.id,
     accessToken: body.accessToken,
     csrfCookie,
     csrfHeader: csrfCookie ? decodeURIComponent(csrfCookie) : undefined,
   };
+}
+
+function fillMissingCsrfCookies(users) {
+  const missingUsers = users.filter((user) => !user.csrfCookie);
+  if (missingUsers.length === 0) {
+    return;
+  }
+
+  const responses = http.batch(
+    missingUsers.map((user) => ({
+      method: 'GET',
+      url: `${BASE_URL}/api/auth/csrf-token`,
+      params: {
+        headers: {
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        responseCallback: http.expectedStatuses(200, 204),
+        tags: {
+          api: 'csrf-token',
+          name: 'GET /api/auth/csrf-token',
+        },
+      },
+    }))
+  );
+
+  responses.forEach((res, index) => {
+    const user = missingUsers[index];
+    const csrfCookie = getCookieValue(res, 'XSRF-TOKEN');
+
+    if (!csrfCookie) {
+      throw new Error(`XSRF-TOKEN cookie was not issued. email=${user.email}`);
+    }
+
+    user.csrfCookie = csrfCookie;
+    user.csrfHeader = decodeURIComponent(csrfCookie);
+  });
 }
 
 function createEmail(prefix, index) {
