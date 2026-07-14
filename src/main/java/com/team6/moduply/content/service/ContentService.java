@@ -4,6 +4,7 @@ import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
@@ -31,6 +32,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +51,10 @@ public class ContentService {
   private final BinaryContentService binaryContentService;
 
   @PreAuthorize("hasRole('ADMIN')")
+  @CacheEvict(
+      cacheNames = {CacheConfig.CONTENT_LIST, CacheConfig.CONTENT_DETAIL},    // 캐시 저장된거 삭제
+      allEntries = true
+  )
   @Transactional
   public ContentDto create(
       ContentCreateRequest request,
@@ -86,6 +93,10 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
+  @CacheEvict(
+      cacheNames = {CacheConfig.CONTENT_LIST, CacheConfig.CONTENT_DETAIL},
+      allEntries = true
+  )
   @Transactional
   public ContentDto update(
       UUID contentId,
@@ -115,6 +126,10 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
+  @CacheEvict(
+      cacheNames = {CacheConfig.CONTENT_LIST, CacheConfig.CONTENT_DETAIL},
+      allEntries = true
+  )
   @Transactional
   public void delete(UUID contentId) {
     log.debug("콘텐츠 삭제 처리 시작: contentId={}", contentId);
@@ -139,6 +154,7 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
+  @Cacheable(cacheNames = CacheConfig.CONTENT_LIST, key = "#request", sync = true)      // sync = true: 동일 키 동시 미스 방지
   public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
     List<String> normalizedTagsIn = normalizeTags(request.tagsIn());
 
@@ -199,6 +215,7 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
+  @Cacheable(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId", sync = true)
   public ContentDto find(UUID contentId) {
     log.debug("콘텐츠 단건 조회 처리 시작: contentId={}", contentId);
 
