@@ -295,11 +295,19 @@ public class PlaylistService {
           e
       );
     }
+
+    User subscriber = userRepository.findById(subscriberId)
+        .orElseThrow(() -> new PlaylistException(
+            PlaylistErrorCode.PLAYLIST_NOT_FOUND,
+            Map.of("subscriberId", subscriberId)
+        ));
+
     // 이벤트 발행
     eventPublisher.publishEvent(new PlaylistSubscribedEvent(
         playlist.getOwnerId(),
         subscriberId,
         playlistId,
+        subscriber.getName(),
         playlist.getTitle()
     ));
   }
