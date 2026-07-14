@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.auth.JwtTokenProvider;
 import com.team6.moduply.auth.handler.login.JwtLoginSuccessHandler;
+import com.team6.moduply.auth.session.BrowserIdResolver;
+import com.team6.moduply.auth.service.AuthService;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
@@ -36,6 +38,12 @@ class JwtLoginSuccessHandlerTest {
   @Mock
   private RedisUtil redisUtil;
 
+  @Mock
+  private AuthService authService;
+
+  @Mock
+  private BrowserIdResolver browserIdResolver;
+
   @Test
   @DisplayName("로그인 성공 시 Access Token은 헤더와 응답 바디에, Refresh Token은 쿠키에 담는다")
   void login_success() throws Exception {
@@ -45,7 +53,9 @@ class JwtLoginSuccessHandlerTest {
         jwtTokenProvider,
         objectMapper,
         CookieCsrfTokenRepository.withHttpOnlyFalse(),
-        redisUtil
+        redisUtil,
+        authService,
+        browserIdResolver
     );
 
     UserDto userDto = new UserDto(
@@ -65,13 +75,17 @@ class JwtLoginSuccessHandlerTest {
     );
 
     String versionKey = RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(userDto.getEmail());
-    given(redisUtil.getData(versionKey)).willReturn("0");
-    given(jwtTokenProvider.generateAccessToken(authentication, 0L)).willReturn("access-token");
-    given(jwtTokenProvider.generateRefreshToken(authentication)).willReturn("refresh-token");
-    given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
-
+    String browserId = UUID.randomUUID().toString();
+    String sessionId = UUID.randomUUID().toString();
     MockHttpServletRequest request = new MockHttpServletRequest();
     MockHttpServletResponse response = new MockHttpServletResponse();
+
+    given(redisUtil.getData(versionKey)).willReturn("0");
+    given(browserIdResolver.resolveOrCreate(request, response)).willReturn(browserId);
+    given(authService.createSession(userDto.getId(), browserId)).willReturn(sessionId);
+    given(jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId))
+        .willReturn("access-token");
+    given(jwtTokenProvider.generateRefreshToken(authentication, sessionId)).willReturn("refresh-token");
 
     // When
     handler.onAuthenticationSuccess(request, response, authentication);
@@ -86,15 +100,16 @@ class JwtLoginSuccessHandlerTest {
     assertThat(refreshTokenCookie).isNotNull();
     assertThat(refreshTokenCookie.getValue()).isEqualTo("refresh-token");
     assertThat(refreshTokenCookie.isHttpOnly()).isTrue();
-    assertThat(refreshTokenCookie.getSecure()).isFalse();
+    assertThat(refreshTokenCookie.getSecure()).isTrue();
     assertThat(refreshTokenCookie.getPath()).isEqualTo("/");
+    assertThat(refreshTokenCookie.getAttribute("SameSite")).isEqualTo("Lax");
     assertThat(csrfTokenCookie).isNotNull();
     assertThat(csrfTokenCookie.isHttpOnly()).isFalse();
     assertThat(csrfTokenCookie.getPath()).isEqualTo("/");
     assertThat(responseBody.get("accessToken").asText()).isEqualTo("access-token");
     assertThat(responseBody.get("userDto").get("email").asText()).isEqualTo("tester@example.com");
     verify(redisUtil).setDataExpire(
-        RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"),
+        RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId),
         "refresh-token",
         RedisKeyPolicy.REFRESH_TOKEN.getTtl()
     );

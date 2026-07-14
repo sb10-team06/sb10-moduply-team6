@@ -123,11 +123,17 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     assertThat(moduPlyUserDetails).isNotNull();
     Authentication authentication = new UsernamePasswordAuthenticationToken(moduPlyUserDetails,
         moduPlyUserDetails.getAuthorities());
-    accessToken1 = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String sessionId1 = UUID.randomUUID().toString();
+    accessToken1 = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId1);
     redisUtil.setDataExpire(
         RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(testUser.getEmail()),
         "0",
         RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId1),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
     );
     userId1 = testUser.getId();
 
@@ -141,11 +147,17 @@ public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
     assertThat(moduPlyUserDetails2).isNotNull();
     Authentication authentication2 = new UsernamePasswordAuthenticationToken(moduPlyUserDetails2,
         moduPlyUserDetails2.getAuthorities());
-    accessToken2 = jwtTokenProvider.generateAccessToken(authentication2, 0L);
+    String sessionId2 = UUID.randomUUID().toString();
+    accessToken2 = jwtTokenProvider.generateAccessToken(authentication2, 0L, sessionId2);
     redisUtil.setDataExpire(
         RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(testUser2.getEmail()),
         "0",
         RedisKeyPolicy.USER_TOKEN_VERSION.getTtl()
+    );
+    redisUtil.setDataExpire(
+        RedisKeyPolicy.AUTH_SESSION.generateKey(sessionId2),
+        "ACTIVE",
+        RedisKeyPolicy.AUTH_SESSION.getTtl()
     );
     userId2 = testUser2.getId();
 

@@ -27,6 +27,7 @@ class JwtTokenProviderTest {
   private JwtTokenProvider jwtTokenProvider;
   private UUID userId;
   private String email;
+  private String sessionId;
   private Authentication authentication;
 
   @BeforeEach
@@ -39,6 +40,7 @@ class JwtTokenProviderTest {
 
     userId = UUID.randomUUID();
     email = "tester@example.com";
+    sessionId = UUID.randomUUID().toString();
     UserDto userDto = new UserDto(
         userId,
         Instant.now(),
@@ -60,7 +62,7 @@ class JwtTokenProviderTest {
   @DisplayName("Access Token 생성 성공")
   void generate_access_token_success() throws ParseException {
     // When
-    String token = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String token = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId);
 
     // Then
     assertThat(jwtTokenProvider.validateAccessToken(token)).isTrue();
@@ -69,6 +71,7 @@ class JwtTokenProviderTest {
     assertThat(claims.getSubject()).isEqualTo(userId.toString());
     assertThat(claims.getStringClaim("type")).isEqualTo("access");
     assertThat(claims.getStringClaim("email")).isEqualTo(email);
+    assertThat(claims.getStringClaim("sessionId")).isEqualTo(sessionId);
     assertThat(claims.getStringClaim("role")).isNull();
     assertThat(claims.getBooleanClaim("locked")).isNull();
   }
@@ -77,7 +80,7 @@ class JwtTokenProviderTest {
   @DisplayName("Refresh Token 생성 성공")
   void generate_refresh_token_success() throws ParseException {
     // When
-    String token = jwtTokenProvider.generateRefreshToken(authentication);
+    String token = jwtTokenProvider.generateRefreshToken(authentication, sessionId);
 
     // Then
     assertThat(jwtTokenProvider.validateRefreshToken(token)).isTrue();
@@ -86,6 +89,7 @@ class JwtTokenProviderTest {
     assertThat(claims.getSubject()).isEqualTo(userId.toString());
     assertThat(claims.getStringClaim("type")).isEqualTo("refresh");
     assertThat(claims.getStringClaim("email")).isEqualTo(email);
+    assertThat(claims.getStringClaim("sessionId")).isEqualTo(sessionId);
     assertThat(claims.getJWTID()).isNotBlank();
   }
 
@@ -93,7 +97,7 @@ class JwtTokenProviderTest {
   @DisplayName("Refresh Token은 Access Token으로 사용할 수 없다")
   void refresh_token_is_invalid_as_access_token() {
     // Given
-    String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+    String refreshToken = jwtTokenProvider.generateRefreshToken(authentication, sessionId);
 
     // When & Then
     assertThat(jwtTokenProvider.validateAccessToken(refreshToken)).isFalse();
@@ -104,7 +108,7 @@ class JwtTokenProviderTest {
   void expired_access_token_is_invalid() {
     // Given
     ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMinutes", -1);
-    String expiredToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String expiredToken = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId);
 
     // When & Then
     assertThat(jwtTokenProvider.validateAccessToken(expiredToken)).isFalse();
@@ -114,7 +118,7 @@ class JwtTokenProviderTest {
   @DisplayName("토큰에서 사용자 ID를 추출한다")
   void get_user_id_success() {
     // Given
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId);
 
     // When
     UUID result = jwtTokenProvider.getUserId(accessToken);
@@ -127,7 +131,7 @@ class JwtTokenProviderTest {
   @DisplayName("토큰에서 사용자 이메일을 추출한다")
   void get_email_success() {
     // Given
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId);
 
     // When
     String result = jwtTokenProvider.getEmail(accessToken);
@@ -140,7 +144,7 @@ class JwtTokenProviderTest {
   @DisplayName("토큰의 남은 만료시간을 계산한다")
   void get_remaining_expiration_success() {
     // Given
-    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String accessToken = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId);
 
     // When
     Duration result = jwtTokenProvider.getRemainingExpiration(accessToken);
@@ -155,7 +159,7 @@ class JwtTokenProviderTest {
   void get_remaining_expiration_returns_zero_when_token_is_expired() {
     // Given
     ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpirationMinutes", -1);
-    String expiredToken = jwtTokenProvider.generateAccessToken(authentication, 0L);
+    String expiredToken = jwtTokenProvider.generateAccessToken(authentication, 0L, sessionId);
 
     // When
     Duration result = jwtTokenProvider.getRemainingExpiration(expiredToken);
