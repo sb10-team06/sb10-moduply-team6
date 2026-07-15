@@ -60,6 +60,8 @@ class JwtLogoutHandlerTest {
         new TestingAuthenticationToken("tester", null, "ROLE_USER");
 
     SecurityContextHolder.getContext().setAuthentication(authentication);
+    String sessionId = UUID.randomUUID().toString();
+    given(jwtTokenProvider.getSessionId("refresh-token")).willReturn(sessionId);
     given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
     UUID userId = UUID.randomUUID();
     given(jwtTokenProvider.getUserId("refresh-token")).willReturn(userId);
@@ -74,11 +76,13 @@ class JwtLogoutHandlerTest {
     assertThat(deleteCookie.getMaxAge()).isZero();
     assertThat(deleteCookie.getPath()).isEqualTo("/");
     assertThat(deleteCookie.isHttpOnly()).isTrue();
-    assertThat(deleteCookie.getSecure()).isFalse();
+    assertThat(deleteCookie.getSecure()).isTrue();
+    assertThat(deleteCookie.getAttribute("SameSite")).isEqualTo("Lax");
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     verify(jwtTokenProvider).getEmail("refresh-token");
     verify(jwtTokenProvider).getUserId("refresh-token");
-    verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"));
+    verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId));
+    verify(authService).revokeSession(sessionId);
     ArgumentCaptor<UserLogoutEvent> eventCaptor = ArgumentCaptor.forClass(UserLogoutEvent.class);
     verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
     UserLogoutEvent capturedEvent = eventCaptor.getValue();
@@ -99,9 +103,11 @@ class JwtLogoutHandlerTest {
     TestingAuthenticationToken authentication =
         new TestingAuthenticationToken("tester", null, "ROLE_USER");
     Duration remainingTtl = Duration.ofMinutes(10);
+    String sessionId = UUID.randomUUID().toString();
 
     given(jwtTokenProvider.validateAccessToken("access-token")).willReturn(true);
     given(jwtTokenProvider.getRemainingExpiration("access-token")).willReturn(remainingTtl);
+    given(jwtTokenProvider.getSessionId("access-token")).willReturn(sessionId);
     given(jwtTokenProvider.getEmail("refresh-token")).willReturn("tester@example.com");
 
     // When
@@ -109,6 +115,7 @@ class JwtLogoutHandlerTest {
 
     // Then
     verify(authService).blacklistAccessToken("access-token", remainingTtl);
-    verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey("tester@example.com"));
+    verify(redisUtil).deleteData(RedisKeyPolicy.REFRESH_TOKEN.generateKey(sessionId));
+    verify(authService).revokeSession(sessionId);
   }
 }
