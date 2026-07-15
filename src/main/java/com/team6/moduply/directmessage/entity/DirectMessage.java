@@ -6,6 +6,7 @@ import com.team6.moduply.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -13,7 +14,19 @@ import lombok.Getter;
 
 @Entity
 @Getter
-@Table(name = "direct_messages")
+@Table(
+    name = "direct_messages",
+    indexes = {
+        @Index(
+            name = "idx_direct_messages_conversation_created_at_id",
+            columnList = "conversation_id, created_at, id"
+        ),
+        @Index(
+            name = "idx_direct_messages_unread_conversation_sender",
+            columnList = "conversation_id, is_read, sender_id, created_at, id"
+        )
+    }
+)
 public class DirectMessage extends BaseUpdatableEntity {
 
   /// Conversation : DM = 1 : N

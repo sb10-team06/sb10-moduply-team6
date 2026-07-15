@@ -288,6 +288,11 @@ CREATE TABLE conversations (
     CONSTRAINT chk_conversations_user_order          CHECK (user1_id < user2_id)
 );
 
+CREATE INDEX idx_conversations_user1_created_at_id
+    ON conversations (user1_id, created_at DESC, id DESC);
+CREATE INDEX idx_conversations_user2_created_at_id
+    ON conversations (user2_id, created_at DESC, id DESC);
+
 CREATE TABLE direct_messages (
     id              UUID             PRIMARY KEY,
     conversation_id UUID             NOT NULL,
@@ -310,3 +315,8 @@ CREATE TABLE direct_messages (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX idx_direct_messages_conversation_created_at_id
+    ON direct_messages (conversation_id, created_at DESC, id DESC);
+CREATE INDEX idx_direct_messages_unread_conversation_sender
+    ON direct_messages (conversation_id, is_read, sender_id, created_at DESC, id DESC);

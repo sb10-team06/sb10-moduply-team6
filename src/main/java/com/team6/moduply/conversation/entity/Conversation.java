@@ -3,6 +3,7 @@ package com.team6.moduply.conversation.entity;
 import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -23,6 +24,10 @@ import org.hibernate.annotations.Check;
             name = "uk_conversations_user_pair",
             columnNames = {"user1_id", "user2_id"}
         )
+    },
+    indexes = {
+        @Index(name = "idx_conversations_user1_created_at_id", columnList = "user1_id, created_at, id"),
+        @Index(name = "idx_conversations_user2_created_at_id", columnList = "user2_id, created_at, id")
     }
 )
 public class Conversation extends BaseUpdatableEntity {
