@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -27,6 +28,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -128,7 +130,9 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.accessToken").value(newAccessToken))
         .andExpect(jsonPath("$.userDto.email").value("tester@example.com"))
         .andExpect(cookie().value("REFRESH_TOKEN", newRefreshToken))
-        .andExpect(cookie().secure("REFRESH_TOKEN", false));
+        .andExpect(cookie().secure("REFRESH_TOKEN", true))
+        .andExpect(header().string(HttpHeaders.SET_COOKIE,
+            org.hamcrest.Matchers.containsString("SameSite=Lax")));
 
     verify(authService).refreshTokens(refreshToken);
   }

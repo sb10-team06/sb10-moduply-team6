@@ -65,8 +65,13 @@ public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
 
   @BeforeEach
   void setUp() {
-    contentRepository.deleteAll();
-    userRepository.deleteAll();
+    /*
+     * 이 테스트는 고정 email(test1@test.com 등)을 매번 재사용한다.
+     * deleteAll()만 호출하면 같은 트랜잭션 안에서 Hibernate가 insert를 delete보다 먼저 flush할 수 있어
+     * users_email_key unique 제약 조건에 걸린다. 배치 삭제를 즉시 실행해 테스트 간 데이터를 격리한다.
+     */
+    contentRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
 
     //content1
     Content content1 = new Content(null, null, ContentType.movie, "title1", "description");

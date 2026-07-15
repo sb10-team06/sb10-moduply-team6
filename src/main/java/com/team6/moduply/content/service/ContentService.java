@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -51,10 +52,7 @@ public class ContentService {
   private final BinaryContentService binaryContentService;
 
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(
-      cacheNames = {CacheConfig.CONTENT_LIST, CacheConfig.CONTENT_DETAIL},    // 캐시 저장된거 삭제
-      allEntries = true
-  )
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
   @Transactional
   public ContentDto create(
       ContentCreateRequest request,
@@ -93,9 +91,11 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(
-      cacheNames = {CacheConfig.CONTENT_LIST, CacheConfig.CONTENT_DETAIL},
-      allEntries = true
+  @Caching(
+      evict = {
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
+      }
   )
   @Transactional
   public ContentDto update(
@@ -126,9 +126,11 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(
-      cacheNames = {CacheConfig.CONTENT_LIST, CacheConfig.CONTENT_DETAIL},
-      allEntries = true
+  @Caching(
+      evict = {
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
+      }
   )
   @Transactional
   public void delete(UUID contentId) {

@@ -60,6 +60,7 @@ public class AuthController implements AuthApi {
     ResponseCookie newRefreshTokenCookie = ResponseCookie.from("REFRESH_TOKEN",
         tokenRefreshDto.getRefreshToken())
         .httpOnly(true)
+        .secure(true)
         .path("/")
         .maxAge(refreshTokenExpirationMinutes * 60)
         .sameSite("Lax")

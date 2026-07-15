@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
@@ -45,6 +46,10 @@ public class ModuPlyAuthenticationEntryPoint implements AuthenticationEntryPoint
     Throwable cause = authException.getCause();
     if (cause instanceof AuthException exception) {
       return exception;
+    }
+
+    if (authException instanceof LockedException || cause instanceof LockedException) {
+      return new AuthException(AuthErrorCode.ACCOUNT_LOCKED_EXCEPTION, Collections.emptyMap());
     }
 
     if (authException instanceof BadCredentialsException) {

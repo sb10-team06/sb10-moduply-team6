@@ -54,6 +54,9 @@ class StompChannelInterceptorTest {
             ArgumentMatchers.anyLong()
         ))
         .thenReturn(true);
+    org.mockito.Mockito.lenient()
+        .when(authService.isSessionActive(ArgumentMatchers.anyString()))
+        .thenReturn(true);
   }
 
   @Test
@@ -139,6 +142,7 @@ class StompChannelInterceptorTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(UUID.randomUUID());
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    given(jwtTokenProvider.getSessionId(token)).willReturn(UUID.randomUUID().toString());
     given(authService.isTokenVersionValid(email, 0L)).willReturn(false);
 
     assertThatThrownBy(() -> stompChannelInterceptor.preSend(message, null))
@@ -179,6 +183,8 @@ class StompChannelInterceptorTest {
     given(jwtTokenProvider.getUserId(token)).willReturn(userId);
     given(jwtTokenProvider.getEmail(token)).willReturn(email);
     given(jwtTokenProvider.getTokenVersion(token)).willReturn(0L);
+    String authSessionId = UUID.randomUUID().toString();
+    given(jwtTokenProvider.getSessionId(token)).willReturn(authSessionId);
     given(authService.getAuthentication(userId))
         .willReturn(new TestingAuthenticationToken("user", null));
 
@@ -190,7 +196,8 @@ class StompChannelInterceptorTest {
         .containsEntry("userId", userId)
         .containsEntry("email", email)
         .containsEntry("tokenVersion", 0L)
-        .containsEntry("accessToken", token);
+        .containsEntry("accessToken", token)
+        .containsEntry("authSessionId", authSessionId);
   }
 
   private Message<?> subscribeMessage(String destination, Map<String, Object> sessionAttributes) {
@@ -220,7 +227,8 @@ class StompChannelInterceptorTest {
     return new ConcurrentHashMap<>(Map.of(
         "email", "tester@example.com",
         "tokenVersion", 0L,
-        "accessToken", accessToken
+        "accessToken", accessToken,
+        "authSessionId", UUID.randomUUID().toString()
     ));
   }
 
