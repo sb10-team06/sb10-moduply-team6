@@ -569,6 +569,8 @@ class PlaylistServiceTest {
     // given
     UUID subscriberId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();
+    User mockUser = new User("test@test.com", "password", "테스트", Role.USER);
+    given(userRepository.findById(subscriberId)).willReturn(Optional.of(mockUser));
 
     Playlist playlist = Playlist.builder()
         .ownerId(UUID.randomUUID()).title("제목").description("설명").build();

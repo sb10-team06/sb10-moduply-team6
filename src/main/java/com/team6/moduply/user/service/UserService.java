@@ -213,12 +213,6 @@ public class UserService {
 
   @Transactional
   @PreAuthorize("hasRole('ADMIN')")
-  public void lockUser(UUID userId) {
-    updateUserLocked(userId, new UserLockUpdateRequest(true));
-  }
-
-  @Transactional
-  @PreAuthorize("hasRole('ADMIN')")
   public void updateUserLocked(UUID userId, UserLockUpdateRequest request) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(

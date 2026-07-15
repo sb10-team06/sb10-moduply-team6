@@ -54,6 +54,7 @@ ignore:
   - "**/entity/**"
   - "**/mapper/**"
   - "**/enums/**"
+  - "**/testdata/**"
   - "**/exception/**"
   - "**/batch/**"
   - "**/common/pagination/**"

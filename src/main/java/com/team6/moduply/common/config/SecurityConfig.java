@@ -81,7 +81,13 @@ public class SecurityConfig {
                 // 문서 관련 api 인증 불필요
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // 정적 리소스 접근 인증 불필요
-                .requestMatchers("/", "/index.html", "/favicon.svg", "/assets/**").permitAll()
+                .requestMatchers(
+                    "/",
+                    "/index.html",
+                    "/favicon.svg",
+                    "/placeholder-movie.png",
+                    "/assets/**"
+                ).permitAll()
                 // 로컬 저장소 업로드 파일 접근 인증 불필요
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()

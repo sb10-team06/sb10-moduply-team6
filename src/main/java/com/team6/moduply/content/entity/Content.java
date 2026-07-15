@@ -24,7 +24,8 @@ import lombok.NoArgsConstructor;
     name = "contents",
     indexes = {
         @Index(name = "idx_contents_title", columnList = "title"),
-        @Index(name = "idx_contents_type", columnList = "type")
+        @Index(name = "idx_contents_type", columnList = "type"),
+        @Index(name = "idx_contents_created_at_id", columnList = "created_at DESC, id DESC")
     }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
