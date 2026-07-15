@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Configuration;
 public class CacheConfig {
 
   public static final String USER_SUMMARY = "userSummary";
-  public static final String USER_AUTHENTICATION = "userAuthentication";
   public static final String CONTENT_LIST = "contentList";
   public static final String CONTENT_DETAIL = "contentDetail";
   public static final String PROFILE_IMAGE_URL = "profileImageUrl";
@@ -42,10 +41,6 @@ public class CacheConfig {
     cacheManager.registerCustomCache(
         USER_SUMMARY,
         cache(Duration.ofMinutes(5), 10_000)
-    );
-    cacheManager.registerCustomCache(
-        USER_AUTHENTICATION,
-        cache(Duration.ofMinutes(5), 20_000)
     );
     // 캐시이름: contentList
     cacheManager.registerCustomCache(

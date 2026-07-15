@@ -2,7 +2,6 @@ package com.team6.moduply.user.service;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
-import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.util.RedisUtil;
@@ -26,7 +25,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -141,7 +139,6 @@ public class UserService {
 
   @Transactional
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(cacheNames = CacheConfig.USER_AUTHENTICATION, key = "#userId")
   public void updateUserRole(UUID userId, UserRoleUpdateRequest request) {
     log.debug("사용자 권한 변경 처리 시작. userId={}, newRole={}", userId, request.getRole());
 
@@ -170,10 +167,6 @@ public class UserService {
 
   @Transactional
   @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
-  @CacheEvict(
-      cacheNames = {CacheConfig.USER_AUTHENTICATION, CacheConfig.USER_SUMMARY},
-      key = "#userId"
-  )
   public UserDto updateUser(UUID userId, UserUpdateRequest request, MultipartFile profileImg) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
@@ -206,7 +199,6 @@ public class UserService {
 
   @Transactional
   @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
-  @CacheEvict(cacheNames = CacheConfig.USER_AUTHENTICATION, key = "#userId")
   public void updateUserPassword(UUID userId, ChangePasswordRequest request){
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
@@ -221,7 +213,6 @@ public class UserService {
 
   @Transactional
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(cacheNames = CacheConfig.USER_AUTHENTICATION, key = "#userId")
   public void updateUserLocked(UUID userId, UserLockUpdateRequest request) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(

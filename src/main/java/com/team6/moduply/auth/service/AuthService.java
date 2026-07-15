@@ -10,7 +10,6 @@ import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
-import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
@@ -29,7 +28,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -55,7 +53,6 @@ public class AuthService {
   private final RedisUtil redisUtil;
 
   @Transactional(readOnly = true)
-  @Cacheable(cacheNames = CacheConfig.USER_AUTHENTICATION, key = "#userId", sync = true)
   public Authentication getAuthentication(UUID userId) {
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new AuthException(AuthErrorCode.INVALID_TOKEN_EXCEPTION, Map.of(
