@@ -1,10 +1,8 @@
 package com.team6.moduply.testdata;
 
-import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.testdata.generator.ContentGenerator;
+import com.team6.moduply.testdata.generator.ConversationGenerator;
 import com.team6.moduply.testdata.generator.UserGenerator;
-import com.team6.moduply.user.entity.User;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -24,6 +22,7 @@ public class TestDataGeneratorRunner implements CommandLineRunner {
   private final ApplicationContext context;
   private final UserGenerator userGenerator;
   private final ContentGenerator contentGenerator;
+  private final ConversationGenerator conversationGenerator;
 
   @Override
   public void run(String... args) {
@@ -35,6 +34,9 @@ public class TestDataGeneratorRunner implements CommandLineRunner {
 
     contentGenerator.generate();
     log.info("콘텐츠 데이터 생성 완료");
+
+    conversationGenerator.generate();
+    log.info("대화방 데이터 생성 완료");
 
     SpringApplication.exit(context, () -> 0);
   }

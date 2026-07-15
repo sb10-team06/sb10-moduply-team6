@@ -12,6 +12,7 @@ public class UserTestDataProperties {
   private boolean enabled = false;
   private int followerSize = 100;
   private int followeeSize = 1000;
+  private int conversationSize = 0;
   private int chunkSize = 500;
   private boolean skipIfExists = true;
   private String password = "k6-password";
@@ -38,6 +39,14 @@ public class UserTestDataProperties {
 
   public void setFolloweeSize(int followeeSize) {
     this.followeeSize = followeeSize;
+  }
+
+  public int getConversationSize() {
+    return conversationSize;
+  }
+
+  public void setConversationSize(int conversationSize) {
+    this.conversationSize = conversationSize;
   }
 
   public int getChunkSize() {

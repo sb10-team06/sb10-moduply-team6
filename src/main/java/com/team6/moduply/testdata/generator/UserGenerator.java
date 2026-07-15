@@ -31,6 +31,7 @@ public class UserGenerator extends AbstractGenerator<User> {
 
   public static final String FOLLOWER_EMAIL_PREFIX = "k6-follower-";
   public static final String FOLLOWEE_EMAIL_PREFIX = "k6-followee-";
+  public static final String CONVERSATION_EMAIL_PREFIX = "k6-conversation-";
   public static final String EMAIL_DOMAIN = "@moduply.test";
 
   private static final String INSERT_USER_SQL = """
@@ -64,18 +65,18 @@ public class UserGenerator extends AbstractGenerator<User> {
       return;
     }
 
-    long existingCount = countGeneratedUsers();
-    if (properties.isSkipIfExists() && existingCount > 0) {
-      log.info("[UserGenerator] generated users already exist. count={}", existingCount);
-      return;
-    }
-
     encodedPassword = passwordEncoder.encode(properties.getPassword());
-    log.info("[UserGenerator] start generation. followerSize={}, followeeSize={}, chunkSize={}",
-        properties.getFollowerSize(), properties.getFolloweeSize(), properties.getChunkSize());
+    log.info(
+        "[UserGenerator] start generation. followerSize={}, followeeSize={}, conversationSize={}, chunkSize={}",
+        properties.getFollowerSize(),
+        properties.getFolloweeSize(),
+        properties.getConversationSize(),
+        properties.getChunkSize()
+    );
 
     generateGroup(FOLLOWER_EMAIL_PREFIX, "k6 follower", properties.getFollowerSize());
     generateGroup(FOLLOWEE_EMAIL_PREFIX, "k6 followee", properties.getFolloweeSize());
+    generateGroup(CONVERSATION_EMAIL_PREFIX, "k6 conversation", properties.getConversationSize());
   }
 
   @Override
@@ -117,6 +118,17 @@ public class UserGenerator extends AbstractGenerator<User> {
   }
 
   private void generateGroup(String emailPrefix, String namePrefix, int size) {
+    if (size <= 0) {
+      return;
+    }
+
+    long existingCount = countGeneratedUsers(emailPrefix);
+    if (properties.isSkipIfExists() && existingCount > 0) {
+      log.info("[UserGenerator] generated users already exist. prefix={}, count={}",
+          emailPrefix, existingCount);
+      return;
+    }
+
     currentEmailPrefix = emailPrefix;
     currentNamePrefix = namePrefix;
     sequence.set(0);
@@ -129,12 +141,11 @@ public class UserGenerator extends AbstractGenerator<User> {
     }
   }
 
-  private long countGeneratedUsers() {
+  private long countGeneratedUsers(String emailPrefix) {
     Long count = jdbcTemplate.queryForObject(
-        "select count(*) from users where email like ? or email like ?",
+        "select count(*) from users where email like ?",
         Long.class,
-        FOLLOWER_EMAIL_PREFIX + "%" + EMAIL_DOMAIN,
-        FOLLOWEE_EMAIL_PREFIX + "%" + EMAIL_DOMAIN
+        emailPrefix + "%" + EMAIL_DOMAIN
     );
     return count == null ? 0 : count;
   }
