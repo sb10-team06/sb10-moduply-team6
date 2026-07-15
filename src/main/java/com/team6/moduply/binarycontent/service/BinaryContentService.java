@@ -7,6 +7,7 @@ import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
+import com.team6.moduply.common.config.CacheConfig;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -298,6 +300,11 @@ public class BinaryContentService {
   /// S3PresignedUrl 생성 메서드.
   /// userService에서 호출 or contentService에서 호출
   @Transactional(readOnly = true)
+  @Cacheable(
+      cacheNames = CacheConfig.PROFILE_IMAGE_URL,
+      key = "#binaryContent.id",
+      condition = "#binaryContent != null"
+  )
   public String generateUrl(BinaryContent binaryContent) {
     if (binaryContent == null) {
       return null;
