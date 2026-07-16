@@ -36,7 +36,7 @@ public class ConversationQDSLRepositoryImpl implements ConversationQDSLRepositor
               participantCondition(currentUserId),
               cursorCondition(request)
           )
-          .orderBy(createdAtOrder(request.sortDirection()), conversation.id.asc())
+          .orderBy(createdAtOrder(request.sortDirection()), idOrder(request.sortDirection()))
           .limit(request.limit() + 1)
           .fetch();
     }
@@ -49,7 +49,7 @@ public class ConversationQDSLRepositoryImpl implements ConversationQDSLRepositor
             keywordLikeCondition(request.keywordLike(), currentUserId),
             cursorCondition(request)
         )
-        .orderBy(createdAtOrder(request.sortDirection()), conversation.id.asc())
+        .orderBy(createdAtOrder(request.sortDirection()), idOrder(request.sortDirection()))
         .limit(request.limit() + 1)
         .fetch();
   }
@@ -113,12 +113,18 @@ public class ConversationQDSLRepositoryImpl implements ConversationQDSLRepositor
     }
 
     return conversation.createdAt.lt(cursor)
-        .or(conversation.createdAt.eq(cursor).and(conversation.id.gt(request.idAfter())));
+        .or(conversation.createdAt.eq(cursor).and(conversation.id.lt(request.idAfter())));
   }
 
   private OrderSpecifier<Instant> createdAtOrder(SortDirection sortDirection) {
     return sortDirection == SortDirection.ASCENDING
         ? conversation.createdAt.asc()
         : conversation.createdAt.desc();
+  }
+
+  private OrderSpecifier<UUID> idOrder(SortDirection sortDirection) {
+    return sortDirection == SortDirection.ASCENDING
+        ? conversation.id.asc()
+        : conversation.id.desc();
   }
 }
