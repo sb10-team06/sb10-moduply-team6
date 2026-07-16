@@ -171,6 +171,14 @@ public class PlaylistService {
     // 3. N+1 방지를 위한 일괄 조회
     // 필요한 ID 목록을 먼저 추출하고 한 번에 조회해 쿼리 수 최소화
 
+    // 플레이리스트가 비어있는 경우 조기 반환
+    if (playlists.isEmpty()) {
+      return new CursorResponse<>(
+          List.of(), null, null, false, totalCount,
+          request.sortBy().name(), request.sortDirection()
+      );
+    }
+
     // 3-1. 소유자 일괄 조회 (profileImg JOIN 포함)
     List<UUID> ownerIds = playlists.stream().map(Playlist::getOwnerId).distinct().toList();
     Map<UUID, User> ownerMap = userRepository.findAllByIdWithProfileImg(ownerIds)
@@ -193,8 +201,8 @@ public class PlaylistService {
     // 3-4. 현재 사용자의 구독 플레이리스트 ID 일괄 조회
     Set<UUID> subscribedPlaylistIds = new HashSet<>();
     if (currentUserId != null) {
-      playlistSubscriptionRepository
-          .findAllBySubscriberId(currentUserId)
+      List<UUID> playlistIds = playlists.stream().map(Playlist::getId).toList();
+      playlistSubscriptionRepository.findAllBySubscriberIdAndPlaylistIdIn(currentUserId, playlistIds)
           .forEach(ps -> subscribedPlaylistIds.add(ps.getPlaylist().getId()));
     }
 
