@@ -22,6 +22,7 @@ import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +31,7 @@ import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -148,7 +150,7 @@ public class PlaylistService {
   }
 
   @Transactional(readOnly = true)
-  public CursorResponse<PlaylistDto> findAll(PlaylistSearchRequest request) {
+  public CursorResponse<PlaylistDto> findAll(PlaylistSearchRequest request, UUID currentUserId) {
     // 1. limit + 1개 조회 (sentinel 방식)
     List<Playlist> playlists = playlistQDSLRepository.findAllWithCursor(request);
     long totalCount = playlistQDSLRepository.countWithCondition(request);
@@ -188,6 +190,14 @@ public class PlaylistService {
     Map<UUID, List<PlaylistContent>> contentsByPlaylist = allContents.stream()
         .collect(Collectors.groupingBy(pc -> pc.getPlaylist().getId()));
 
+    // 3-4. 현재 사용자의 구독 플레이리스트 ID 일괄 조회
+    Set<UUID> subscribedPlaylistIds = new HashSet<>();
+    if (currentUserId != null) {
+      playlistSubscriptionRepository
+          .findAllBySubscriberId(currentUserId)
+          .forEach(ps -> subscribedPlaylistIds.add(ps.getPlaylist().getId()));
+    }
+
     // 4. 조회한 데이터로 DTO 변환
     List<PlaylistDto> data = playlists.stream()
         .map(playlist -> {
@@ -215,7 +225,8 @@ public class PlaylistService {
               .filter(Objects::nonNull)
               .toList();
 
-          return playlistMapper.toDto(playlist, ownerDto, subscriberCount, false, contents);
+          boolean subscribedByMe = subscribedPlaylistIds.contains(playlist.getId());
+          return playlistMapper.toDto(playlist, ownerDto, subscriberCount, subscribedByMe, contents);
         })
         .toList();
 
