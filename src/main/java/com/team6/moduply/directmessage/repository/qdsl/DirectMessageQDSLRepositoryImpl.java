@@ -29,10 +29,11 @@ public class DirectMessageQDSLRepositoryImpl implements DirectMessageQDSLReposit
 
   @Override
   public List<DirectMessage> findLatestMessagesByConversationIds(Collection<UUID> conversationIds) {
+    /// 조회할 대화방 없으면 DB 조회x -> 바로 빈 리스트 반환
     if (conversationIds == null || conversationIds.isEmpty()) {
       return Collections.emptyList();
     }
-
+    /// 최신 메시지 id 조회
     List<UUID> latestMessageIds = findLatestMessageIdsByConversationIds(conversationIds);
     if (latestMessageIds.isEmpty()) {
       return Collections.emptyList();
@@ -49,18 +50,10 @@ public class DirectMessageQDSLRepositoryImpl implements DirectMessageQDSLReposit
   private List<UUID> findLatestMessageIdsByConversationIds(Collection<UUID> conversationIds) {
     return entityManager
         .createNativeQuery("""
-            select ranked.id
-            from (
-              select
-                dm.id,
-                row_number() over (
-                  partition by dm.conversation_id
-                  order by dm.created_at desc, dm.id desc
-                ) as rn
-              from direct_messages dm
-              where dm.conversation_id = any(:conversationIds)
-            ) ranked
-            where ranked.rn = 1
+            select distinct on (dm.conversation_id) dm.id
+            from direct_messages dm
+            where dm.conversation_id = any(:conversationIds)
+            order by dm.conversation_id, dm.created_at desc, dm.id desc
             """)
         .setParameter("conversationIds", conversationIds.toArray(UUID[]::new))
         .getResultList()
