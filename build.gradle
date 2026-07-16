@@ -134,6 +134,7 @@ def excludes = [
         '**/enums/**',
         '**/config/**',
         '**/exception/**',
+        '**/testdata/**',
         '**/batch/**',
         '**/*Application.java',
         '**/Q*.class'

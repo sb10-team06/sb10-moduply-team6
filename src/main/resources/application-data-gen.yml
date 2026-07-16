@@ -4,6 +4,7 @@ moduply:
       enabled: ${MODUPLY_TEST_DATA_USER_ENABLED:false}
       follower-size: ${MODUPLY_TEST_DATA_USER_FOLLOWER_SIZE:100}
       followee-size: ${MODUPLY_TEST_DATA_USER_FOLLOWEE_SIZE:1000}
+      conversation-size: ${MODUPLY_TEST_DATA_USER_CONVERSATION_SIZE:0}
       chunk-size: ${MODUPLY_TEST_DATA_USER_CHUNK_SIZE:500}
       skip-if-exists: ${MODUPLY_TEST_DATA_USER_SKIP_IF_EXISTS:true}
       password: ${MODUPLY_TEST_DATA_USER_PASSWORD:k6-password}
@@ -12,3 +13,12 @@ moduply:
       total-size: ${MODUPLY_TEST_DATA_CONTENT_TOTAL_SIZE:10000}
       chunk-size: ${MODUPLY_TEST_DATA_CONTENT_CHUNK_SIZE:1000}
       skip-if-exists: ${MODUPLY_TEST_DATA_CONTENT_SKIP_IF_EXISTS:true}
+    conversation:
+      enabled: ${MODUPLY_TEST_DATA_CONVERSATION_ENABLED:false}
+      user-size: ${MODUPLY_TEST_DATA_CONVERSATION_USER_SIZE:10000}
+      user-email-like: ${MODUPLY_TEST_DATA_CONVERSATION_USER_EMAIL_LIKE:k6-conversation-%@moduply.test}
+      conversations-per-user: ${MODUPLY_TEST_DATA_CONVERSATION_CONVERSATIONS_PER_USER:100}
+      messages-per-conversation: ${MODUPLY_TEST_DATA_CONVERSATION_MESSAGES_PER_CONVERSATION:10}
+      unread-ratio: ${MODUPLY_TEST_DATA_CONVERSATION_UNREAD_RATIO:0.3}
+      chunk-size: ${MODUPLY_TEST_DATA_CONVERSATION_CHUNK_SIZE:1000}
+      skip-if-exists: ${MODUPLY_TEST_DATA_CONVERSATION_SKIP_IF_EXISTS:true}

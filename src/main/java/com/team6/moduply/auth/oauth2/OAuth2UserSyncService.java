@@ -58,8 +58,10 @@ public class OAuth2UserSyncService {
 
     SocialAccount socialAccount = existingAccount.get();
 
-    // 이미 다른 provider로 연동된 계정이면 OAuth2 로그인 실패 흐름으로 넘긴다.
-    if (socialAccount.getProvider() != currentProvider) {
+    // 이미 다른 provider로 연동된 계정이거나 같은 provider라도 subject(providerId)가 다르면
+    // 현재 OAuth2 계정과 기존 사용자 계정을 같은 주체로 볼 수 없으므로 로그인 실패 흐름으로 넘긴다.
+    if (socialAccount.getProvider() != currentProvider
+        || !socialAccount.getProviderId().equals(providerId)) {
       oauth2Exception(AuthErrorCode.DUPLICATED_ACCOUNT_EXCEPTION);
     }
 

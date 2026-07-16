@@ -64,7 +64,7 @@ public class ContentQDSLRepositoryImpl implements ContentQDSLRepository {
       List<String> tagsIn
   ) {
     Long count = queryFactory
-        .select(content.id.countDistinct())
+        .select(content.id.count())
         .from(content)
         .where(toWhereArray(buildSearchConditions(typeEqual, keywordLike, tagsIn)))
         .fetchOne();

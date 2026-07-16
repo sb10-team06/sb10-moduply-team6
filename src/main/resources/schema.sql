@@ -41,6 +41,7 @@ CREATE TABLE contents (
 
 CREATE INDEX idx_contents_title ON contents (title);
 CREATE INDEX idx_contents_type ON contents (type);
+CREATE INDEX CONCURRENTLY idx_contents_created_at_id ON contents (created_at DESC, id DESC);
 
 -- 사용자 관리 테이블 (users)
 CREATE TABLE users (
