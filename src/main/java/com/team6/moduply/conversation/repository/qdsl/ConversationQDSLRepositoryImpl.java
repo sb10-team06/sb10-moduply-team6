@@ -29,6 +29,18 @@ public class ConversationQDSLRepositoryImpl implements ConversationQDSLRepositor
       ConversationFindAllRequest request,
       UUID currentUserId
   ) {
+    // 검색어 없으면 조인 X
+    if (!StringUtils.hasText(request.keywordLike())) {
+      return queryFactory.selectFrom(conversation)
+          .where(
+              participantCondition(currentUserId),
+              cursorCondition(request)
+          )
+          .orderBy(createdAtOrder(request.sortDirection()), conversation.id.asc())
+          .limit(request.limit() + 1)
+          .fetch();
+    }
+
     return queryFactory.selectFrom(conversation)
         .leftJoin(user1).on(user1.id.eq(conversation.user1Id))
         .leftJoin(user2).on(user2.id.eq(conversation.user2Id))
@@ -44,6 +56,16 @@ public class ConversationQDSLRepositoryImpl implements ConversationQDSLRepositor
 
   @Override
   public long countWithCondition(ConversationFindAllRequest request, UUID currentUserId) {
+    // 검색어 없을때는 조인 없이 COUNT
+    if (!StringUtils.hasText(request.keywordLike())) {
+      Long result = queryFactory.select(conversation.count())
+          .from(conversation)
+          .where(participantCondition(currentUserId))
+          .fetchOne();
+
+      return result != null ? result : 0L;
+    }
+
     Long result = queryFactory.select(conversation.count())
         .from(conversation)
         .leftJoin(user1).on(user1.id.eq(conversation.user1Id))
