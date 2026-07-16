@@ -169,8 +169,45 @@ public class PlaylistService {
     }
 
     List<PlaylistDto> data = playlists.stream()
-        .map(playlist -> playlistMapper.toDto(playlist, null, 0L, false, List.of()))
+        .map(playlist -> {
+          // TODO: N+1 쿼리 개선 필요
+          PlaylistDto.OwnerDto ownerDto = userRepository.findById(playlist.getOwnerId())
+              .map(user -> new PlaylistDto.OwnerDto(user.getId(), user.getName(),
+                  binaryContentService.generateUrl(user.getProfileImg())))
+              .orElse(null);
+
+          long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
+
+          List<PlaylistContent> playlistContents = playlistContentRepository.findAllByPlaylist(
+              playlist);
+          List<UUID> contentIds = playlistContents.stream()
+              .map(PlaylistContent::getContentId)
+              .toList();
+          Map<UUID, Content> contentMap = contentRepository.findAllById(contentIds).stream()
+              .collect(Collectors.toMap(Content::getId, c -> c));
+
+          List<PlaylistDto.ContentSummaryDto> contents = playlistContents.stream()
+              .map(pc -> {
+                Content c = contentMap.get(pc.getContentId());
+                if (c == null)
+                  return null;
+                return new PlaylistDto.ContentSummaryDto(
+                    c.getId(),
+                    c.getType(),
+                    c.getTitle(),
+                    c.getDescription(),
+                    binaryContentService.generateUrl(c.getContentImg()),
+                    List.of(),
+                    c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
+                    c.getReviewCount());
+              })
+              .filter(Objects::nonNull)
+              .toList();
+
+          return playlistMapper.toDto(playlist, ownerDto, subscriberCount, false, contents);
+        })
         .toList();
+
     return new CursorResponse<>(
         data,
         nextCursor,
