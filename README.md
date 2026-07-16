@@ -44,6 +44,26 @@
 
 콘텐츠 생성 API 부하 테스트 결과는 k6 Docker 컨테이너에서 실행하고, Prometheus remote write로 저장한 뒤 Grafana에서 확인한다. 로컬에 k6를 설치하지 않아도 된다.
 
+### HikariCP 커넥션 풀 설정
+
+대화방 목록 조회 부하 테스트에서 HikariCP 지표는 Spring Actuator의 `/actuator/prometheus`를 Prometheus가 수집하는 방식으로 확인했다. `max active / max`, `min idle`, `max pending`, `max acquire time` 지표를 기준으로 커넥션 풀 대기 여부를 분석했다.
+
+| HikariCP max pool | max active / max | min idle | max pending | max acquire time | 판단 |
+|---:|---:|---:|---:|---:|---|
+| 10 | 10 / 10 | 0 | 185 | 14.37 s | 커넥션 풀이 모두 사용되어 대기가 크게 발생함 |
+| 30 | 30 / 30 | 0 | 160 | 3.97 s | 대기는 남았지만 acquire 시간이 크게 줄어 가장 안정적임 |
+| 50 | 50 / 50 | 0 | 132 | 5.00 s | pending은 줄었지만 DB 동시 처리 부담으로 응답 시간이 악화됨 |
+
+위 결과를 기준으로 local profile의 HikariCP 풀을 아래처럼 설정했다.
+
+```yml
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+```
+
 ### 1. Prometheus와 Grafana 실행
 
 ```powershell
