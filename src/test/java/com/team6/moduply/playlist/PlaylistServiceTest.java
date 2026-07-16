@@ -321,7 +321,7 @@ class PlaylistServiceTest {
     given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(dto);
 
     // when
-    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, null);
 
     // then
     assertThat(result.data()).hasSize(1);
@@ -354,7 +354,7 @@ class PlaylistServiceTest {
     given(playlistMapper.toDto(eq(playlist1), any(), anyLong(), anyBoolean(), any())).willReturn(dto1);
 
     // when
-    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, null);
 
     // then
     assertThat(result.data()).hasSize(1);
@@ -390,7 +390,7 @@ class PlaylistServiceTest {
     given(playlistMapper.toDto(eq(playlist2), any(), anyLong(), anyBoolean(), any())).willReturn(dto2);
 
     // when
-    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, null);
 
     // then
     assertThat(result.data()).hasSize(2);
