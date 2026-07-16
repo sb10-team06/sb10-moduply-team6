@@ -202,8 +202,10 @@ public class PlaylistService {
     Set<UUID> subscribedPlaylistIds = new HashSet<>();
     if (currentUserId != null) {
       List<UUID> playlistIds = playlists.stream().map(Playlist::getId).toList();
-      playlistSubscriptionRepository.findAllBySubscriberIdAndPlaylistIdIn(currentUserId, playlistIds)
-          .forEach(ps -> subscribedPlaylistIds.add(ps.getPlaylist().getId()));
+      subscribedPlaylistIds.addAll(
+          playlistSubscriptionRepository.findSubscribedPlaylistIdsBySubscriberIdAndPlaylistIdIn(
+              currentUserId, playlistIds)
+      );
     }
 
     // 4. 조회한 데이터로 DTO 변환
