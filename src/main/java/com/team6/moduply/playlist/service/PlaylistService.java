@@ -21,6 +21,7 @@ import com.team6.moduply.playlist.repository.PlaylistContentRepository;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -148,54 +149,64 @@ public class PlaylistService {
 
   @Transactional(readOnly = true)
   public CursorResponse<PlaylistDto> findAll(PlaylistSearchRequest request) {
-    // limit + 1개 조회 (sentinel 방식)
+    // 1. limit + 1개 조회 (sentinel 방식)
     List<Playlist> playlists = playlistQDSLRepository.findAllWithCursor(request);
     long totalCount = playlistQDSLRepository.countWithCondition(request);
 
     boolean hasNext = playlists.size() > request.limit();
 
-    // hasNext면 sentinel 레코드 제거
-    if (hasNext) {
-      playlists = playlists.subList(0, request.limit());
-    }
-
     String nextCursor = null;
     UUID nextIdAfter = null;
 
+    // 2. hasNext면 sentinel 레코드 제거 + 다음 커서 계산
     if (hasNext) {
+      playlists = playlists.subList(0, request.limit());
       Playlist last = playlists.get(playlists.size() - 1);
       nextCursor = last.getUpdatedAt() != null ? last.getUpdatedAt().toString() : null;
       nextIdAfter = last.getId();
     }
 
+    // 3. N+1 방지를 위한 일괄 조회
+    // 필요한 ID 목록을 먼저 추출하고 한 번에 조회해 쿼리 수 최소화
+
+    // 3-1. 소유자 일괄 조회 (profileImg JOIN 포함)
+    List<UUID> ownerIds = playlists.stream().map(Playlist::getOwnerId).distinct().toList();
+    Map<UUID, User> ownerMap = userRepository.findAllByIdWithProfileImg(ownerIds)
+        .stream().collect(Collectors.toMap(User::getId, u -> u));
+
+    // 3-2. 구독자 수 일괄 조회
+    Map<UUID, Long> subscriberCountMap = new HashMap<>();
+    playlistSubscriptionRepository.countByPlaylistIds(
+        playlists.stream().map(Playlist::getId).toList()
+    ).forEach(row -> subscriberCountMap.put((UUID) row[0], (Long) row[1]));
+
+    // 3-3. 콘텐츠 일괄 조회 후 플레이리스트 ID 기준으로 그룹핑
+    List<PlaylistContent> allContents = playlistContentRepository.findAllByPlaylistIn(playlists);
+    List<UUID> contentIds = allContents.stream().map(PlaylistContent::getContentId).distinct().toList();
+    Map<UUID, Content> contentMap = contentRepository.findAllById(contentIds)
+        .stream().collect(Collectors.toMap(Content::getId, c -> c));
+    Map<UUID, List<PlaylistContent>> contentsByPlaylist = allContents.stream()
+        .collect(Collectors.groupingBy(pc -> pc.getPlaylist().getId()));
+
+    // 4. 조회한 데이터로 DTO 변환
     List<PlaylistDto> data = playlists.stream()
         .map(playlist -> {
-          // TODO: N+1 쿼리 개선 필요
-          PlaylistDto.OwnerDto ownerDto = userRepository.findById(playlist.getOwnerId())
-              .map(user -> new PlaylistDto.OwnerDto(user.getId(), user.getName(),
-                  binaryContentService.generateUrl(user.getProfileImg())))
-              .orElse(null);
+          User owner = ownerMap.get(playlist.getOwnerId());
+          PlaylistDto.OwnerDto ownerDto = owner != null
+              ? new PlaylistDto.OwnerDto(owner.getId(), owner.getName(),
+              binaryContentService.generateUrl(owner.getProfileImg()))
+              : null;
 
-          long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
+          long subscriberCount = subscriberCountMap.getOrDefault(playlist.getId(), 0L);
 
-          List<PlaylistContent> playlistContents = playlistContentRepository.findAllByPlaylist(
-              playlist);
-          List<UUID> contentIds = playlistContents.stream()
-              .map(PlaylistContent::getContentId)
-              .toList();
-          Map<UUID, Content> contentMap = contentRepository.findAllById(contentIds).stream()
-              .collect(Collectors.toMap(Content::getId, c -> c));
-
-          List<PlaylistDto.ContentSummaryDto> contents = playlistContents.stream()
+          List<PlaylistDto.ContentSummaryDto> contents = contentsByPlaylist
+              .getOrDefault(playlist.getId(), List.of())
+              .stream()
               .map(pc -> {
                 Content c = contentMap.get(pc.getContentId());
-                if (c == null)
-                  return null;
+                if (c == null) return null;
                 return new PlaylistDto.ContentSummaryDto(
-                    c.getId(),
-                    c.getType(),
-                    c.getTitle(),
-                    c.getDescription(),
+                    c.getId(), c.getType(), c.getTitle(), c.getDescription(),
                     binaryContentService.generateUrl(c.getContentImg()),
                     List.of(),
                     c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,

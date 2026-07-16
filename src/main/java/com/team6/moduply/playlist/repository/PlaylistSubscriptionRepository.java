@@ -19,4 +19,7 @@ public interface PlaylistSubscriptionRepository extends JpaRepository<PlaylistSu
 
   @Query("select ps.subscriberId from PlaylistSubscription ps where ps.playlist.id = :playlistId")
   List<UUID> findSubscriberIdsByPlaylistId(@Param("playlistId") UUID playlistId);
+
+  @Query("select ps.playlist.id, count(ps) from PlaylistSubscription ps where ps.playlist.id in :playlistIds group by ps.playlist.id")
+  List<Object[]> countByPlaylistIds(@Param("playlistIds") List<UUID> playlistIds);
 }
