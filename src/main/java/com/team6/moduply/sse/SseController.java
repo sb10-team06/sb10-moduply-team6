@@ -7,6 +7,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,13 +26,13 @@ public class SseController {
 
   @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @Operation(summary = "SSE 연결", description = "실시간 알림을 위한 SSE 연결을 수립합니다.")
-  public SseEmitter subscribe(
+  public ResponseEntity<?> subscribe(
       @RequestHeader(value = "Last-Event-ID", required = false) UUID lastEventId,
       @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
     if (userDetails == null) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다.");
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
     UUID userId = userDetails.getUserDto().getId();
-    return sseEmitterManager.connect(userId);
+    return ResponseEntity.ok(sseEmitterManager.connect(userId));
   }
 }
