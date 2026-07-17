@@ -38,6 +38,21 @@ class ContentImportBatchPropertiesTest {
   }
 
   @Test
+  @DisplayName("TMDB 페이지 시작값이 종료값보다 크면 유효하지 않다.")
+  void tmdb_page_range_fail_when_start_is_greater_than_end() {
+    // Given
+    ContentImportBatchProperties properties = new ContentImportBatchProperties();
+    properties.setTmdbPageStart(3);
+    properties.setTmdbPageEnd(1);
+    properties.setInitialTmdbPageStart(10);
+    properties.setInitialTmdbPageEnd(1);
+
+    // When & Then
+    assertThat(properties.isValidTmdbPageRange()).isFalse();
+    assertThat(properties.isValidInitialTmdbPageRange()).isFalse();
+  }
+
+  @Test
   @DisplayName("Sports DB 날짜 offset은 -30 이상 30 이하이고 최대 31일 범위이면 유효하다.")
   void sports_db_day_offset_range_success() {
     // Given
@@ -69,5 +84,20 @@ class ContentImportBatchPropertiesTest {
     assertThat(properties.isValidSportsDbDayOffsetRangeSize()).isFalse();
     assertThat(properties.isValidInitialSportsDbDayOffsetBounds()).isFalse();
     assertThat(properties.isValidInitialSportsDbDayOffsetRangeSize()).isFalse();
+  }
+
+  @Test
+  @DisplayName("Sports DB 날짜 offset 시작값이 종료값보다 크면 유효하지 않다.")
+  void sports_db_day_offset_range_fail_when_start_is_greater_than_end() {
+    // Given
+    ContentImportBatchProperties properties = new ContentImportBatchProperties();
+    properties.setSportsDbDayOffsetStart(1);
+    properties.setSportsDbDayOffsetEnd(-1);
+    properties.setInitialSportsDbDayOffsetStart(7);
+    properties.setInitialSportsDbDayOffsetEnd(-3);
+
+    // When & Then
+    assertThat(properties.isValidSportsDbDayOffsetRange()).isFalse();
+    assertThat(properties.isValidInitialSportsDbDayOffsetRange()).isFalse();
   }
 }
