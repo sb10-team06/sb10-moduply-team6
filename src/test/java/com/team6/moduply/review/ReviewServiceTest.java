@@ -172,6 +172,8 @@ class ReviewServiceTest {
     ModuPlyUserDetails userDetails = createUserDetails(authorId);
     ReviewCreateRequest request = new ReviewCreateRequest(contentId, "좋아요", 4.5);
 
+    given(contentRepository.existsById(contentId)).willReturn(true);
+    given(reviewRepository.existsByContentIdAndAuthorId(contentId, authorId)).willReturn(false);
     given(userRepository.findById(authorId)).willReturn(Optional.empty());
 
     // when & then
