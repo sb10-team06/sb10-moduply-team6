@@ -334,7 +334,7 @@ class PlaylistServiceTest {
     verify(contentRepository).findAllById(any());
     verify(playlistMapper).toDto(
         eq(playlist), any(), anyLong(), anyBoolean(),
-        argThat(contents -> contents.size() == 1 && contents.get(0).title().equals("영화 제목"))
+        argThat(contents -> contents.size() == 1 && contents.get(0).title().equals("영화제목"))
     );
   }
 
