@@ -1,7 +1,10 @@
 package com.team6.moduply.playlist;
 
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.playlist.dto.PlaylistCreateRequest;
 import com.team6.moduply.playlist.dto.PlaylistDto;
@@ -34,6 +37,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static com.team6.moduply.playlist.dto.PlaylistSortBy.updatedAt;
@@ -42,6 +46,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -72,6 +77,9 @@ class PlaylistServiceTest {
 
   @Mock
   private UserRepository userRepository;
+
+  @Mock
+  private BinaryContentService binaryContentService;
 
   @Mock
   private ApplicationEventPublisher eventPublisher;
@@ -281,6 +289,53 @@ class PlaylistServiceTest {
     assertThat(result.title()).isEqualTo("내 최애 영화");
     assertThat(result.description()).isEqualTo("비 오는 날 보기 좋은 영화들");
     verify(playlistMapper).toDto(eq(playlist), any(), anyLong(), anyBoolean(), any());
+  }
+
+  @Test
+  @DisplayName("플레이리스트를 단건 조회하면 콘텐츠 목록이 포함된다.")
+  void findById_success_with_contents() {
+    // given
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    UUID currentUserId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+    ReflectionTestUtils.setField(playlist, "id", playlistId);
+
+    PlaylistContent playlistContent = PlaylistContent.builder()
+        .playlist(playlist).contentId(contentId).build();
+
+    Content content = new Content(null, "ext-1", ContentType.movie, "영화제목", "설명");
+    ReflectionTestUtils.setField(content, "id", contentId);
+
+    User mockUser = new User("test@test.com", "password", "테스트", Role.USER);
+
+    PlaylistDto expectedDto = new PlaylistDto(
+        playlistId, null, "제목", "설명", null, 0L, false, List.of()
+    );
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(userRepository.findById(ownerId)).willReturn(Optional.of(mockUser));
+    given(playlistSubscriptionRepository.countByPlaylist(playlist)).willReturn(0L);
+    given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId)).willReturn(false);
+    given(playlistContentRepository.findAllByPlaylist(playlist)).willReturn(List.of(playlistContent));
+    given(contentRepository.findAllById(any())).willReturn(List.of(content));
+    given(binaryContentService.generateUrl(any())).willReturn(null);
+    given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(expectedDto);
+
+    // when
+    PlaylistDto result = playlistService.findById(playlistId, currentUserId);
+
+    // then
+    assertThat(result).isNotNull();
+    verify(playlistContentRepository).findAllByPlaylist(playlist);
+    verify(contentRepository).findAllById(any());
+    verify(playlistMapper).toDto(
+        eq(playlist), any(), anyLong(), anyBoolean(),
+        argThat(contents -> contents.size() == 1 && contents.get(0).title().equals("영화제목"))
+    );
   }
 
   @Test
@@ -656,6 +711,29 @@ class PlaylistServiceTest {
     given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
     given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, subscriberId))
         .willReturn(true);
+
+    // when & then
+    assertThatThrownBy(() -> playlistService.subscribe(playlistId, subscriberId))
+        .isInstanceOf(PlaylistException.class)
+        .satisfies(e -> assertThat(((PlaylistException) e).getErrorCode())
+            .isEqualTo(PlaylistErrorCode.PLAYLIST_SUBSCRIPTION_ALREADY_EXISTS));
+  }
+
+  @Test
+  @DisplayName("구독 동시 요청으로 DataIntegrityViolationException 발생 시 409를 반환한다.")
+  void subscribe_fail_with_data_integrity_violation() {
+    // given
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("제목").description("설명").build();
+
+    given(playlistRepository.findById(playlistId)).willReturn(Optional.of(playlist));
+    given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, subscriberId))
+        .willReturn(false);
+    given(playlistSubscriptionRepository.save(any()))
+        .willThrow(new DataIntegrityViolationException("duplicate"));
 
     // when & then
     assertThatThrownBy(() -> playlistService.subscribe(playlistId, subscriberId))
