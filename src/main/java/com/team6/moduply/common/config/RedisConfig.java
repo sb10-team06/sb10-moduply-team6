@@ -5,6 +5,7 @@ import com.team6.moduply.common.redis.RedisSubscriber;
 import com.team6.moduply.watching.model.WatchingSession;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
@@ -64,6 +65,7 @@ public class RedisConfig {
 
   // 리스너
   @Bean
+  @Profile("!test")
   public RedisMessageListenerContainer redisMessageListenerContainer(
       RedisConnectionFactory connectionFactory,
       RedisSubscriber redisSubscriber) {
