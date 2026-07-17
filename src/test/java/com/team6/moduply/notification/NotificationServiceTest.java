@@ -252,10 +252,18 @@ class NotificationServiceTest {
         .level(NotificationLevel.INFO)
         .build();
 
+    Notification notification2 = Notification.builder()
+        .receiverId(receiverId2)
+        .type(NotificationType.CONTENT_ADDED)
+        .title(NotificationType.CONTENT_ADDED.getTitle())
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
     NotificationDto dto = new NotificationDto(UUID.randomUUID(), null, receiverId1,
         NotificationType.CONTENT_ADDED.getTitle(), "내용", NotificationLevel.INFO);
 
-    given(notificationRepository.saveAll(any())).willReturn(List.of(notification1));
+    given(notificationRepository.saveAll(any())).willReturn(List.of(notification1, notification2));
     given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
 
     // when
@@ -263,7 +271,7 @@ class NotificationServiceTest {
         receiverIds, "테스트 플레이리스트", "테스트 콘텐츠");
 
     // then
-    assertThat(result).hasSize(1);
+    assertThat(result).hasSize(2);
     verify(notificationRepository).saveAll(any());
   }
 

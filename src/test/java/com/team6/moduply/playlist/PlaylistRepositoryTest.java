@@ -70,9 +70,9 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
   @DisplayName("키워드로 플레이리스트를 검색하면 해당 플레이리스트만 반환한다.")
   void findAllWithCursor_success_with_keyword() {
     // given
-    Playlist playlist1 = playlistRepository.save(Playlist.builder()
+    playlistRepository.save(Playlist.builder()
         .ownerId(UUID.randomUUID()).title("내 최애 영화").description("설명1").build());
-    Playlist playlist2 = playlistRepository.save(Playlist.builder()
+    playlistRepository.save(Playlist.builder()
         .ownerId(UUID.randomUUID()).title("드라마 모음").description("설명2").build());
 
     PlaylistSearchRequest request = new PlaylistSearchRequest(
