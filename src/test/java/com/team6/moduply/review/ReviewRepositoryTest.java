@@ -9,6 +9,7 @@ import com.team6.moduply.review.entity.Review;
 import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepositoryImpl;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -96,6 +97,37 @@ class ReviewRepositoryTest extends RepositoryTestSupport {
 
     // then
     assertThat(count).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("콘텐츠 ID로 리뷰 수와 평균 평점을 계산한다.")
+  void calculateStatsByContentId_success() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    saveReview(contentId, UUID.randomUUID(), 4.5);
+    saveReview(contentId, UUID.randomUUID(), 3.5);
+    saveReview(UUID.randomUUID(), UUID.randomUUID(), 1.0);
+
+    // when
+    ReviewStats stats = reviewQDSLRepository.calculateStatsByContentId(contentId);
+
+    // then
+    assertThat(stats.reviewCount()).isEqualTo(2);
+    assertThat(stats.averageRating()).isEqualTo(4.0);
+  }
+
+  @Test
+  @DisplayName("리뷰가 없는 콘텐츠의 리뷰 통계는 0으로 계산한다.")
+  void calculateStatsByContentId_success_when_review_not_exists() {
+    // given
+    UUID contentId = UUID.randomUUID();
+
+    // when
+    ReviewStats stats = reviewQDSLRepository.calculateStatsByContentId(contentId);
+
+    // then
+    assertThat(stats.reviewCount()).isZero();
+    assertThat(stats.averageRating()).isZero();
   }
 
   @Test

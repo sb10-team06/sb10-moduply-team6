@@ -1105,6 +1105,23 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("리뷰 통계 갱신 시 콘텐츠가 존재하지 않으면 예외를 던진다.")
+  void refresh_review_stats_fail_when_content_not_found() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    given(contentRepository.findById(contentId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.refreshReviewStats(contentId))
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
+        });
+
+    verify(reviewQDSLRepository, never()).calculateStatsByContentId(contentId);
+  }
+
+  @Test
   @DisplayName("시청자 수를 갱신하면 콘텐츠 시청자 수를 변경한다.")
   void update_watcher_count_success() {
     // Given
@@ -1117,6 +1134,21 @@ class ContentServiceTest {
 
     // Then
     assertThat(content.getWatcherCount()).isEqualTo(7L);
+  }
+
+  @Test
+  @DisplayName("시청자 수 갱신 시 콘텐츠가 존재하지 않으면 예외를 던진다.")
+  void update_watcher_count_fail_when_content_not_found() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    given(contentRepository.findById(contentId)).willReturn(Optional.empty());
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.updateWatcherCount(contentId, 7L))
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
+        });
   }
 
   private record TestContentTagNameProjection(
