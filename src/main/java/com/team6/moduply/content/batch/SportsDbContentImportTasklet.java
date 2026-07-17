@@ -31,6 +31,9 @@ public class SportsDbContentImportTasklet implements Tasklet {
     boolean initialImport = isInitialImport(chunkContext);
     int daySavedCount = 0;
     int daySkippedCount = 0;
+    int requestedCount = 0;
+    int succeededCount = 0;
+    int failedCount = 0;
     List<String> leagueIds = properties.getSportsDbLeagueIds().stream()
         .map(String::trim)
         .filter(StringUtils::hasText)
@@ -42,15 +45,18 @@ public class SportsDbContentImportTasklet implements Tasklet {
       for (Integer dayOffset : dayOffsets) {
         LocalDate targetDate = LocalDate.now().plusDays(dayOffset);
         try {
+          requestedCount++;
           ExternalContentImportResult dayResult =
               externalContentImportService.importSportsDbDayEvents(
                   targetDate,
                   properties.getSportsDbSport(),
                   leagueId
               );
+          succeededCount++;
           daySavedCount += dayResult.savedCount();
           daySkippedCount += dayResult.skippedCount();
         } catch (RuntimeException e) {
+          failedCount++;
           log.warn("The Sports DB 일별 경기 수집 실패. date={}, sport={}, leagueId={}",
               targetDate, properties.getSportsDbSport(), leagueId, e);
         } finally {
@@ -60,8 +66,11 @@ public class SportsDbContentImportTasklet implements Tasklet {
     }
 
     log.info("The Sports DB 콘텐츠 수집 배치 완료: initialImport={}, leagueIds={}, dayOffsets={}, "
-            + "daySaved={}, daySkipped={}",
-        initialImport, leagueIds, dayOffsets, daySavedCount, daySkippedCount);
+            + "daySaved={}, daySkipped={}, requested={}, succeeded={}, failed={}",
+        initialImport, leagueIds, dayOffsets, daySavedCount, daySkippedCount,
+        requestedCount, succeededCount, failedCount);
+
+    failIfAllRequestsFailed(requestedCount, succeededCount);
 
     return RepeatStatus.FINISHED;
   }
@@ -104,6 +113,12 @@ public class SportsDbContentImportTasklet implements Tasklet {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("The Sports DB 요청 대기 중 인터럽트가 발생했습니다.", e);
+    }
+  }
+
+  private void failIfAllRequestsFailed(int requestedCount, int succeededCount) {
+    if (requestedCount > 0 && succeededCount == 0) {
+      throw new IllegalStateException("The Sports DB 콘텐츠 수집 요청이 모두 실패했습니다.");
     }
   }
 }

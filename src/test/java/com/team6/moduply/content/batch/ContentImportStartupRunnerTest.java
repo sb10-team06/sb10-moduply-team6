@@ -66,7 +66,7 @@ class ContentImportStartupRunnerTest {
     verify(jobLauncher).run(eq(sportsDbContentImportJob), captor.capture());
     assertThat(captor.getAllValues()).allSatisfy(jobParameters -> {
       assertThat(jobParameters.getString("importMode")).isEqualTo("INITIAL");
-      assertThat(jobParameters.getString("initialStartedAt")).isNotBlank();
+      assertThat(jobParameters.getString("initialRunKey")).isEqualTo("default");
     });
   }
 

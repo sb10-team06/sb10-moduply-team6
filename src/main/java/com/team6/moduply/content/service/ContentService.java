@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -60,7 +59,6 @@ public class ContentService {
   private final ReviewQDSLRepository reviewQDSLRepository;
 
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
   @Transactional
   public ContentDto create(
       ContentCreateRequest request,
@@ -99,12 +97,7 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
-  @Caching(
-      evict = {
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
-      }
-  )
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
   @Transactional
   public ContentDto update(
       UUID contentId,
@@ -134,12 +127,7 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
-  @Caching(
-      evict = {
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
-      }
-  )
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
   @Transactional
   public void delete(UUID contentId) {
     log.debug("콘텐츠 삭제 처리 시작: contentId={}", contentId);
@@ -164,7 +152,6 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
-  @Cacheable(cacheNames = CacheConfig.CONTENT_LIST, key = "#request", sync = true)      // sync = true: 동일 키 동시 미스 방지
   public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
     List<String> normalizedTagsIn = normalizeTags(request.tagsIn());
 
@@ -255,12 +242,7 @@ public class ContentService {
     }
   }
 
-  @Caching(
-      evict = {
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId"),
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
-      }
-  )
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
   @Transactional
   public void refreshReviewStats(UUID contentId) {
     Content content = findContentById(contentId);
@@ -272,12 +254,7 @@ public class ContentService {
     );
   }
 
-  @Caching(
-      evict = {
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId"),
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
-      }
-  )
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
   @Transactional
   public void updateWatcherCount(UUID contentId, long watcherCount) {
     Content content = findContentById(contentId);

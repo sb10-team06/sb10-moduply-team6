@@ -31,34 +31,46 @@ public class TmdbContentImportTasklet implements Tasklet {
     int movieSkippedCount = 0;
     int tvSavedCount = 0;
     int tvSkippedCount = 0;
+    int requestedCount = 0;
+    int succeededCount = 0;
+    int failedCount = 0;
 
     for (int page = pageStart; page <= pageEnd; page++) {
       try {
+        requestedCount++;
         ExternalContentImportResult movieResult = externalContentImportService.importTmdbMovies(
             page,
             properties.getTmdbLanguage()
         );
+        succeededCount++;
         movieSavedCount += movieResult.savedCount();
         movieSkippedCount += movieResult.skippedCount();
       } catch (RuntimeException e) {
+        failedCount++;
         log.warn("TMDB 영화 수집 실패. page={}, language={}", page, properties.getTmdbLanguage(), e);
       }
 
       try {
+        requestedCount++;
         ExternalContentImportResult tvResult = externalContentImportService.importTmdbTvSeries(
             page,
             properties.getTmdbLanguage()
         );
+        succeededCount++;
         tvSavedCount += tvResult.savedCount();
         tvSkippedCount += tvResult.skippedCount();
       } catch (RuntimeException e) {
+        failedCount++;
         log.warn("TMDB TV 수집 실패. page={}, language={}", page, properties.getTmdbLanguage(), e);
       }
     }
 
     log.info("TMDB 콘텐츠 수집 배치 완료: initialImport={}, pageStart={}, pageEnd={}, movieSaved={}, "
-            + "movieSkipped={}, tvSaved={}, tvSkipped={}",
-        initialImport, pageStart, pageEnd, movieSavedCount, movieSkippedCount, tvSavedCount, tvSkippedCount);
+            + "movieSkipped={}, tvSaved={}, tvSkipped={}, requested={}, succeeded={}, failed={}",
+        initialImport, pageStart, pageEnd, movieSavedCount, movieSkippedCount, tvSavedCount, tvSkippedCount,
+        requestedCount, succeededCount, failedCount);
+
+    failIfAllRequestsFailed(requestedCount, succeededCount);
 
     return RepeatStatus.FINISHED;
   }
@@ -89,5 +101,11 @@ public class TmdbContentImportTasklet implements Tasklet {
         ? properties.getInitialTmdbPageEnd()
         : properties.getTmdbPageEnd();
     return Math.max(pageStart, pageEnd);
+  }
+
+  private void failIfAllRequestsFailed(int requestedCount, int succeededCount) {
+    if (requestedCount > 0 && succeededCount == 0) {
+      throw new IllegalStateException("TMDB 콘텐츠 수집 요청이 모두 실패했습니다.");
+    }
   }
 }

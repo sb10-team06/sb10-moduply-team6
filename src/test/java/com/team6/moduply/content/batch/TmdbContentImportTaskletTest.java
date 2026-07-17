@@ -1,6 +1,7 @@
 package com.team6.moduply.content.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
@@ -137,6 +138,26 @@ class TmdbContentImportTaskletTest {
     verify(externalContentImportService).importTmdbTvSeries(1, "ko-KR");
     verify(externalContentImportService).importTmdbMovies(2, "ko-KR");
     verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
+  }
+
+  @Test
+  @DisplayName("TMDB 수집 요청이 모두 실패하면 Step을 실패 처리한다.")
+  void execute_fail_when_all_tmdb_requests_fail() {
+    // Given
+    given(properties.getTmdbPageStart()).willReturn(1);
+    given(properties.getTmdbPageEnd()).willReturn(1);
+    given(properties.getTmdbLanguage()).willReturn("ko-KR");
+    willThrow(new RuntimeException("tmdb movie failed"))
+        .given(externalContentImportService)
+        .importTmdbMovies(1, "ko-KR");
+    willThrow(new RuntimeException("tmdb tv failed"))
+        .given(externalContentImportService)
+        .importTmdbTvSeries(1, "ko-KR");
+
+    // When & Then
+    assertThatThrownBy(() -> tasklet.execute(null, null))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("TMDB 콘텐츠 수집 요청이 모두 실패했습니다.");
   }
 
   private ChunkContext initialImportChunkContext() {

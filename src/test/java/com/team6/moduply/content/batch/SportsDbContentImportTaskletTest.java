@@ -1,6 +1,7 @@
 package com.team6.moduply.content.batch;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
@@ -166,6 +167,25 @@ class SportsDbContentImportTaskletTest {
     verify(externalContentImportService).importSportsDbDayEvents(today.plusDays(1), "Soccer", "4328");
     verify(externalContentImportService).importSportsDbDayEvents(today, "Soccer", "4335");
     verify(externalContentImportService).importSportsDbDayEvents(today.plusDays(1), "Soccer", "4335");
+  }
+
+  @Test
+  @DisplayName("The Sports DB 수집 요청이 모두 실패하면 Step을 실패 처리한다.")
+  void execute_fail_when_all_sports_db_requests_fail() {
+    // Given
+    LocalDate today = LocalDate.now();
+    given(properties.getSportsDbLeagueIds()).willReturn(List.of("4328"));
+    given(properties.getSportsDbDayOffsetStart()).willReturn(0);
+    given(properties.getSportsDbDayOffsetEnd()).willReturn(0);
+    given(properties.getSportsDbSport()).willReturn("Soccer");
+    willThrow(new RuntimeException("sports day failed"))
+        .given(externalContentImportService)
+        .importSportsDbDayEvents(today, "Soccer", "4328");
+
+    // When & Then
+    assertThatThrownBy(() -> tasklet.execute(null, null))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("The Sports DB 콘텐츠 수집 요청이 모두 실패했습니다.");
   }
 
   private ChunkContext initialImportChunkContext() {

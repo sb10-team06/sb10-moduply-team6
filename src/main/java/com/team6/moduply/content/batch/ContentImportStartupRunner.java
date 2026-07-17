@@ -1,7 +1,6 @@
 package com.team6.moduply.content.batch;
 
 import com.team6.moduply.content.repository.ContentRepository;
-import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
@@ -25,6 +24,8 @@ import org.springframework.stereotype.Component;
     havingValue = "true"
 )
 public class ContentImportStartupRunner {
+
+  private static final String INITIAL_RUN_KEY = "default";
 
   private final JobLauncher jobLauncher;
   private final Job tmdbContentImportJob;
@@ -57,7 +58,7 @@ public class ContentImportStartupRunner {
 
     JobParameters jobParameters = new JobParametersBuilder()
         .addString("importMode", "INITIAL")
-        .addString("initialStartedAt", Instant.now().toString())
+        .addString("initialRunKey", INITIAL_RUN_KEY)
         .toJobParameters();
 
     runInitialJob(tmdbContentImportJob, jobParameters);
@@ -69,16 +70,16 @@ public class ContentImportStartupRunner {
   }
 
   private void runInitialJob(Job job, JobParameters jobParameters) {
-    log.info("외부 콘텐츠 초기 수집 배치 실행 시작: jobName={}, initialStartedAt={}",
-        job.getName(), jobParameters.getString("initialStartedAt"));
+    log.info("외부 콘텐츠 초기 수집 배치 실행 시작: jobName={}, initialRunKey={}",
+        job.getName(), jobParameters.getString("initialRunKey"));
     try {
       jobLauncher.run(job, jobParameters);
       log.info("외부 콘텐츠 초기 수집 배치 실행 요청 완료: jobName={}", job.getName());
     } catch (JobExecutionAlreadyRunningException e) {
       log.warn("외부 콘텐츠 초기 수집 배치가 이미 실행 중입니다. jobName={}", job.getName(), e);
     } catch (JobInstanceAlreadyCompleteException e) {
-      log.info("외부 콘텐츠 초기 수집 배치가 이미 완료되었습니다. jobName={}, initialStartedAt={}",
-          job.getName(), jobParameters.getString("initialStartedAt"));
+      log.info("외부 콘텐츠 초기 수집 배치가 이미 완료되었습니다. jobName={}, initialRunKey={}",
+          job.getName(), jobParameters.getString("initialRunKey"));
     } catch (JobRestartException | JobParametersInvalidException e) {
       log.error("외부 콘텐츠 초기 수집 배치 실행 요청 실패. jobName={}", job.getName(), e);
     }
