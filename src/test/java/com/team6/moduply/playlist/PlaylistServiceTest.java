@@ -34,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static com.team6.moduply.playlist.dto.PlaylistSortBy.updatedAt;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -321,7 +322,7 @@ class PlaylistServiceTest {
     given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(dto);
 
     // when
-    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, null);
 
     // then
     assertThat(result.data()).hasSize(1);
@@ -354,7 +355,7 @@ class PlaylistServiceTest {
     given(playlistMapper.toDto(eq(playlist1), any(), anyLong(), anyBoolean(), any())).willReturn(dto1);
 
     // when
-    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, null);
 
     // then
     assertThat(result.data()).hasSize(1);
@@ -390,7 +391,7 @@ class PlaylistServiceTest {
     given(playlistMapper.toDto(eq(playlist2), any(), anyLong(), anyBoolean(), any())).willReturn(dto2);
 
     // when
-    CursorResponse<PlaylistDto> result = playlistService.findAll(request);
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, null);
 
     // then
     assertThat(result.data()).hasSize(2);
@@ -584,6 +585,43 @@ class PlaylistServiceTest {
 
     // then
     verify(playlistSubscriptionRepository).save(any(PlaylistSubscription.class));
+  }
+
+  @Test
+  @DisplayName("구독 중인 플레이리스트 목록 조회 시 subscribedByMe가 true를 반환한다.")
+  void findAll_success_with_subscribed_by_me() {
+    // given
+    UUID currentUserId = UUID.randomUUID();
+    UUID ownerId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10,
+        SortDirection.DESCENDING, PlaylistSortBy.updatedAt
+    );
+
+    Playlist playlist = Playlist.builder()
+        .ownerId(ownerId).title("제목").description("설명").build();
+    ReflectionTestUtils.setField(playlist, "id", playlistId);
+
+    PlaylistDto dto = new PlaylistDto(
+        playlistId, null, "제목", "설명", null, 0L, true, List.of()
+    );
+
+    given(playlistQDSLRepository.findAllWithCursor(request)).willReturn(List.of(playlist));
+    given(playlistQDSLRepository.countWithCondition(request)).willReturn(1L);
+    given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
+    given(playlistSubscriptionRepository.countByPlaylistIds(any())).willReturn(List.of());
+    given(playlistContentRepository.findAllByPlaylistIn(any())).willReturn(List.of());
+    given(playlistSubscriptionRepository.findSubscribedPlaylistIdsBySubscriberIdAndPlaylistIdIn(
+        eq(currentUserId), any())).willReturn(List.of(playlistId));
+    given(playlistMapper.toDto(any(), any(), anyLong(), eq(true), any())).willReturn(dto);
+
+    // when
+    CursorResponse<PlaylistDto> result = playlistService.findAll(request, currentUserId);
+
+    // then
+    assertThat(result.data().get(0).subscribedByMe()).isTrue();
   }
 
   @Test

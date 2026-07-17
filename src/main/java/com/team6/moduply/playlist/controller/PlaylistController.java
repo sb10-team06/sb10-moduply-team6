@@ -71,8 +71,9 @@ public class PlaylistController {
   @GetMapping
   @Operation(summary = "플레이리스트 목록 조회", description = "플레이리스트 목록을 커서 기반 페이지네이션으로 조회합니다.")
   public ResponseEntity<CursorResponse<PlaylistDto>> getPlaylists(
-      @ModelAttribute @Valid PlaylistSearchRequest request) {
-    return ResponseEntity.ok(playlistService.findAll(request));
+      @ModelAttribute @Valid PlaylistSearchRequest request,
+      @AuthenticationPrincipal(expression = "userDto.id") UUID currentUserId) {
+    return ResponseEntity.ok(playlistService.findAll(request, currentUserId));
   }
 
   @PostMapping("/{playlistId}/contents/{contentId}")

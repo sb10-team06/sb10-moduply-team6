@@ -238,7 +238,7 @@ class PlaylistControllerTest {
         List.of(), null, null, false, 0L, "updatedAt", SortDirection.DESCENDING
     );
 
-    given(playlistService.findAll(any())).willReturn(response);
+    given(playlistService.findAll(any(), any())).willReturn(response);
 
     // when & then
     mockMvc.perform(get("/api/playlists")
