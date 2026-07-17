@@ -1,7 +1,6 @@
 package com.team6.moduply.notification;
 
 import com.team6.moduply.common.config.JpaAuditingConfig;
-import com.team6.moduply.common.config.QueryDslConfig;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.notification.dto.NotificationSearchRequest;
@@ -20,7 +19,7 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import({JpaAuditingConfig.class, QueryDslConfig.class})
+@Import(JpaAuditingConfig.class)
 class NotificationRepositoryTest extends RepositoryTestSupport {
 
   @Autowired

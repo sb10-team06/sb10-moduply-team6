@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import({JpaAuditingConfig.class, QueryDslConfig.class})
+@Import(JpaAuditingConfig.class)
 class ReviewRepositoryTest extends RepositoryTestSupport {
 
   @Autowired

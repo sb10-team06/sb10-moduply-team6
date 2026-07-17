@@ -322,6 +322,7 @@ class PlaylistServiceTest {
     given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId)).willReturn(false);
     given(playlistContentRepository.findAllByPlaylist(playlist)).willReturn(List.of(playlistContent));
     given(contentRepository.findAllById(any())).willReturn(List.of(content));
+    given(binaryContentService.generateUrl(any())).willReturn(null);
     given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(expectedDto);
 
     // when

@@ -172,10 +172,7 @@ class ReviewServiceTest {
     ModuPlyUserDetails userDetails = createUserDetails(authorId);
     ReviewCreateRequest request = new ReviewCreateRequest(contentId, "좋아요", 4.5);
 
-    given(contentRepository.existsById(contentId)).willReturn(true);
-    given(reviewRepository.existsByContentIdAndAuthorId(contentId, authorId)).willReturn(false);
-    given(reviewRepository.save(any(Review.class))).willReturn(Review.builder()
-        .contentId(contentId).authorId(authorId).text("좋아요").rating(4.5).build());
+    given(userRepository.findById(authorId)).willReturn(Optional.empty());
 
     // when & then
     assertThatThrownBy(() -> reviewService.create(request, userDetails))
