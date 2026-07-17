@@ -8,6 +8,7 @@ import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.entity.Playlist;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
+import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepositoryImpl;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import(JpaAuditingConfig.class)
+@Import({JpaAuditingConfig.class, PlaylistQDSLRepositoryImpl.class})
 class PlaylistRepositoryTest extends RepositoryTestSupport {
 
   @Autowired

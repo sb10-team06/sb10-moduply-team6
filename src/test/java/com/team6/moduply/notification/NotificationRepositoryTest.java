@@ -10,6 +10,7 @@ import com.team6.moduply.notification.enums.NotificationLevel;
 import com.team6.moduply.notification.enums.NotificationType;
 import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
+import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepositoryImpl;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,7 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import(JpaAuditingConfig.class)
+@Import({JpaAuditingConfig.class, NotificationQDSLRepositoryImpl.class})
 class NotificationRepositoryTest extends RepositoryTestSupport {
 
   @Autowired

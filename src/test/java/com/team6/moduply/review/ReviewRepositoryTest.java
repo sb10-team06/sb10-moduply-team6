@@ -8,6 +8,7 @@ import com.team6.moduply.review.dto.ReviewSortBy;
 import com.team6.moduply.review.entity.Review;
 import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepositoryImpl;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +18,7 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import(JpaAuditingConfig.class)
+@Import({JpaAuditingConfig.class, ReviewQDSLRepositoryImpl.class})
 class ReviewRepositoryTest extends RepositoryTestSupport {
 
   @Autowired
