@@ -1,7 +1,6 @@
 package com.team6.moduply.review;
 
 import com.team6.moduply.common.config.JpaAuditingConfig;
-import com.team6.moduply.common.config.QueryDslConfig;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.review.dto.ReviewSearchRequest;
