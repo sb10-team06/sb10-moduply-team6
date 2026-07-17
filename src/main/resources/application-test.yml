@@ -55,6 +55,12 @@ moduply:
     sports-db:
       api-key: test-sports-db-api-key
 
+  content:
+    batch:
+      import:
+        enabled: false
+        initial-import-enabled: false
+
 #컨텍스트 로딩 통과용.
 jwt:
   key: bW9kdXBseS10ZWFtNi10ZXN0LWVudmlyb25tZW50LWp3dC1zZWNyZXQta2V5LTIwMjYtdmVyeS1zZWN1cmU=
