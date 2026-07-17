@@ -1,11 +1,14 @@
 package com.team6.moduply.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team6.moduply.common.redis.RedisSubscriber;
 import com.team6.moduply.watching.model.WatchingSession;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -46,4 +49,30 @@ public class RedisConfig {
     return template;
   }
 
+  // Redis pub/sub
+  @Bean
+  public RedisTemplate<String, Object> redisPubSubTemplate(
+      RedisConnectionFactory factory,
+      ObjectMapper mapper) {
+
+    RedisTemplate<String, Object> template = new RedisTemplate<>();
+    template.setConnectionFactory(factory);
+    template.setKeySerializer(new StringRedisSerializer());
+    template.setValueSerializer(new Jackson2JsonRedisSerializer<>(mapper, Object.class));
+    return template;
+  }
+
+  // 리스너
+  @Bean
+  public RedisMessageListenerContainer redisMessageListenerContainer(
+      RedisConnectionFactory connectionFactory,
+      RedisSubscriber redisSubscriber) {
+
+    RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+    container.setConnectionFactory(connectionFactory);
+
+    // /sub으로 시작하는 모든 경로 구독
+    container.addMessageListener(redisSubscriber, new PatternTopic("/sub/**"));
+    return container;
+  }
 }

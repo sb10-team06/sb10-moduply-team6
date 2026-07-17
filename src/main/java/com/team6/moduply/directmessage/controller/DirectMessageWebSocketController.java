@@ -1,6 +1,7 @@
 package com.team6.moduply.directmessage.controller;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.directmessage.dto.DirectMessageCreateRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.service.DirectMessageService;
@@ -24,7 +25,8 @@ public class DirectMessageWebSocketController {
       "/sub/conversations/%s/direct-messages";
 
   private final DirectMessageService directMessageService;
-  private final SimpMessagingTemplate messagingTemplate;
+  //private final SimpMessagingTemplate messagingTemplate;
+  private final RedisPublisher redisPublisher;
 
   @MessageMapping("/conversations/{conversationId}/direct-messages")
   public void create(
@@ -42,7 +44,11 @@ public class DirectMessageWebSocketController {
     // TODO: event 비동기 처리, kafka 사용
     // TODO: DB 저장 -> 이벤트 발행 -> 별도 listener에서 broadcast
     // DM을 해당 대화방을 구독중인 클라이언트들에게 실시간으로 보냄
-    messagingTemplate.convertAndSend(
+//    messagingTemplate.convertAndSend(
+//        DIRECT_MESSAGE_DESTINATION.formatted(conversationId),
+//        directMessage
+//    );
+    redisPublisher.publish(
         DIRECT_MESSAGE_DESTINATION.formatted(conversationId),
         directMessage
     );
