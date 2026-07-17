@@ -3,6 +3,7 @@ package com.team6.moduply.review;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doReturn;
 
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.EntityPath;
@@ -28,6 +29,9 @@ class ReviewQDSLRepositoryImplTest {
   @Mock
   private JPAQuery<Tuple> query;
 
+  @Mock
+  private Tuple tuple;
+
   @Test
   @DisplayName("리뷰 통계 집계 쿼리 결과가 null이면 기본 통계를 반환한다.")
   void calculateStatsByContentId_success_when_query_result_is_null() {
@@ -44,5 +48,24 @@ class ReviewQDSLRepositoryImplTest {
     // Then
     assertThat(stats.reviewCount()).isZero();
     assertThat(stats.averageRating()).isZero();
+  }
+
+  @Test
+  @DisplayName("리뷰 통계 집계 결과의 리뷰 수가 null이면 0으로 반환한다.")
+  void calculateStatsByContentId_success_when_count_is_null() {
+    // Given
+    ReviewQDSLRepositoryImpl repository = new ReviewQDSLRepositoryImpl(queryFactory);
+    given(queryFactory.select(any(Expression[].class))).willReturn(query);
+    given(query.from(any(EntityPath.class))).willReturn(query);
+    given(query.where(any(Predicate.class))).willReturn(query);
+    given(query.fetchOne()).willReturn(tuple);
+    doReturn(null, 4.0).when(tuple).get(any(Expression.class));
+
+    // When
+    ReviewStats stats = repository.calculateStatsByContentId(UUID.randomUUID());
+
+    // Then
+    assertThat(stats.reviewCount()).isZero();
+    assertThat(stats.averageRating()).isEqualTo(4.0);
   }
 }
