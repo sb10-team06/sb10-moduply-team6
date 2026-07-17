@@ -4,6 +4,7 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
@@ -44,6 +45,7 @@ public class ReviewService {
   private final UserMapper userMapper;
   private final ApplicationEventPublisher eventPublisher;
   private final BinaryContentService binaryContentService;
+  private final ContentService contentService;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
     if (!review.getAuthorId().equals(authorId)) {
@@ -94,6 +96,7 @@ public class ReviewService {
         .build();
 
     Review saved = reviewRepository.save(review);
+    contentService.refreshReviewStats(contentId);
     eventPublisher.publishEvent(new FollowActivityEvent(
         authorId,
         userDetails.getUserDto().getName(),
@@ -117,6 +120,7 @@ public class ReviewService {
     validateAuthor(review, authorId, reviewId);
 
     review.update(request.text(), request.rating());
+    contentService.refreshReviewStats(review.getContentId());
 
     ReviewDto.AuthorDto author = getAuthorDto(authorId);
     return reviewMapper.toDto(review, author);
@@ -134,7 +138,9 @@ public class ReviewService {
 
     validateAuthor(review, authorId, reviewId);
 
+    UUID contentId = review.getContentId();
     reviewRepository.delete(review);
+    contentService.refreshReviewStats(contentId);
   }
 
   @Transactional(readOnly = true)

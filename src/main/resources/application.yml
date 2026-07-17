@@ -120,16 +120,21 @@ moduply:
     batch:
       import:
         enabled: ${CONTENT_IMPORT_BATCH_ENABLED:true}
-        cron: ${CONTENT_IMPORT_BATCH_CRON:0 0 2 * * *}
+        tmdb-cron: ${CONTENT_IMPORT_BATCH_TMDB_CRON:0 0 2 * * *}
+        sports-db-cron: ${CONTENT_IMPORT_BATCH_SPORTS_DB_CRON:0 10 2 * * *}
         tmdb-page-start: ${CONTENT_IMPORT_BATCH_TMDB_PAGE_START:1}
         tmdb-page-end: ${CONTENT_IMPORT_BATCH_TMDB_PAGE_END:3}
         tmdb-language: ${CONTENT_IMPORT_BATCH_TMDB_LANGUAGE:ko-KR}
-        sports-db-league-ids: ${CONTENT_IMPORT_BATCH_SPORTS_DB_LEAGUE_IDS:4328}
+        sports-db-league-ids: ${CONTENT_IMPORT_BATCH_SPORTS_DB_LEAGUE_IDS:4328,4335,4480,4481,4482,4483,4484,4485}
         sports-db-sport: ${CONTENT_IMPORT_BATCH_SPORTS_DB_SPORT:Soccer}
-        sports-db-day-offsets:
-          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_PREVIOUS:-1}
-          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_TODAY:0}
-          - ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_NEXT:1}
+        sports-db-day-offset-start: ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_START:-1}
+        sports-db-day-offset-end: ${CONTENT_IMPORT_BATCH_SPORTS_DB_DAY_OFFSET_END:1}
+        sports-db-request-delay-millis: ${CONTENT_IMPORT_BATCH_SPORTS_DB_REQUEST_DELAY_MILLIS:2500}
+        initial-import-enabled: ${CONTENT_IMPORT_BATCH_INITIAL_IMPORT_ENABLED:true}
+        initial-tmdb-page-start: ${CONTENT_IMPORT_BATCH_INITIAL_TMDB_PAGE_START:1}
+        initial-tmdb-page-end: ${CONTENT_IMPORT_BATCH_INITIAL_TMDB_PAGE_END:10}
+        initial-sports-db-day-offset-start: ${CONTENT_IMPORT_BATCH_INITIAL_SPORTS_DB_DAY_OFFSET_START:-3}
+        initial-sports-db-day-offset-end: ${CONTENT_IMPORT_BATCH_INITIAL_SPORTS_DB_DAY_OFFSET_END:7}
 jwt:
   key: ${JWT_SECRET_KEY}
   access-token-expiration-minutes: 30

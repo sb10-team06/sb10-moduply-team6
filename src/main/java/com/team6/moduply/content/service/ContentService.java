@@ -15,6 +15,7 @@ import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
+import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.mapper.ContentMapper;
@@ -22,7 +23,11 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,11 +50,14 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ContentService {
 
+  private static final String DEFAULT_THUMBNAIL_URL = "/placeholder-movie.png";
+
   private final ContentRepository contentRepository;
   private final TagRepository tagRepository;
   private final ContentTagRepository contentTagRepository;
   private final ContentMapper contentMapper;
   private final BinaryContentService binaryContentService;
+  private final ReviewQDSLRepository reviewQDSLRepository;
 
   @PreAuthorize("hasRole('ADMIN')")
   @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
@@ -72,7 +80,7 @@ public class ContentService {
     savedContent.updateContentImg(contentImg);
     String thumbnailUrl = binaryContentService.generateUrl(contentImg);
 
-    List<String> tagNames = normalizeTags(request.tags());
+    List<String> tagNames = normalizeTagsOrDefault(request.tags(), request.type());
 
     List<Tag> tags = getOrCreateTags(tagNames);
 
@@ -247,6 +255,35 @@ public class ContentService {
     }
   }
 
+  @Caching(
+      evict = {
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId"),
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
+      }
+  )
+  @Transactional
+  public void refreshReviewStats(UUID contentId) {
+    Content content = findContentById(contentId);
+    ReviewStats stats = reviewQDSLRepository.calculateStatsByContentId(contentId);
+
+    content.updateReviewStats(
+        BigDecimal.valueOf(stats.averageRating()).setScale(2, RoundingMode.HALF_UP),
+        Math.toIntExact(stats.reviewCount())
+    );
+  }
+
+  @Caching(
+      evict = {
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId"),
+          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
+      }
+  )
+  @Transactional
+  public void updateWatcherCount(UUID contentId, long watcherCount) {
+    Content content = findContentById(contentId);
+    content.updateWatcherCount(watcherCount);
+  }
+
   private BinaryContent createContentImage(Content content, MultipartFile thumbnail) {
     try {
       return binaryContentService.createContentImage(content.getId(), thumbnail,
@@ -271,6 +308,17 @@ public class ContentService {
         });
   }
 
+  private Content findContentById(UUID contentId) {
+    return contentRepository.findById(contentId)
+        .orElseThrow(() -> {
+          log.warn("콘텐츠 조회 실패: 콘텐츠 없음. contentId={}", contentId);
+          return new ContentException(
+              ContentErrorCode.CONTENT_NOT_FOUND,
+              Map.of("contentId", contentId)
+          );
+        });
+  }
+
   private List<String> normalizeTags(List<String> tags) {
     if (tags == null) {
       return List.of();
@@ -281,6 +329,15 @@ public class ContentService {
         .collect(Collectors.toCollection(LinkedHashSet::new))
         .stream()
         .toList();
+  }
+
+  private List<String> normalizeTagsOrDefault(List<String> tags, ContentType type) {
+    List<String> normalizedTags = normalizeTags(tags);
+    if (!normalizedTags.isEmpty()) {
+      return normalizedTags;
+    }
+
+    return List.of(type.name());
   }
 
   private List<Tag> getOrCreateTags(List<String> tagNames) {
@@ -350,7 +407,9 @@ public class ContentService {
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {
-    String thumbnailUrl = binaryContentService.generateUrl(content.getContentImg());
+    String thumbnailUrl = content.getContentImg() == null
+        ? DEFAULT_THUMBNAIL_URL
+        : binaryContentService.generateUrl(content.getContentImg());
     return contentMapper.toDto(content, thumbnailUrl, tagNames);
   }
 

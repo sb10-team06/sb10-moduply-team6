@@ -75,6 +75,15 @@ public class Content extends BaseUpdatableEntity {
     this.contentImg = contentImg;
   }
 
+  public void updateReviewStats(BigDecimal averageRating, int reviewCount) {
+    this.averageRating = averageRating;
+    this.reviewCount = reviewCount;
+  }
+
+  public void updateWatcherCount(long watcherCount) {
+    this.watcherCount = watcherCount;
+  }
+
   public void update(
       String title,
       String description

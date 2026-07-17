@@ -24,6 +24,7 @@ import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
 import com.team6.moduply.content.dto.ContentUpdateRequest;
 import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
@@ -34,9 +35,12 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
 import com.team6.moduply.user.enums.Role;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +58,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class ContentServiceTest {
 
+  private static final String DEFAULT_THUMBNAIL_URL = "/placeholder-movie.png";
+
   @Mock
   private ContentRepository contentRepository;
 
@@ -68,6 +74,9 @@ class ContentServiceTest {
 
   @Mock
   private BinaryContentService binaryContentService;
+
+  @Mock
+  private ReviewQDSLRepository reviewQDSLRepository;
 
   @InjectMocks
   private ContentService contentService;
@@ -219,7 +228,7 @@ class ContentServiceTest {
   }
 
   @Test
-  @DisplayName("태그 목록이 비어 있거나 생략되면 콘텐츠를 생성한다.")
+  @DisplayName("태그 목록이 비어 있거나 생략되면 콘텐츠 타입을 기본 태그로 생성한다.")
   void create_success_without_tags() throws Exception {
     // Given
     ContentCreateRequest request = new ContentCreateRequest(
@@ -246,17 +255,20 @@ class ContentServiceTest {
         "World Cup",
         "스포츠 콘텐츠",
         null,
-        List.of(),
+        List.of("sport"),
         BigDecimal.ZERO,
         0,
         0L
     );
+    Tag sportTag = new Tag("sport");
 
     given(contentRepository.save(any(Content.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
     given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
         .willReturn(contentImg);
     given(binaryContentService.generateUrl(contentImg)).willReturn(null);
+    given(tagRepository.findAllByTagNameIn(List.of("sport")))
+        .willReturn(List.of(), List.of(sportTag));
     given(contentMapper.toDto(any(Content.class), any(), anyList()))
         .willReturn(expected);
 
@@ -270,10 +282,16 @@ class ContentServiceTest {
     assertThat(response).isEqualTo(expected);
     verify(binaryContentService).createContentImage(any(), eq(thumbnail), isNull());
     verify(binaryContentService).generateUrl(contentImg);
-    verify(tagRepository, never()).findAllByTagNameIn(anyList());
-    verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
-    verify(contentTagRepository, never()).saveAll(anyList());
-    verify(contentMapper).toDto(any(Content.class), any(), argThat(List::isEmpty));
+    verify(tagRepository, times(2)).findAllByTagNameIn(List.of("sport"));
+    verify(tagRepository).insertIgnore(any(UUID.class), eq("sport"));
+    verify(contentTagRepository).saveAll(argThat(contentTags -> {
+      List<ContentTag> contentTagList = new ArrayList<>();
+      contentTags.forEach(contentTagList::add);
+      assertThat(contentTagList).hasSize(1);
+      assertThat(contentTagList.get(0).getTag().getTagName()).isEqualTo("sport");
+      return true;
+    }));
+    verify(contentMapper).toDto(any(Content.class), any(), eq(List.of("sport")));
   }
 
   @Test
@@ -549,7 +567,7 @@ class ContentServiceTest {
     );
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(contentMapper.toDto(content, null, List.of())).willReturn(expected);
+    given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(expected);
 
     // When
     ContentDto response = contentService.update(contentId, request, null);
@@ -585,7 +603,7 @@ class ContentServiceTest {
         ContentType.movie,
         "Old Title",
         "Old Description",
-        null,
+        "https://example.com/thumbnail.jpg",
         existingTagNames,
         BigDecimal.ZERO,
         0,
@@ -594,7 +612,7 @@ class ContentServiceTest {
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
-    given(contentMapper.toDto(content, null, existingTagNames)).willReturn(expected);
+    given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, existingTagNames)).willReturn(expected);
 
     // When
     ContentDto response = contentService.update(contentId, request, null);
@@ -830,8 +848,8 @@ class ContentServiceTest {
             new TestContentTagNameProjection(movieId, "액션"),
             new TestContentTagNameProjection(sportId, "스포츠")
         ));
-    given(contentMapper.toDto(movie, null, List.of("SF", "액션"))).willReturn(movieDto);
-    given(contentMapper.toDto(sport, null, List.of("스포츠"))).willReturn(sportDto);
+    given(contentMapper.toDto(movie, DEFAULT_THUMBNAIL_URL, List.of("SF", "액션"))).willReturn(movieDto);
+    given(contentMapper.toDto(sport, DEFAULT_THUMBNAIL_URL, List.of("스포츠"))).willReturn(sportDto);
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -867,8 +885,8 @@ class ContentServiceTest {
     );
     verify(contentRepository, never()).countContents(any(), any(), anyList());
     verify(contentTagRepository).findTagNamesByContentIds(List.of(movieId, sportId));
-    verify(contentMapper).toDto(movie, null, List.of("SF", "액션"));
-    verify(contentMapper).toDto(sport, null, List.of("스포츠"));
+    verify(contentMapper).toDto(movie, DEFAULT_THUMBNAIL_URL, List.of("SF", "액션"));
+    verify(contentMapper).toDto(sport, DEFAULT_THUMBNAIL_URL, List.of("스포츠"));
   }
 
   @Test
@@ -918,7 +936,7 @@ class ContentServiceTest {
         SortDirection.DESCENDING
     )).willReturn(List.of(first, second));
     given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
-    given(contentMapper.toDto(first, null, List.of())).willReturn(firstDto);
+    given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(firstDto);
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -1026,7 +1044,7 @@ class ContentServiceTest {
         ContentType.movie,
         "Inception",
         "꿈과 현실을 넘나드는 SF 영화",
-        null,
+        "https://example.com/thumbnail.jpg",
         tagNames,
         BigDecimal.ZERO,
         0,
@@ -1035,7 +1053,8 @@ class ContentServiceTest {
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(tagNames);
-    given(contentMapper.toDto(content, null, tagNames)).willReturn(expected);
+    given(binaryContentService.generateUrl(contentImg)).willReturn("https://example.com/thumbnail.jpg");
+    given(contentMapper.toDto(content, "https://example.com/thumbnail.jpg", tagNames)).willReturn(expected);
 
     // When
     ContentDto response = contentService.find(contentId);
@@ -1044,7 +1063,8 @@ class ContentServiceTest {
     assertThat(response).isEqualTo(expected);
     verify(contentRepository).findByIdWithContentImg(contentId);
     verify(contentTagRepository).findTagNamesByContentId(contentId);
-    verify(contentMapper).toDto(content, null, tagNames);
+    verify(binaryContentService).generateUrl(contentImg);
+    verify(contentMapper).toDto(content, "https://example.com/thumbnail.jpg", tagNames);
   }
 
   @Test
@@ -1066,6 +1086,39 @@ class ContentServiceTest {
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
 
+  @Test
+  @DisplayName("리뷰 통계를 재계산하면 콘텐츠 평균 평점과 리뷰 수를 갱신한다.")
+  void refresh_review_stats_success() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    Content content = new Content(null, null, ContentType.movie, "title", "description");
+    given(contentRepository.findById(contentId)).willReturn(Optional.of(content));
+    given(reviewQDSLRepository.calculateStatsByContentId(contentId))
+        .willReturn(new ReviewStats(3L, 4.333));
+
+    // When
+    contentService.refreshReviewStats(contentId);
+
+    // Then
+    assertThat(content.getReviewCount()).isEqualTo(3);
+    assertThat(content.getAverageRating()).isEqualByComparingTo(BigDecimal.valueOf(4.33));
+  }
+
+  @Test
+  @DisplayName("시청자 수를 갱신하면 콘텐츠 시청자 수를 변경한다.")
+  void update_watcher_count_success() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    Content content = new Content(null, null, ContentType.movie, "title", "description");
+    given(contentRepository.findById(contentId)).willReturn(Optional.of(content));
+
+    // When
+    contentService.updateWatcherCount(contentId, 7L);
+
+    // Then
+    assertThat(content.getWatcherCount()).isEqualTo(7L);
+  }
+
   private record TestContentTagNameProjection(
       UUID contentId,
       String tagName
@@ -1081,4 +1134,5 @@ class ContentServiceTest {
       return tagName;
     }
   }
+
 }

@@ -13,6 +13,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobInstance;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.scope.context.StepContext;
 import org.springframework.batch.repeat.RepeatStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +60,31 @@ class TmdbContentImportTaskletTest {
     verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
     verify(externalContentImportService).importTmdbMovies(3, "ko-KR");
     verify(externalContentImportService).importTmdbTvSeries(3, "ko-KR");
+  }
+
+  @Test
+  @DisplayName("초기 수집 모드이면 초기 수집용 TMDB 페이지 범위를 사용한다.")
+  void execute_success_import_tmdb_contents_with_initial_page_range() throws Exception {
+    // Given
+    ExternalContentImportResult result = new ExternalContentImportResult(1, 1, 0, 1, 0);
+    ChunkContext chunkContext = initialImportChunkContext();
+    given(properties.getInitialTmdbPageStart()).willReturn(1);
+    given(properties.getInitialTmdbPageEnd()).willReturn(2);
+    given(properties.getTmdbLanguage()).willReturn("ko-KR");
+    given(externalContentImportService.importTmdbMovies(1, "ko-KR")).willReturn(result);
+    given(externalContentImportService.importTmdbTvSeries(1, "ko-KR")).willReturn(result);
+    given(externalContentImportService.importTmdbMovies(2, "ko-KR")).willReturn(result);
+    given(externalContentImportService.importTmdbTvSeries(2, "ko-KR")).willReturn(result);
+
+    // When
+    RepeatStatus status = tasklet.execute(null, chunkContext);
+
+    // Then
+    assertThat(status).isEqualTo(RepeatStatus.FINISHED);
+    verify(externalContentImportService).importTmdbMovies(1, "ko-KR");
+    verify(externalContentImportService).importTmdbTvSeries(1, "ko-KR");
+    verify(externalContentImportService).importTmdbMovies(2, "ko-KR");
+    verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
   }
 
   @Test
@@ -105,5 +137,15 @@ class TmdbContentImportTaskletTest {
     verify(externalContentImportService).importTmdbTvSeries(1, "ko-KR");
     verify(externalContentImportService).importTmdbMovies(2, "ko-KR");
     verify(externalContentImportService).importTmdbTvSeries(2, "ko-KR");
+  }
+
+  private ChunkContext initialImportChunkContext() {
+    JobParameters jobParameters = new JobParametersBuilder()
+        .addString("importMode", "INITIAL")
+        .toJobParameters();
+    JobInstance jobInstance = new JobInstance(1L, "externalContentImportJob");
+    JobExecution jobExecution = new JobExecution(jobInstance, jobParameters);
+    StepExecution stepExecution = new StepExecution("tmdbContentImportStep", jobExecution);
+    return new ChunkContext(new StepContext(stepExecution));
   }
 }
