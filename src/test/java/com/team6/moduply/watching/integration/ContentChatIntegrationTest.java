@@ -52,10 +52,10 @@ import org.springframework.web.socket.sockjs.client.Transport;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class ContentChatIntegrationTest extends IntegrationTestSupport {
+public abstract class ContentChatIntegrationTest extends IntegrationTestSupport {
 
   @LocalServerPort
-  private int port;
+  protected int port;
 
   @Autowired
   private UserRepository userRepository;
