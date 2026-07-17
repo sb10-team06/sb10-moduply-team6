@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -25,7 +24,6 @@ public class DirectMessageWebSocketController {
       "/sub/conversations/%s/direct-messages";
 
   private final DirectMessageService directMessageService;
-  //private final SimpMessagingTemplate messagingTemplate;
   private final RedisPublisher redisPublisher;
 
   @MessageMapping("/conversations/{conversationId}/direct-messages")
@@ -44,10 +42,6 @@ public class DirectMessageWebSocketController {
     // TODO: event 비동기 처리, kafka 사용
     // TODO: DB 저장 -> 이벤트 발행 -> 별도 listener에서 broadcast
     // DM을 해당 대화방을 구독중인 클라이언트들에게 실시간으로 보냄
-//    messagingTemplate.convertAndSend(
-//        DIRECT_MESSAGE_DESTINATION.formatted(conversationId),
-//        directMessage
-//    );
     redisPublisher.publish(
         DIRECT_MESSAGE_DESTINATION.formatted(conversationId),
         directMessage
