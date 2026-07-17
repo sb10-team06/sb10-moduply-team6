@@ -1,8 +1,8 @@
 package com.team6.moduply.watching.integration;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
-@SpringBootTest(properties = "watching.storage.type=redis")
+@TestPropertySource(properties = "watching.storage.type=redis")
 public class RedisWatchingSessionApiIntegrationTest extends WatchingSessionApiIntegrationTest {
 
 }

@@ -1,8 +1,8 @@
 package com.team6.moduply.watching.integration;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
-@SpringBootTest(properties = "watching.storage.type=in-memory")
+@TestPropertySource(properties = "watching.storage.type=in-memory")
 public class InMemoryWatchingSessionApiIntegrationTest extends WatchingSessionApiIntegrationTest {
 
 }
