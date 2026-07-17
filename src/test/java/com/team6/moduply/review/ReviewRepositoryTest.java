@@ -117,4 +117,28 @@ class ReviewRepositoryTest extends RepositoryTestSupport {
     // then
     assertThat(result).hasSize(3); // limit+1
   }
+
+  @Test
+  @DisplayName("cursor와 idAfter로 다음 페이지 리뷰 목록을 조회한다.")
+  void findAllWithCursor_success_with_cursor() throws InterruptedException {
+    // given
+    UUID contentId = UUID.randomUUID();
+    Review review1 = saveReview(contentId, UUID.randomUUID(), 4.5);
+    Thread.sleep(10); // createdAt 차이를 위해
+    Review review2 = saveReview(contentId, UUID.randomUUID(), 3.0);
+
+    String cursor = review2.getCreatedAt().toString();
+    UUID idAfter = review2.getId();
+
+    ReviewSearchRequest request = new ReviewSearchRequest(
+        contentId, cursor, idAfter, 10, SortDirection.DESCENDING, ReviewSortBy.createdAt
+    );
+
+    // when
+    List<Review> result = reviewQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getId()).isEqualTo(review1.getId());
+  }
 }

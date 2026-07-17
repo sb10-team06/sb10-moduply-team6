@@ -232,8 +232,11 @@ class NotificationServiceTest {
         receiverId, "테스트", "테스트 플레이리스트");
 
     // then
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(notificationRepository).save(captor.capture());
+    assertThat(captor.getValue().getContent())
+        .isEqualTo("테스트님이 '테스트 플레이리스트' 플레이리스트를 구독했어요.");
     assertThat(result).isNotNull();
-    verify(notificationRepository).save(any(Notification.class));
   }
 
   @Test

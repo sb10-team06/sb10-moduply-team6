@@ -86,6 +86,9 @@ public class ReviewService {
       );
     }
 
+    // save 전에 작성자 검증
+    ReviewDto.AuthorDto author = getAuthorDto(authorId);
+
     Review review = Review.builder()
         .contentId(contentId)
         .authorId(authorId)
@@ -100,7 +103,6 @@ public class ReviewService {
         "새 리뷰를 작성했습니다."
     ));
 
-    ReviewDto.AuthorDto author = getAuthorDto(authorId);
     return reviewMapper.toDto(saved, author);
   }
 

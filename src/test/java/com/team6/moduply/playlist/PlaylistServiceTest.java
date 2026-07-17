@@ -46,6 +46,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -330,6 +331,10 @@ class PlaylistServiceTest {
     assertThat(result).isNotNull();
     verify(playlistContentRepository).findAllByPlaylist(playlist);
     verify(contentRepository).findAllById(any());
+    verify(playlistMapper).toDto(
+        eq(playlist), any(), anyLong(), anyBoolean(),
+        argThat(contents -> contents.size() == 1 && contents.get(0).title().equals("영화 제목"))
+    );
   }
 
   @Test
