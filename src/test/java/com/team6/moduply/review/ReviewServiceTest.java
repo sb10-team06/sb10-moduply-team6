@@ -21,6 +21,7 @@ import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.time.Instant;
@@ -160,6 +161,26 @@ class ReviewServiceTest {
         .isInstanceOf(ReviewException.class)
         .satisfies(e -> assertThat(((ReviewException) e).getErrorCode())
             .isEqualTo(ReviewErrorCode.REVIEW_ALREADY_EXISTS));
+  }
+
+  @Test
+  @DisplayName("존재하지 않는 작성자로 리뷰 생성 시 예외가 발생한다.")
+  void create_fail_with_not_found_author() {
+    // given
+    UUID authorId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    ModuPlyUserDetails userDetails = createUserDetails(authorId);
+    ReviewCreateRequest request = new ReviewCreateRequest(contentId, "좋아요", 4.5);
+
+    given(contentRepository.existsById(contentId)).willReturn(true);
+    given(reviewRepository.existsByContentIdAndAuthorId(contentId, authorId)).willReturn(false);
+    given(reviewRepository.save(any(Review.class))).willReturn(Review.builder()
+        .contentId(contentId).authorId(authorId).text("좋아요").rating(4.5).build());
+    given(userRepository.findById(authorId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> reviewService.create(request, userDetails))
+        .isInstanceOf(UserException.class);
   }
 
   @Test
