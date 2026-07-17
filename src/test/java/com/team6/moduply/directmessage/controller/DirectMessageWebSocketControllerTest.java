@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
+import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.directmessage.dto.DirectMessageCreateRequest;
@@ -22,7 +23,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 
@@ -36,7 +36,7 @@ class DirectMessageWebSocketControllerTest {
   private DirectMessageService directMessageService;
 
   @Mock
-  private SimpMessagingTemplate messagingTemplate;
+  private RedisPublisher redisPublisher;
 
   @Test
   @DisplayName("WebSocket DM 생성 요청을 받으면 메시지를 저장하고 대화방 구독 경로로 전송한다.")
@@ -64,7 +64,7 @@ class DirectMessageWebSocketControllerTest {
     directMessageWebSocketController.create(conversationId, request, authentication);
 
     verify(directMessageService).create(conversationId, request, currentUserId);
-    verify(messagingTemplate).convertAndSend(
+    verify(redisPublisher).publish(
         "/sub/conversations/" + conversationId + "/direct-messages",
         response
     );
@@ -79,9 +79,10 @@ class DirectMessageWebSocketControllerTest {
     assertThatThrownBy(() -> directMessageWebSocketController.create(conversationId, request, null))
         .isInstanceOf(AccessDeniedException.class);
 
-    verify(directMessageService, never()).create(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+    verify(directMessageService, never()).create(org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.any(),
         org.mockito.ArgumentMatchers.any());
-    verify(messagingTemplate, never()).convertAndSend(
+    verify(redisPublisher, never()).publish(
         org.mockito.ArgumentMatchers.any(String.class),
         org.mockito.ArgumentMatchers.any(Object.class)
     );
@@ -111,7 +112,7 @@ class DirectMessageWebSocketControllerTest {
     ))
         .isInstanceOf(ConversationException.class);
 
-    verify(messagingTemplate, never()).convertAndSend(
+    verify(redisPublisher, never()).publish(
         org.mockito.ArgumentMatchers.any(String.class),
         org.mockito.ArgumentMatchers.any(Object.class)
     );

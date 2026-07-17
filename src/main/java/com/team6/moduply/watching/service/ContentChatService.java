@@ -1,5 +1,6 @@
 package com.team6.moduply.watching.service;
 
+import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.user.dto.UserSummary;
 import com.team6.moduply.watching.dto.ContentChatDto;
 import com.team6.moduply.watching.dto.ContentChatSendRequest;
@@ -11,7 +12,6 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 public class ContentChatService {
 
   private final WatchingSessionRepository watchingSessionRepository;
-  private final SimpMessagingTemplate simpMessagingTemplate;
+  private final RedisPublisher redisPublisher;
 
   public void sendChatMessage(ContentChatSendRequest request,
       UUID contentId, UUID userId) {
@@ -46,6 +46,6 @@ public class ContentChatService {
     UserSummary sender = watchingSession.getWatcher();
     // TODO: [김민형] 욕설 필터링 추가
     ContentChatDto message = new ContentChatDto(sender, request.content());
-    simpMessagingTemplate.convertAndSend(destination, message);
+    redisPublisher.publish(destination, message);
   }
 }
