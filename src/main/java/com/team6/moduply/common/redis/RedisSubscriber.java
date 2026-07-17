@@ -1,5 +1,6 @@
 package com.team6.moduply.common.redis;
 
+import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -23,7 +24,7 @@ public class RedisSubscriber implements MessageListener {
   public void onMessage(Message message, @Nullable byte[] pattern) {
     try {
       Object body = redisTemplate.getValueSerializer().deserialize(message.getBody());
-      String destination = new String(message.getChannel());
+      String destination = new String(message.getChannel(), StandardCharsets.UTF_8);
 
       // STOMP로 다시 전달
       messagingTemplate.convertAndSend(destination, body);
