@@ -1,5 +1,6 @@
 package com.team6.moduply.playlist;
 
+import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.entity.Content;
@@ -75,6 +76,12 @@ class PlaylistServiceTest {
 
   @Mock
   private UserRepository userRepository;
+
+  @Mock
+  private BinaryContentService binaryContentService;
+
+  @Mock
+  private ApplicationEventPublisher eventPublisher;
 
   @Test
   @DisplayName("소유자가 플레이리스트를 생성하면 생성된 플레이리스트를 반환한다.")

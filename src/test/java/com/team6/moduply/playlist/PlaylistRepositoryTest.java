@@ -1,5 +1,7 @@
 package com.team6.moduply.playlist;
 
+import com.team6.moduply.common.config.JpaAuditingConfig;
+import com.team6.moduply.common.config.QueryDslConfig;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
@@ -13,9 +15,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.UUID;
+import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Import({JpaAuditingConfig.class, QueryDslConfig.class})
 class PlaylistRepositoryTest extends RepositoryTestSupport {
 
   @Autowired
