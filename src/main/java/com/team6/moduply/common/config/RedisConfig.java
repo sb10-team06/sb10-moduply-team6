@@ -3,9 +3,11 @@ package com.team6.moduply.common.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team6.moduply.common.redis.RedisSubscriber;
 import com.team6.moduply.watching.model.WatchingSession;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
@@ -68,13 +70,15 @@ public class RedisConfig {
   @Profile("!test")
   public RedisMessageListenerContainer redisMessageListenerContainer(
       RedisConnectionFactory connectionFactory,
-      RedisSubscriber redisSubscriber) {
+      RedisSubscriber redisSubscriber,
+      @Qualifier(AsyncConfig.REDIS_MESSAGE_TASK_EXECUTOR) TaskExecutor taskExecutor) {
 
     RedisMessageListenerContainer container = new RedisMessageListenerContainer();
     container.setConnectionFactory(connectionFactory);
+    container.setTaskExecutor(taskExecutor);
 
     // /sub으로 시작하는 모든 경로 구독
-    container.addMessageListener(redisSubscriber, new PatternTopic("/sub/**"));
+    container.addMessageListener(redisSubscriber, new PatternTopic("/sub/*"));
     return container;
   }
 }
