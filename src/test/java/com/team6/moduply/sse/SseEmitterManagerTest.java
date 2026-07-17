@@ -47,6 +47,17 @@ class SseEmitterManagerTest {
   }
 
   @Test
+  @DisplayName("연결된 사용자에게 이벤트 전송 시 예외가 발생하지 않는다.")
+  void send_to_connected_user() {
+    // given
+    UUID userId = UUID.randomUUID();
+    sseEmitterManager.connect(userId);
+
+    // when & then
+    assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
+  }
+
+  @Test
   @DisplayName("연결되지 않은 사용자에게 전송해도 예외가 발생하지 않는다.")
   void send_to_unconnected_user() {
     // given
