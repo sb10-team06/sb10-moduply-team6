@@ -207,4 +207,148 @@ class NotificationServiceTest {
     assertThat(saved.getContent()).isEqualTo("내 권한이 [USER]에서 [ADMIN]로 변경되었어요");
     assertThat(result).isEqualTo(dto);
   }
+
+  @Test
+  @DisplayName("플레이리스트 구독 알림을 저장하면 NotificationDto를 반환한다.")
+  void sendPlaylistSubscribedNotification_success() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.PLAYLIST_SUBSCRIBED)
+        .title(NotificationType.PLAYLIST_SUBSCRIBED.getTitle())
+        .content("테스트님이 '테스트 플레이리스트' 플레이리스트를 구독했어요.")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    NotificationDto dto = new NotificationDto(UUID.randomUUID(), null, receiverId,
+        NotificationType.PLAYLIST_SUBSCRIBED.getTitle(), "내용", NotificationLevel.INFO);
+
+    given(notificationRepository.save(any(Notification.class))).willReturn(notification);
+    given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
+
+    // when
+    NotificationDto result = notificationService.sendPlaylistSubscribedNotification(
+        receiverId, "테스트", "테스트 플레이리스트");
+
+    // then
+    assertThat(result).isNotNull();
+    verify(notificationRepository).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("콘텐츠 추가 알림을 저장하면 NotificationDto 목록을 반환한다.")
+  void sendContentAddedNotification_success() {
+    // given
+    UUID receiverId1 = UUID.randomUUID();
+    UUID receiverId2 = UUID.randomUUID();
+    List<UUID> receiverIds = List.of(receiverId1, receiverId2);
+
+    Notification notification1 = Notification.builder()
+        .receiverId(receiverId1)
+        .type(NotificationType.CONTENT_ADDED)
+        .title(NotificationType.CONTENT_ADDED.getTitle())
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    NotificationDto dto = new NotificationDto(UUID.randomUUID(), null, receiverId1,
+        NotificationType.CONTENT_ADDED.getTitle(), "내용", NotificationLevel.INFO);
+
+    given(notificationRepository.saveAll(any())).willReturn(List.of(notification1));
+    given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
+
+    // when
+    List<NotificationDto> result = notificationService.sendContentAddedNotification(
+        receiverIds, "테스트 플레이리스트", "테스트 콘텐츠");
+
+    // then
+    assertThat(result).hasSize(1);
+    verify(notificationRepository).saveAll(any());
+  }
+
+  @Test
+  @DisplayName("팔로우 알림을 저장하면 NotificationDto를 반환한다.")
+  void sendFollowedNotification_success() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.FOLLOWED)
+        .title(NotificationType.FOLLOWED.getTitle())
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    NotificationDto dto = new NotificationDto(UUID.randomUUID(), null, receiverId,
+        NotificationType.FOLLOWED.getTitle(), "내용", NotificationLevel.INFO);
+
+    given(notificationRepository.save(any(Notification.class))).willReturn(notification);
+    given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
+
+    // when
+    NotificationDto result = notificationService.sendFollowedNotification(receiverId, "테스트");
+
+    // then
+    assertThat(result).isNotNull();
+    verify(notificationRepository).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("DM 수신 알림을 저장하면 NotificationDto를 반환한다.")
+  void sendDmReceivedNotification_success() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.DM_RECEIVED)
+        .title("DM 수신 알림")
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    NotificationDto dto = new NotificationDto(UUID.randomUUID(), null, receiverId,
+        "DM 수신 알림", "내용", NotificationLevel.INFO);
+
+    given(notificationRepository.save(any(Notification.class))).willReturn(notification);
+    given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
+
+    // when
+    NotificationDto result = notificationService.sendDmReceivedNotification(
+        receiverId, "테스트", "안녕하세요");
+
+    // then
+    assertThat(result).isNotNull();
+    verify(notificationRepository).save(any(Notification.class));
+  }
+
+  @Test
+  @DisplayName("팔로우 활동 알림을 저장하면 NotificationDto 목록을 반환한다.")
+  void sendFollowActivityNotification_success() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    List<UUID> receiverIds = List.of(receiverId);
+
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.FOLLOW_ACTIVITY)
+        .title(NotificationType.FOLLOW_ACTIVITY.getTitle())
+        .content("내용")
+        .level(NotificationLevel.INFO)
+        .build();
+
+    NotificationDto dto = new NotificationDto(UUID.randomUUID(), null, receiverId,
+        NotificationType.FOLLOW_ACTIVITY.getTitle(), "내용", NotificationLevel.INFO);
+
+    given(notificationRepository.saveAll(any())).willReturn(List.of(notification));
+    given(notificationMapper.toDto(any(Notification.class))).willReturn(dto);
+
+    // when
+    List<NotificationDto> result = notificationService.sendFollowActivityNotification(
+        receiverIds, "테스트", "새 리뷰를 작성했습니다.");
+
+    // then
+    assertThat(result).hasSize(1);
+    verify(notificationRepository).saveAll(any());
+  }
 }
