@@ -36,7 +36,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 @Transactional
-public class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
+public abstract class WatchingSessionApiIntegrationTest extends IntegrationTestSupport {
 
   @Autowired
   private MockMvc mockMvc;

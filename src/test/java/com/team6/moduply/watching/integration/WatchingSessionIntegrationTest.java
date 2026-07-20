@@ -51,10 +51,10 @@ import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class WatchingSessionIntegrationTest extends IntegrationTestSupport {
+public abstract class WatchingSessionIntegrationTest extends IntegrationTestSupport {
 
   @LocalServerPort
-  private int port;
+  protected int port;
 
   private WebSocketStompClient stompClient;
   private String webSocketUrl;

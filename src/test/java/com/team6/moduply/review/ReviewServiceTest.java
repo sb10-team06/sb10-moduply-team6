@@ -5,6 +5,7 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
@@ -21,6 +22,7 @@ import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.time.Instant;
@@ -74,6 +76,9 @@ class ReviewServiceTest {
   @Mock
   private BinaryContentService binaryContentService;
 
+  @Mock
+  private ContentService contentService;
+
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(
         userId, Instant.now(), "test@test.com",
@@ -115,6 +120,7 @@ class ReviewServiceTest {
     assertThat(result.text()).isEqualTo("좋아요");
     assertThat(result.rating()).isEqualTo(4.5);
     verify(reviewRepository).save(any(Review.class));
+    verify(contentService).refreshReviewStats(contentId);
     ArgumentCaptor<FollowActivityEvent> eventCaptor = ArgumentCaptor.forClass(
         FollowActivityEvent.class
     );
@@ -163,6 +169,24 @@ class ReviewServiceTest {
   }
 
   @Test
+  @DisplayName("존재하지 않는 작성자로 리뷰 생성 시 예외가 발생한다.")
+  void create_fail_with_not_found_author() {
+    // given
+    UUID authorId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    ModuPlyUserDetails userDetails = createUserDetails(authorId);
+    ReviewCreateRequest request = new ReviewCreateRequest(contentId, "좋아요", 4.5);
+
+    given(contentRepository.existsById(contentId)).willReturn(true);
+    given(reviewRepository.existsByContentIdAndAuthorId(contentId, authorId)).willReturn(false);
+    given(userRepository.findById(authorId)).willReturn(Optional.empty());
+
+    // when & then
+    assertThatThrownBy(() -> reviewService.create(request, userDetails))
+        .isInstanceOf(UserException.class);
+  }
+
+  @Test
   @DisplayName("작성자가 리뷰를 수정하면 수정된 리뷰를 반환한다.")
   void update_success_with_author() {
     // given
@@ -194,6 +218,7 @@ class ReviewServiceTest {
     assertThat(review.getText()).isEqualTo("수정된 내용");
     assertThat(review.getRating()).isEqualTo(3.0);
     assertThat(result.text()).isEqualTo("수정된 내용");
+    verify(contentService).refreshReviewStats(contentId);
     verify(reviewMapper).toDto(any(Review.class), any(ReviewDto.AuthorDto.class));
   }
 
@@ -265,6 +290,7 @@ class ReviewServiceTest {
 
     // then
     verify(reviewRepository).delete(review);
+    verify(contentService).refreshReviewStats(contentId);
   }
 
   @Test

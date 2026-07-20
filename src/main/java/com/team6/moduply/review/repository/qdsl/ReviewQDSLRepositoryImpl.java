@@ -1,7 +1,9 @@
 package com.team6.moduply.review.repository.qdsl;
 
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.review.dto.ReviewSearchRequest;
@@ -41,6 +43,28 @@ public class ReviewQDSLRepositoryImpl implements ReviewQDSLRepository {
         .where(contentIdCondition(request.contentId()))
         .fetchOne();
     return result != null ? result : 0L;
+  }
+
+  @Override
+  public ReviewStats calculateStatsByContentId(UUID contentId) {
+    NumberExpression<Long> reviewCount = review.count();
+    NumberExpression<Double> averageRating = review.rating.avg();
+
+    Tuple result = queryFactory.select(reviewCount, averageRating)
+        .from(review)
+        .where(contentIdCondition(contentId))
+        .fetchOne();
+
+    if (result == null) {
+      return new ReviewStats(0L, 0.0);
+    }
+
+    Long count = result.get(reviewCount);
+    Double average = result.get(averageRating);
+    return new ReviewStats(
+        count != null ? count : 0L,
+        average != null ? average : 0.0
+    );
   }
 
   private BooleanExpression contentIdCondition(UUID contentId) {
