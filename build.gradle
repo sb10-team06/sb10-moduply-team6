@@ -144,11 +144,11 @@ def excludes = [
 // 커버리지 최소 기준값
 // 이 변수가 jacocoTestCoverageVerification 보다 "위쪽"에 있어야
 //    아래에서 정상적으로 참조됨 (Gradle은 선언 순서를 따라 읽음)
-// dev 기준: 0.60 / main 기준: 0.80 (CI에서 -PcoverageMinimum으로 주입)
+// dev 기준: 0.80 / main 기준: 0.80 (CI에서 -PcoverageMinimum으로 주입)
 // =========================================
 def coverageMinimum = project.hasProperty('coverageMinimum')
         ? (project.property('coverageMinimum') as String).toBigDecimal()
-        : 0.60
+        : 0.80
 
 // =========================================
 // JaCoCo 커버리지 리포트 생성 태스크 설정
