@@ -51,10 +51,10 @@ public class DirectMessageQDSLRepositoryImpl implements DirectMessageQDSLReposit
               dm.sender_id,
               dm.content
             from direct_messages dm
-            where dm.conversation_id = any(:conversationIds)
+            where dm.conversation_id IN (:conversationIds)
             order by dm.conversation_id, dm.created_at desc, dm.id desc
             """)
-        .setParameter("conversationIds", conversationIds.toArray(UUID[]::new))
+        .setParameter("conversationIds", conversationIds)
         .getResultList()
         .stream()
         .map(row -> toLatestDirectMessageDto((Object[]) row))
