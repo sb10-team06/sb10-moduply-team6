@@ -23,6 +23,8 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.content.service.ContentService;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import java.math.BigDecimal;
 import java.util.List;
@@ -80,6 +82,12 @@ class ContentControllerMethodSecurityTest {
 
   @MockitoBean
   private BinaryContentService binaryContentService;
+
+  @MockitoBean
+  private ReviewQDSLRepository reviewQDSLRepository;
+
+  @MockitoBean
+  private WatchingSessionRepository watchingSessionRepository;
 
   @Test
   @DisplayName("ADMIN 권한으로 콘텐츠 생성 요청 시 201을 반환한다.")

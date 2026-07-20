@@ -22,10 +22,16 @@ public class ContentImportBatchConfig {
   private final SportsDbContentImportTasklet sportsDbContentImportTasklet;
 
   @Bean
-  public Job externalContentImportJob() {
-    return new JobBuilder("externalContentImportJob", jobRepository)
+  public Job tmdbContentImportJob() {
+    return new JobBuilder("tmdbContentImportJob", jobRepository)
         .start(tmdbContentImportStep())
-        .next(sportsDbContentImportStep())
+        .build();
+  }
+
+  @Bean
+  public Job sportsDbContentImportJob() {
+    return new JobBuilder("sportsDbContentImportJob", jobRepository)
+        .start(sportsDbContentImportStep())
         .build();
   }
 

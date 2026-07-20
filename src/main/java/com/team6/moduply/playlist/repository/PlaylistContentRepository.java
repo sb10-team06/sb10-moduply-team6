@@ -15,4 +15,5 @@ public interface PlaylistContentRepository extends JpaRepository<PlaylistContent
 
   List<PlaylistContent> findAllByPlaylist(Playlist playlist);
 
+  List<PlaylistContent> findAllByPlaylistIn(List<Playlist> playlists);;
 }

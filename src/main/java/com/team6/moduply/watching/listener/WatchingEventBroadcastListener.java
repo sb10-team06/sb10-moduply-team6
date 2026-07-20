@@ -1,6 +1,7 @@
 package com.team6.moduply.watching.listener;
 
 import com.team6.moduply.common.config.AsyncConfig;
+import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.content.dto.ContentSummary;
 import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.service.ContentService;
@@ -12,7 +13,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +23,7 @@ public class WatchingEventBroadcastListener {
 
   private final ContentService contentService;
   private final WatchingSessionMapper watchingSessionMapper;
-  private final SimpMessagingTemplate messagingTemplate;
+  private final RedisPublisher redisPublisher;
 
   @Async(AsyncConfig.WATCHING_EVENT_TASK_EXECUTOR)
   @EventListener
@@ -49,7 +49,7 @@ public class WatchingEventBroadcastListener {
     );
     String destination = String.format("/sub/contents/%s/watch",
         contentId.toString());
-    messagingTemplate.convertAndSend(destination, message);
+    redisPublisher.publish(destination, message);
     log.info("시청 세션 변경 메세지 전송 완료: contentId={}", contentId);
   }
 
