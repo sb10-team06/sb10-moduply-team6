@@ -5,13 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.entity.Conversation;
+import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.repository.ConversationRepository;
+import com.team6.moduply.conversation.repository.ConversationUserStateRepository;
 import com.team6.moduply.directmessage.dto.DirectMessageCreateRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
@@ -47,6 +50,9 @@ class DirectMessageServiceTest {
 
   @Mock
   private ConversationRepository conversationRepository;
+
+  @Mock
+  private ConversationUserStateRepository conversationUserStateRepository;
 
   @Mock
   private DirectMessageRepository directMessageRepository;
@@ -102,6 +108,8 @@ class DirectMessageServiceTest {
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.save(any(DirectMessage.class)))
         .willReturn(savedDirectMessage);
+    given(conversationUserStateRepository.increaseUnreadCount(conversationId, withUserId))
+        .willReturn(1);
     given(directMessageMapper.toDto(
         savedDirectMessage,
         conversation,
@@ -121,6 +129,15 @@ class DirectMessageServiceTest {
     assertThat(capturedDirectMessage.getContent()).isEqualTo(request.content());
     assertThat(capturedDirectMessage.getConversation()).isEqualTo(conversation);
     assertThat(capturedDirectMessage.getSender()).isEqualTo(currentUser);
+    verify(conversationRepository).updateLastMessageIfNewer(
+        conversationId,
+        directMessageId,
+        createdAt,
+        request.content(),
+        currentUserId
+    );
+    verify(conversationUserStateRepository).increaseUnreadCount(conversationId, withUserId);
+    verify(conversationUserStateRepository, never()).saveAndFlush(any());
     ArgumentCaptor<DirectMessageReceivedEvent> eventCaptor = ArgumentCaptor.forClass(
         DirectMessageReceivedEvent.class
     );
@@ -130,6 +147,61 @@ class DirectMessageServiceTest {
     assertThat(event.getSenderId()).isEqualTo(currentUserId);
     assertThat(event.getSenderName()).isEqualTo(currentUser.getName());
     assertThat(event.getConversationId()).isEqualTo(conversationId);
+  }
+
+  @Test
+  @DisplayName("DM 생성 시 수신자 대화방 상태가 없으면 상태를 생성한 뒤 안 읽음 개수를 증가시킨다.")
+  void create_success_creates_missing_receiver_state() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withUserId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    UUID directMessageId = UUID.randomUUID();
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+    User currentUser = user(currentUserId, "current");
+    User withUser = user(withUserId, "with");
+    Conversation conversation = Conversation.create(currentUserId, withUserId);
+    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    ConversationUserState state = ConversationUserState.create(conversation, withUserId);
+    DirectMessageCreateRequest request = new DirectMessageCreateRequest("hello");
+    DirectMessage savedDirectMessage = DirectMessage.create(conversation, currentUser, request.content());
+    ReflectionTestUtils.setField(savedDirectMessage, "id", directMessageId);
+    ReflectionTestUtils.setField(savedDirectMessage, "createdAt", createdAt);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    DirectMessageDto expected = new DirectMessageDto(
+        directMessageId,
+        conversationId,
+        createdAt,
+        currentUserSummary,
+        withUserSummary,
+        "hello"
+    );
+
+    given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
+    given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
+    given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
+    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
+    given(directMessageRepository.save(any(DirectMessage.class))).willReturn(savedDirectMessage);
+    given(conversationUserStateRepository.increaseUnreadCount(conversationId, withUserId))
+        .willReturn(0, 1);
+    given(conversationUserStateRepository.saveAndFlush(any(ConversationUserState.class)))
+        .willReturn(state);
+    given(directMessageMapper.toDto(
+        savedDirectMessage,
+        conversation,
+        currentUserId,
+        currentUserSummary,
+        withUserSummary
+    )).willReturn(expected);
+
+    DirectMessageDto result = directMessageService.create(conversationId, request, currentUserId);
+
+    assertThat(result).isEqualTo(expected);
+    verify(conversationUserStateRepository, times(2)).increaseUnreadCount(conversationId, withUserId);
+    verify(conversationUserStateRepository).saveAndFlush(any(ConversationUserState.class));
   }
 
   @Test

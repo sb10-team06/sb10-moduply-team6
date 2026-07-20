@@ -4,6 +4,9 @@ spring:
     username: ${POSTGRES_USER_NAME:admin}
     password: ${POSTGRES_PASSWORD:0000}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
   jpa:
     show-sql: true
     hibernate:
@@ -37,3 +40,15 @@ cors:
 moduply:
   storage:
     type: ${BINARY_CONTENT_STORAGE_TYPE:local}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: moduply

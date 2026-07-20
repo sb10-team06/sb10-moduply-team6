@@ -80,6 +80,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 // 문서 관련 api 인증 불필요
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                // 로컬 부하 테스트 모니터링 지표 수집
+                .requestMatchers("/actuator/prometheus").permitAll()
                 // 정적 리소스 접근 인증 불필요
                 .requestMatchers(
                     "/",

@@ -263,6 +263,10 @@ CREATE TABLE conversations (
     id              UUID             PRIMARY KEY,
     user1_id        UUID             NOT NULL,
     user2_id        UUID             NOT NULL,
+    last_message_id UUID,
+    last_message_at TIMESTAMPTZ,
+    last_message_content TEXT,
+    last_message_sender_id UUID,
     created_at      TIMESTAMPTZ      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMPTZ      NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -288,6 +292,15 @@ CREATE TABLE conversations (
     CONSTRAINT chk_conversations_user_order          CHECK (user1_id < user2_id)
 );
 
+CREATE INDEX idx_conversations_user1_created_at_id
+    ON conversations (user1_id, created_at DESC, id DESC);
+CREATE INDEX idx_conversations_user2_created_at_id
+    ON conversations (user2_id, created_at DESC, id DESC);
+CREATE INDEX idx_conversations_user1_last_message_at_id
+    ON conversations (user1_id, last_message_at DESC, id DESC);
+CREATE INDEX idx_conversations_user2_last_message_at_id
+    ON conversations (user2_id, last_message_at DESC, id DESC);
+
 CREATE TABLE direct_messages (
     id              UUID             PRIMARY KEY,
     conversation_id UUID             NOT NULL,
@@ -310,3 +323,40 @@ CREATE TABLE direct_messages (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX idx_direct_messages_conversation_created_at_id
+    ON direct_messages (conversation_id, created_at DESC, id DESC);
+CREATE INDEX idx_direct_messages_unread_conversation_sender
+    ON direct_messages (conversation_id, is_read, sender_id, created_at DESC, id DESC);
+
+CREATE TABLE conversation_user_states (
+    id              UUID             PRIMARY KEY,
+    conversation_id UUID             NOT NULL,
+    user_id         UUID             NOT NULL,
+    last_read_message_id UUID,
+    last_read_at    TIMESTAMPTZ,
+    unread_count    BIGINT           NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_conversation_user_states_conversation
+        FOREIGN KEY (conversation_id)
+        REFERENCES conversations(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_conversation_user_states_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_conversation_user_states_last_read_message
+        FOREIGN KEY (last_read_message_id)
+        REFERENCES direct_messages(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT uk_conversation_user_states_conversation_user UNIQUE (conversation_id, user_id),
+    CONSTRAINT chk_conversation_user_states_unread_count CHECK (unread_count >= 0)
+);
+
+CREATE INDEX idx_conversation_user_states_user_conversation
+    ON conversation_user_states (user_id, conversation_id);

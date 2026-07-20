@@ -3,9 +3,11 @@ package com.team6.moduply.conversation.entity;
 import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;
@@ -23,6 +25,12 @@ import org.hibernate.annotations.Check;
             name = "uk_conversations_user_pair",
             columnNames = {"user1_id", "user2_id"}
         )
+    },
+    indexes = {
+        @Index(name = "idx_conversations_user1_created_at_id", columnList = "user1_id, created_at, id"),
+        @Index(name = "idx_conversations_user2_created_at_id", columnList = "user2_id, created_at, id"),
+        @Index(name = "idx_conversations_user1_last_message_at_id", columnList = "user1_id, last_message_at, id"),
+        @Index(name = "idx_conversations_user2_last_message_at_id", columnList = "user2_id, last_message_at, id")
     }
 )
 public class Conversation extends BaseUpdatableEntity {
@@ -32,6 +40,18 @@ public class Conversation extends BaseUpdatableEntity {
 
   @Column(name = "user2_id", nullable = false)
   private UUID user2Id;
+
+  @Column(name = "last_message_id")
+  private UUID lastMessageId;
+
+  @Column(name = "last_message_at")
+  private Instant lastMessageAt;
+
+  @Column(name = "last_message_content", columnDefinition = "TEXT")
+  private String lastMessageContent;
+
+  @Column(name = "last_message_sender_id")
+  private UUID lastMessageSenderId;
 
     protected Conversation() {
     }
@@ -61,4 +81,5 @@ public class Conversation extends BaseUpdatableEntity {
 
         return new Conversation(user1Id, user2Id);
     }
+
 }

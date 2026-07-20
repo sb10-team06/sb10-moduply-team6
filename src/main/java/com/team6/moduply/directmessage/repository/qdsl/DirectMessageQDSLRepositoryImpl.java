@@ -1,14 +1,18 @@
 package com.team6.moduply.directmessage.repository.qdsl;
 
-import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
+import com.team6.moduply.directmessage.dto.LatestDirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.directmessage.entity.QDirectMessage;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -22,35 +26,66 @@ public class DirectMessageQDSLRepositoryImpl implements DirectMessageQDSLReposit
 
   private final JPAQueryFactory queryFactory;
   private final QDirectMessage directMessage = QDirectMessage.directMessage;
-  private final QDirectMessage latest = new QDirectMessage("latestDirectMessage");
 
-  // TODO: self-join NOT EXISTS 쿼리 성능을 위한 인덱스 검토 권장.
-  // TODO: direct_message(conversation_id, created_at desc, id desc) 복합 인덱스 추가를 권장합니다.
-  /// conversation별 최신 메시지를 찾기위해 상관 서브쿼리(NOT EXISTS)를 사용한다.
-  /// 로직자체는 createdAt/ id 타이브레이크로 정확해 보이지만 direct_message 테이블이 커지면
-  /// conversation_id, created_at, id 복합 인덱스가 없을경우 각 대화방마드 풀스캔에 가까운 비용이 발생할 수 있다.
+  @PersistenceContext
+  private EntityManager entityManager;
+
   @Override
-  public List<DirectMessage> findLatestMessagesByConversationIds(Collection<UUID> conversationIds) {
+  public List<LatestDirectMessageDto> findLatestMessagesByConversationIds(Collection<UUID> conversationIds) {
+    /// 조회할 대화방 없으면 DB 조회x -> 바로 빈 리스트 반환
     if (conversationIds == null || conversationIds.isEmpty()) {
       return Collections.emptyList();
     }
+    /// 최신 메시지 id 조회
+    return findLatestMessageDtosByConversationIds(conversationIds);
+  }
 
-    return queryFactory.selectFrom(directMessage)
-        .join(directMessage.conversation).fetchJoin()
-        .join(directMessage.sender).fetchJoin()
-        .where(
-            directMessage.conversation.id.in(conversationIds),
-            JPAExpressions.selectOne()
-                .from(latest)
-                .where(
-                    latest.conversation.id.eq(directMessage.conversation.id),
-                    latest.createdAt.gt(directMessage.createdAt)
-                        .or(latest.createdAt.eq(directMessage.createdAt)
-                            .and(latest.id.gt(directMessage.id)))
-                )
-                .notExists()
-        )
-        .fetch();
+  @SuppressWarnings("unchecked")
+  private List<LatestDirectMessageDto> findLatestMessageDtosByConversationIds(Collection<UUID> conversationIds) {
+    return entityManager
+        .createNativeQuery("""
+            select distinct on (dm.conversation_id)
+              dm.id,
+              dm.conversation_id,
+              dm.created_at,
+              dm.sender_id,
+              dm.content
+            from direct_messages dm
+            where dm.conversation_id IN (:conversationIds)
+            order by dm.conversation_id, dm.created_at desc, dm.id desc
+            """)
+        .setParameter("conversationIds", conversationIds)
+        .getResultList()
+        .stream()
+        .map(row -> toLatestDirectMessageDto((Object[]) row))
+        .toList();
+  }
+
+  private LatestDirectMessageDto toLatestDirectMessageDto(Object[] row) {
+    return new LatestDirectMessageDto(
+        toUuid(row[0]),
+        toUuid(row[1]),
+        toInstant(row[2]),
+        toUuid(row[3]),
+        row[4] != null ? row[4].toString() : null
+    );
+  }
+
+  private UUID toUuid(Object value) {
+    return value instanceof UUID uuid ? uuid : UUID.fromString(value.toString());
+  }
+
+  private Instant toInstant(Object value) {
+    if (value instanceof Instant instant) {
+      return instant;
+    }
+    if (value instanceof Timestamp timestamp) {
+      return timestamp.toInstant();
+    }
+    if (value instanceof OffsetDateTime offsetDateTime) {
+      return offsetDateTime.toInstant();
+    }
+    return Instant.parse(value.toString());
   }
 
   @Override
@@ -59,7 +94,6 @@ public class DirectMessageQDSLRepositoryImpl implements DirectMessageQDSLReposit
       UUID conversationId
   ) {
     return queryFactory.selectFrom(directMessage)
-            // fetch join으로 DM - 대화방 - 사용자 조회
         .join(directMessage.conversation).fetchJoin()
         .join(directMessage.sender).fetchJoin()
         .where(
