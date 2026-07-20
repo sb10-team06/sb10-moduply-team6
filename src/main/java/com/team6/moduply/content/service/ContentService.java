@@ -4,7 +4,6 @@ import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
-import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
@@ -15,6 +14,7 @@ import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
 import com.team6.moduply.content.entity.Tag;
 import com.team6.moduply.content.enums.ContentSortBy;
+import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.exception.ContentErrorCode;
 import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.mapper.ContentMapper;
@@ -22,7 +22,12 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
+import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,9 +37,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,14 +47,17 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ContentService {
 
+  private static final String DEFAULT_THUMBNAIL_URL = "/placeholder-movie.png";
+
   private final ContentRepository contentRepository;
   private final TagRepository tagRepository;
   private final ContentTagRepository contentTagRepository;
   private final ContentMapper contentMapper;
   private final BinaryContentService binaryContentService;
+  private final ReviewQDSLRepository reviewQDSLRepository;
+  private final WatchingSessionRepository watchingSessionRepository;
 
   @PreAuthorize("hasRole('ADMIN')")
-  @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
   @Transactional
   public ContentDto create(
       ContentCreateRequest request,
@@ -72,7 +77,7 @@ public class ContentService {
     savedContent.updateContentImg(contentImg);
     String thumbnailUrl = binaryContentService.generateUrl(contentImg);
 
-    List<String> tagNames = normalizeTags(request.tags());
+    List<String> tagNames = normalizeTagsOrDefault(request.tags(), request.type());
 
     List<Tag> tags = getOrCreateTags(tagNames);
 
@@ -83,7 +88,10 @@ public class ContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
-    ContentDto response = contentMapper.toDto(savedContent, thumbnailUrl, tagNames);
+    ContentDto response = withCurrentWatcherCount(
+        contentMapper.toDto(savedContent, thumbnailUrl, tagNames),
+        savedContent.getId()
+    );
 
     log.debug("콘텐츠 생성 처리 완료: contentId={}", savedContent.getId());
 
@@ -91,12 +99,6 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
-  @Caching(
-      evict = {
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
-      }
-  )
   @Transactional
   public ContentDto update(
       UUID contentId,
@@ -126,12 +128,6 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
-  @Caching(
-      evict = {
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
-          @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
-      }
-  )
   @Transactional
   public void delete(UUID contentId) {
     log.debug("콘텐츠 삭제 처리 시작: contentId={}", contentId);
@@ -156,7 +152,6 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
-  @Cacheable(cacheNames = CacheConfig.CONTENT_LIST, key = "#request", sync = true)      // sync = true: 동일 키 동시 미스 방지
   public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
     List<String> normalizedTagsIn = normalizeTags(request.tagsIn());
 
@@ -217,7 +212,6 @@ public class ContentService {
   }
 
   @Transactional(readOnly = true)
-  @Cacheable(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId", sync = true)
   public ContentDto find(UUID contentId) {
     log.debug("콘텐츠 단건 조회 처리 시작: contentId={}", contentId);
 
@@ -247,6 +241,17 @@ public class ContentService {
     }
   }
 
+  @Transactional
+  public void refreshReviewStats(UUID contentId) {
+    Content content = findContentById(contentId);
+    ReviewStats stats = reviewQDSLRepository.calculateStatsByContentId(contentId);
+
+    content.updateReviewStats(
+        BigDecimal.valueOf(stats.averageRating()).setScale(2, RoundingMode.HALF_UP),
+        Math.toIntExact(stats.reviewCount())
+    );
+  }
+
   private BinaryContent createContentImage(Content content, MultipartFile thumbnail) {
     try {
       return binaryContentService.createContentImage(content.getId(), thumbnail,
@@ -271,6 +276,17 @@ public class ContentService {
         });
   }
 
+  private Content findContentById(UUID contentId) {
+    return contentRepository.findById(contentId)
+        .orElseThrow(() -> {
+          log.warn("콘텐츠 조회 실패: 콘텐츠 없음. contentId={}", contentId);
+          return new ContentException(
+              ContentErrorCode.CONTENT_NOT_FOUND,
+              Map.of("contentId", contentId)
+          );
+        });
+  }
+
   private List<String> normalizeTags(List<String> tags) {
     if (tags == null) {
       return List.of();
@@ -281,6 +297,15 @@ public class ContentService {
         .collect(Collectors.toCollection(LinkedHashSet::new))
         .stream()
         .toList();
+  }
+
+  private List<String> normalizeTagsOrDefault(List<String> tags, ContentType type) {
+    List<String> normalizedTags = normalizeTags(tags);
+    if (!normalizedTags.isEmpty()) {
+      return normalizedTags;
+    }
+
+    return List.of(type.name());
   }
 
   private List<Tag> getOrCreateTags(List<String> tagNames) {
@@ -350,8 +375,26 @@ public class ContentService {
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {
-    String thumbnailUrl = binaryContentService.generateUrl(content.getContentImg());
-    return contentMapper.toDto(content, thumbnailUrl, tagNames);
+    String thumbnailUrl = content.getContentImg() == null
+        ? DEFAULT_THUMBNAIL_URL
+        : binaryContentService.generateUrl(content.getContentImg());
+    ContentDto contentDto = contentMapper.toDto(content, thumbnailUrl, tagNames);
+    return withCurrentWatcherCount(contentDto, content.getId());
+  }
+
+  private ContentDto withCurrentWatcherCount(ContentDto contentDto, UUID contentId) {
+    long watcherCount = watchingSessionRepository.countByContentId(contentId);
+    return new ContentDto(
+        contentDto.id(),
+        contentDto.type(),
+        contentDto.title(),
+        contentDto.description(),
+        contentDto.thumbnailUrl(),
+        contentDto.tags(),
+        contentDto.averageRating(),
+        contentDto.reviewCount(),
+        watcherCount
+    );
   }
 
   private String extractCursor(Content content, ContentSortBy sortBy) {

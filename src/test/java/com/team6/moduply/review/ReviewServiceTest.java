@@ -5,6 +5,7 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.notification.event.FollowActivityEvent;
 import com.team6.moduply.review.dto.ReviewCreateRequest;
 import com.team6.moduply.review.dto.ReviewDto;
@@ -75,6 +76,9 @@ class ReviewServiceTest {
   @Mock
   private BinaryContentService binaryContentService;
 
+  @Mock
+  private ContentService contentService;
+
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(
         userId, Instant.now(), "test@test.com",
@@ -116,6 +120,7 @@ class ReviewServiceTest {
     assertThat(result.text()).isEqualTo("좋아요");
     assertThat(result.rating()).isEqualTo(4.5);
     verify(reviewRepository).save(any(Review.class));
+    verify(contentService).refreshReviewStats(contentId);
     ArgumentCaptor<FollowActivityEvent> eventCaptor = ArgumentCaptor.forClass(
         FollowActivityEvent.class
     );
@@ -213,6 +218,7 @@ class ReviewServiceTest {
     assertThat(review.getText()).isEqualTo("수정된 내용");
     assertThat(review.getRating()).isEqualTo(3.0);
     assertThat(result.text()).isEqualTo("수정된 내용");
+    verify(contentService).refreshReviewStats(contentId);
     verify(reviewMapper).toDto(any(Review.class), any(ReviewDto.AuthorDto.class));
   }
 
@@ -284,6 +290,7 @@ class ReviewServiceTest {
 
     // then
     verify(reviewRepository).delete(review);
+    verify(contentService).refreshReviewStats(contentId);
   }
 
   @Test
