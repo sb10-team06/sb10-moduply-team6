@@ -37,6 +37,7 @@ import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameP
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
+import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import com.team6.moduply.user.enums.Role;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -77,6 +78,9 @@ class ContentServiceTest {
 
   @Mock
   private ReviewQDSLRepository reviewQDSLRepository;
+
+  @Mock
+  private WatchingSessionRepository watchingSessionRepository;
 
   @InjectMocks
   private ContentService contentService;
@@ -937,6 +941,7 @@ class ContentServiceTest {
     )).willReturn(List.of(first, second));
     given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
     given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(firstDto);
+    given(watchingSessionRepository.countByContentId(firstId)).willReturn(100L);
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -1068,6 +1073,45 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("콘텐츠 단건 조회 시 현재 시청자 수를 조회 응답에 반영한다.")
+  void find_success_with_current_watcher_count() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    List<String> tagNames = List.of("SF", "액션");
+    ContentDto mapped = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        DEFAULT_THUMBNAIL_URL,
+        tagNames,
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
+    given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(tagNames);
+    given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, tagNames)).willReturn(mapped);
+    given(watchingSessionRepository.countByContentId(contentId)).willReturn(7L);
+
+    // When
+    ContentDto response = contentService.find(contentId);
+
+    // Then
+    assertThat(response.watcherCount()).isEqualTo(7L);
+    verify(watchingSessionRepository).countByContentId(contentId);
+  }
+
+  @Test
   @DisplayName("콘텐츠가 존재하지 않으면 예외를 던진다.")
   void find_fail_when_content_not_found() {
     // Given
@@ -1119,36 +1163,6 @@ class ContentServiceTest {
         });
 
     verify(reviewQDSLRepository, never()).calculateStatsByContentId(contentId);
-  }
-
-  @Test
-  @DisplayName("시청자 수를 갱신하면 콘텐츠 시청자 수를 변경한다.")
-  void update_watcher_count_success() {
-    // Given
-    UUID contentId = UUID.randomUUID();
-    Content content = new Content(null, null, ContentType.movie, "title", "description");
-    given(contentRepository.findById(contentId)).willReturn(Optional.of(content));
-
-    // When
-    contentService.updateWatcherCount(contentId, 7L);
-
-    // Then
-    assertThat(content.getWatcherCount()).isEqualTo(7L);
-  }
-
-  @Test
-  @DisplayName("시청자 수 갱신 시 콘텐츠가 존재하지 않으면 예외를 던진다.")
-  void update_watcher_count_fail_when_content_not_found() {
-    // Given
-    UUID contentId = UUID.randomUUID();
-    given(contentRepository.findById(contentId)).willReturn(Optional.empty());
-
-    // When & Then
-    assertThatThrownBy(() -> contentService.updateWatcherCount(contentId, 7L))
-        .isInstanceOfSatisfying(ContentException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
-          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
-        });
   }
 
   private record TestContentTagNameProjection(

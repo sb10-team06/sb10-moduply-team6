@@ -80,10 +80,6 @@ public class Content extends BaseUpdatableEntity {
     this.reviewCount = reviewCount;
   }
 
-  public void updateWatcherCount(long watcherCount) {
-    this.watcherCount = watcherCount;
-  }
-
   public void update(
       String title,
       String description

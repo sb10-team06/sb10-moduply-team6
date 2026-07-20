@@ -31,10 +31,6 @@ public class WatchingEventBroadcastListener {
 
     ContentSummary content;
     try {
-      contentService.updateWatcherCount(
-          event.watchingSession().getContentId(),
-          event.watcherCount()
-      );
       content = ContentSummary.from(contentService.find(event.watchingSession().getContentId()));
     } catch (ContentException e) {
       log.info("존재하지 않거나 삭제된 컨텐츠: 변경 메세지를 보내지 않습니다: contentId={}",
