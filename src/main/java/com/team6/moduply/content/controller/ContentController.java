@@ -49,9 +49,9 @@ public class ContentController implements ContentApi {
   public ResponseEntity<CursorResponse<ContentDto>> findAll(
       @Valid @ModelAttribute ContentFindAllRequest request
   ) {
-    log.info("콘텐츠 목록 조회 요청 수신");
+    log.debug("콘텐츠 목록 조회 요청 수신");
     CursorResponse<ContentDto> response = contentService.findAll(request);
-    log.info("콘텐츠 목록 조회 요청 처리 완료: count={}", response.data().size());
+    log.debug("콘텐츠 목록 조회 요청 처리 완료: count={}", response.data().size());
     return ResponseEntity.ok(response);
   }
 

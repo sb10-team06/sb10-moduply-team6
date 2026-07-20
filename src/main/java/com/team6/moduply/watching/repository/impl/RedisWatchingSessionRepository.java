@@ -8,14 +8,19 @@ import com.team6.moduply.watching.model.WatchingSessionResult;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * 시청 세션(WatchingSession)을 관리하는 Redis 저장소 구현체입니다.
@@ -136,6 +141,30 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     String contentKey = CONTENT_KEY_PREFIX + contentId.toString();
     Long count = sessionIdAndUserIdRedisTemplate.opsForSet().size(contentKey);
     return count == null ? 0 : count;
+  }
+
+  @Override
+  public Map<UUID, Long> countByContentIds(Collection<UUID> contentIds) {
+    if (contentIds == null || contentIds.isEmpty()) {
+      return Map.of();
+    }
+
+    List<UUID> orderedContentIds = contentIds.stream().toList();
+    StringRedisSerializer serializer = new StringRedisSerializer();
+    List<Object> counts = sessionIdAndUserIdRedisTemplate.executePipelined((RedisConnection connection) -> {
+      for (UUID contentId : orderedContentIds) {
+        byte[] key = serializer.serialize(CONTENT_KEY_PREFIX + contentId);
+        connection.setCommands().sCard(key);
+      }
+      return null;
+    });
+
+    Map<UUID, Long> result = new LinkedHashMap<>();
+    for (int i = 0; i < orderedContentIds.size(); i++) {
+      Object count = counts.get(i);
+      result.put(orderedContentIds.get(i), count instanceof Long value ? value : 0L);
+    }
+    return result;
   }
 
   @Override
