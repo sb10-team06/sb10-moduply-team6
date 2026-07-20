@@ -4,11 +4,14 @@ import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
+import com.team6.moduply.content.dto.ContentListCacheItemDto;
+import com.team6.moduply.content.dto.ContentListCachePageDto;
 import com.team6.moduply.content.dto.ContentUpdateRequest;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
@@ -37,6 +40,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,10 +59,13 @@ public class ContentService {
   private final ContentTagRepository contentTagRepository;
   private final ContentMapper contentMapper;
   private final BinaryContentService binaryContentService;
+  private final ContentListCacheService contentListCacheService;
+  private final ContentTagCacheService contentTagCacheService;
   private final ReviewQDSLRepository reviewQDSLRepository;
   private final WatchingSessionRepository watchingSessionRepository;
 
   @PreAuthorize("hasRole('ADMIN')")
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
   @Transactional
   public ContentDto create(
       ContentCreateRequest request,
@@ -99,6 +107,10 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
+  @Caching(evict = {
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_TAGS, key = "#contentId")
+  })
   @Transactional
   public ContentDto update(
       UUID contentId,
@@ -128,6 +140,10 @@ public class ContentService {
   }
 
   @PreAuthorize("hasRole('ADMIN')")
+  @Caching(evict = {
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_TAGS, key = "#contentId")
+  })
   @Transactional
   public void delete(UUID contentId) {
     log.debug("콘텐츠 삭제 처리 시작: contentId={}", contentId);
@@ -166,6 +182,24 @@ public class ContentService {
         request.sortBy(),
         request.sortDirection()
     );
+
+    /// 최신순(createdAt) 정렬이라면 contentListCacheService.findCreatedAtPage 호출
+    if (request.sortBy() == ContentSortBy.createdAt) {
+      ContentListCachePageDto cachedPage = contentListCacheService.findCreatedAtPage(
+          request.typeEqual(),
+          request.keywordLike(),
+          normalizedTagsIn,
+          request.cursor(),
+          request.idAfter(),
+          request.limit(),
+          request.sortBy(),
+          request.sortDirection()
+      );
+      /// 평균 평점, 리뷰 수, 현재 시청자 수 를 합쳐서 응답.
+      CursorResponse<ContentDto> response = toContentResponseWithDynamicValues(cachedPage);
+      log.debug("콘텐츠 목록 조회 처리 완료: count={}, hasNext={}", response.data().size(), response.hasNext());
+      return response;
+    }
 
     List<Content> contents = contentRepository.findAllByCursor(
         request.typeEqual(),
@@ -224,7 +258,7 @@ public class ContentService {
           );
         });
 
-    List<String> tagNames = contentTagRepository.findTagNamesByContentId(contentId);
+    List<String> tagNames = contentTagCacheService.findTagNamesByContentId(contentId);
 
     ContentDto response = toDto(content, tagNames);
 
@@ -242,6 +276,7 @@ public class ContentService {
   }
 
   @Transactional
+  @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
   public void refreshReviewStats(UUID contentId) {
     Content content = findContentById(contentId);
     ReviewStats stats = reviewQDSLRepository.calculateStatsByContentId(contentId);
@@ -394,6 +429,57 @@ public class ContentService {
         contentDto.averageRating(),
         contentDto.reviewCount(),
         watcherCount
+    );
+  }
+
+  private CursorResponse<ContentDto> toContentResponseWithDynamicValues(
+      ContentListCachePageDto cachedPage
+  ) {
+    List<UUID> contentIds = cachedPage.data().stream()
+        .map(ContentListCacheItemDto::id)
+        .toList();
+    if (contentIds.isEmpty()) {
+      return new CursorResponse<>(
+          List.of(),
+          cachedPage.nextCursor(),
+          cachedPage.nextIdAfter(),
+          cachedPage.hasNext(),
+          cachedPage.totalCount(),
+          cachedPage.sortBy(),
+          cachedPage.sortDirection()
+      );
+    }
+
+    Map<UUID, Long> watcherCountsByContentId = watchingSessionRepository.countByContentIds(contentIds);
+    List<ContentDto> data = cachedPage.data().stream()
+        .map(item -> toDto(item, watcherCountsByContentId))
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        cachedPage.nextCursor(),
+        cachedPage.nextIdAfter(),
+        cachedPage.hasNext(),
+        cachedPage.totalCount(),
+        cachedPage.sortBy(),
+        cachedPage.sortDirection()
+    );
+  }
+
+  private ContentDto toDto(
+      ContentListCacheItemDto item,
+      Map<UUID, Long> watcherCountsByContentId
+  ) {
+    return new ContentDto(
+        item.id(),
+        item.type(),
+        item.title(),
+        item.description(),
+        item.thumbnailUrl(),
+        item.tags(),
+        item.averageRating() != null ? item.averageRating() : BigDecimal.ZERO,
+        item.reviewCount(),
+        watcherCountsByContentId.getOrDefault(item.id(), 0L)
     );
   }
 
