@@ -22,6 +22,7 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.search.service.ContentSearchIndexService;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
@@ -56,6 +57,7 @@ public class ContentService {
   private final BinaryContentService binaryContentService;
   private final ReviewQDSLRepository reviewQDSLRepository;
   private final WatchingSessionRepository watchingSessionRepository;
+  private final ContentSearchIndexService contentSearchIndexService;
 
   @PreAuthorize("hasRole('ADMIN')")
   @Transactional
@@ -88,6 +90,9 @@ public class ContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
+
+    contentSearchIndexService.index(savedContent, tagNames);
+
     ContentDto response = withCurrentWatcherCount(
         contentMapper.toDto(savedContent, thumbnailUrl, tagNames),
         savedContent.getId()
@@ -119,6 +124,7 @@ public class ContentService {
     }
 
     List<String> tagNames = updateTagsIfPresent(content, request.tags());
+    contentSearchIndexService.index(content, tagNames);
 
     ContentDto response = toDto(content, tagNames);
 
@@ -143,6 +149,7 @@ public class ContentService {
     }
 
     contentRepository.delete(content);
+    contentSearchIndexService.delete(contentId);
 
     if (contentImg != null) {
       binaryContentService.delete(contentImg.getId());
@@ -249,6 +256,11 @@ public class ContentService {
     content.updateReviewStats(
         BigDecimal.valueOf(stats.averageRating()).setScale(2, RoundingMode.HALF_UP),
         Math.toIntExact(stats.reviewCount())
+    );
+
+    contentSearchIndexService.index(
+        content,
+        contentTagRepository.findTagNamesByContentId(contentId)
     );
   }
 

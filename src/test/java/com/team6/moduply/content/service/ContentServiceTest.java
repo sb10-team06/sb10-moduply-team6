@@ -35,10 +35,11 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.search.service.ContentSearchIndexService;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
-import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import com.team6.moduply.user.enums.Role;
+import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -81,6 +82,9 @@ class ContentServiceTest {
 
   @Mock
   private WatchingSessionRepository watchingSessionRepository;
+
+  @Mock
+  private ContentSearchIndexService contentSearchIndexService;
 
   @InjectMocks
   private ContentService contentService;

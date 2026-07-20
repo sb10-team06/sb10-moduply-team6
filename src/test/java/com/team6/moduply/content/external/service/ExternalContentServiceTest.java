@@ -30,6 +30,7 @@ import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.search.service.ContentSearchIndexService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +65,9 @@ class ExternalContentServiceTest {
   @Mock
   private TransactionTemplate transactionTemplate;
 
+  @Mock
+  private ContentSearchIndexService contentSearchIndexService;
+
   private ExternalContentService externalContentService;
 
   @BeforeEach
@@ -80,7 +84,8 @@ class ExternalContentServiceTest {
         new ExternalContentMapper(createTmdbProperties()),
         externalImageClient,
         binaryContentService,
-        transactionTemplate
+        transactionTemplate,
+        contentSearchIndexService
     );
   }
 
