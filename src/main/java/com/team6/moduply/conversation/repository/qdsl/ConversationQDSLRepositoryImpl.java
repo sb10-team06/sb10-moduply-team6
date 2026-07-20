@@ -65,6 +65,35 @@ public class ConversationQDSLRepositoryImpl implements ConversationQDSLRepositor
       ConversationFindAllRequest request,
       UUID currentUserId
   ) {
+    if (!StringUtils.hasText(request.keywordLike())) {
+      return queryFactory
+          .select(Projections.constructor(
+              ConversationListItemDto.class,
+              conversation.id,
+              lastActivityAt(),
+              withUser,
+              conversation.lastMessageId,
+              conversation.lastMessageAt,
+              conversation.lastMessageContent,
+              conversation.lastMessageSenderId,
+              conversationUserState.unreadCount.coalesce(0L)
+          ))
+          .from(conversation)
+          .join(withUser).on(withUserCondition(currentUserId))
+          .leftJoin(withUser.profileImg).fetchJoin()
+          .leftJoin(conversationUserState).on(
+              conversationUserState.conversation.eq(conversation),
+              conversationUserState.userId.eq(currentUserId)
+          )
+          .where(
+              participantCondition(currentUserId),
+              dtoCursorCondition(request)
+          )
+          .orderBy(lastActivityAtOrder(request.sortDirection()), idOrder(request.sortDirection()))
+          .limit(request.limit() + 1)
+          .fetch();
+    }
+
     return queryFactory
         .select(Projections.constructor(
             ConversationListItemDto.class,
