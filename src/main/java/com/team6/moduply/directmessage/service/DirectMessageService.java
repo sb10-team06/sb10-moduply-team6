@@ -66,7 +66,9 @@ public class DirectMessageService {
     DirectMessage directMessage = directMessageRepository.save(
         DirectMessage.create(conversation, currentUser, request.content())
     );
-    conversation.updateLastMessage(
+    /// DM 동시 생성시 conversation.lastMessage가 lost update 방지
+    conversationRepository.updateLastMessageIfNewer(
+        conversationId,
         directMessage.getId(),
         directMessage.getCreatedAt(),
         directMessage.getContent(),

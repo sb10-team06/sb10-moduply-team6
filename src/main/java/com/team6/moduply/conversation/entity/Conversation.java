@@ -82,10 +82,4 @@ public class Conversation extends BaseUpdatableEntity {
         return new Conversation(user1Id, user2Id);
     }
 
-    public void updateLastMessage(UUID messageId, Instant createdAt, String content, UUID senderId) {
-        this.lastMessageId = Objects.requireNonNull(messageId, "메시지 ID는 null일 수 없습니다.");
-        this.lastMessageAt = Objects.requireNonNull(createdAt, "메시지 생성 시각은 null일 수 없습니다.");
-        this.lastMessageContent = content;
-        this.lastMessageSenderId = Objects.requireNonNull(senderId, "발신자 ID는 null일 수 없습니다.");
-    }
 }
