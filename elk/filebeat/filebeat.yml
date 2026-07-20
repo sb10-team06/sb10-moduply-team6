@@ -3,7 +3,8 @@
 
 filebeat.inputs:
   # 애플리케이션 전체 로그
-  - type: log
+  - type: filestream
+    id: moduply-app-logs
     enabled: true
     paths:
       - /app/.logs/moduply.log
@@ -11,7 +12,8 @@ filebeat.inputs:
       log_type: app
 
   # 에러 로그
-  - type: log
+  - type: filestream
+    id: moduply-error-logs
     enabled: true
     paths:
       - /app/.logs/moduply-error.log
