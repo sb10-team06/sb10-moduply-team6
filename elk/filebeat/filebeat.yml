@@ -1,0 +1,28 @@
+# Filebeat 설정 파일
+# Spring Boot 서버에 설치되어 로그 파일을 읽어 Logstash로 전송
+
+filebeat.inputs:
+  # 애플리케이션 전체 로그
+  - type: filestream
+    id: moduply-app-logs
+    enabled: true
+    paths:
+      - /app/.logs/moduply.log
+    fields:
+      log_type: app
+
+  # 에러 로그
+  - type: filestream
+    id: moduply-error-logs
+    enabled: true
+    paths:
+      - /app/.logs/moduply-error.log
+    fields:
+      log_type: error
+
+# Logstash로 전송
+output.logstash:
+  hosts: ["logstash:5044"]
+
+# Filebeat 로그 레벨
+logging.level: info
