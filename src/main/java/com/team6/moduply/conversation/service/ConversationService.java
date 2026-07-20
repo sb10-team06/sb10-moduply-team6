@@ -27,6 +27,7 @@ import com.team6.moduply.user.exception.UserErrorCode;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -232,12 +233,13 @@ public class ConversationService {
         readUntilMessage.getId()
     );
 
-    ConversationUserState state = Optional.ofNullable(conversationUserStateRepository
-        .findByConversationIdAndUserId(conversationId, currentUserId))
-        .flatMap(optionalState -> optionalState)
-        .orElseGet(() -> createState(conversation, currentUserId));
-    state.markAsRead(readUntilMessage.getId(), readUntilMessage.getCreatedAt());
-    state.decreaseUnreadCount(readCount);
+    markAsReadAndDecreaseUnreadCount(
+        conversation,
+        currentUserId,
+        readUntilMessage.getId(),
+        readUntilMessage.getCreatedAt(),
+        readCount
+    );
 
     log.debug(
         "DM 읽음 처리를 완료했습니다. conversationId={}, readUntilMessageId={}, readCount={}",
@@ -352,8 +354,48 @@ public class ConversationService {
 
   private ConversationUserState createState(Conversation conversation, UUID userId) {
     ConversationUserState state = ConversationUserState.create(conversation, userId);
-    ConversationUserState savedState = conversationUserStateRepository.save(state);
+    ConversationUserState savedState = conversationUserStateRepository.saveAndFlush(state);
     return savedState != null ? savedState : state;
+  }
+
+  private void markAsReadAndDecreaseUnreadCount(
+      Conversation conversation,
+      UUID userId,
+      UUID lastReadMessageId,
+      Instant lastReadAt,
+      long readCount
+  ) {
+    int updatedCount = conversationUserStateRepository.markAsReadAndDecreaseUnreadCount(
+        conversation.getId(),
+        userId,
+        lastReadMessageId,
+        lastReadAt,
+        readCount
+    );
+    if (updatedCount > 0) {
+      return;
+    }
+
+    ensureState(conversation, userId);
+    conversationUserStateRepository.markAsReadAndDecreaseUnreadCount(
+        conversation.getId(),
+        userId,
+        lastReadMessageId,
+        lastReadAt,
+        readCount
+    );
+  }
+
+  private void ensureState(Conversation conversation, UUID userId) {
+    try {
+      createState(conversation, userId);
+    } catch (DataIntegrityViolationException ignored) {
+      log.debug(
+          "대화방 사용자 상태가 이미 생성되어 있습니다. conversationId={}, userId={}",
+          conversation.getId(),
+          userId
+      );
+    }
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {

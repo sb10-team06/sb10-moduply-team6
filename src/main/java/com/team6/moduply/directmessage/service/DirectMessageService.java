@@ -20,10 +20,10 @@ import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,11 +74,7 @@ public class DirectMessageService {
         directMessage.getContent(),
         currentUserId
     );
-    ConversationUserState receiverState = Optional.ofNullable(conversationUserStateRepository
-        .findByConversationIdAndUserId(conversationId, withUserId))
-        .flatMap(optionalState -> optionalState)
-        .orElseGet(() -> createState(conversation, withUserId));
-    receiverState.increaseUnreadCount();
+    increaseUnreadCount(conversation, withUserId);
 
     eventPublisher.publishEvent(new DirectMessageReceivedEvent(
         withUserId,
@@ -110,8 +106,33 @@ public class DirectMessageService {
 
   private ConversationUserState createState(Conversation conversation, UUID userId) {
     ConversationUserState state = ConversationUserState.create(conversation, userId);
-    ConversationUserState savedState = conversationUserStateRepository.save(state);
+    ConversationUserState savedState = conversationUserStateRepository.saveAndFlush(state);
     return savedState != null ? savedState : state;
+  }
+
+  private void increaseUnreadCount(Conversation conversation, UUID userId) {
+    int updatedCount = conversationUserStateRepository.increaseUnreadCount(
+        conversation.getId(),
+        userId
+    );
+    if (updatedCount > 0) {
+      return;
+    }
+
+    ensureState(conversation, userId);
+    conversationUserStateRepository.increaseUnreadCount(conversation.getId(), userId);
+  }
+
+  private void ensureState(Conversation conversation, UUID userId) {
+    try {
+      createState(conversation, userId);
+    } catch (DataIntegrityViolationException ignored) {
+      log.debug(
+          "대화방 사용자 상태가 이미 생성되어 있습니다. conversationId={}, userId={}",
+          conversation.getId(),
+          userId
+      );
+    }
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {

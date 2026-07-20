@@ -313,6 +313,67 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
     assertThat(result.getLastMessageContent()).isEqualTo("higher");
   }
 
+  @Test
+  @DisplayName("사용자별 대화방 상태의 읽지 않은 메시지 수를 원자적으로 증가시킨다.")
+  void increaseUnreadCount_success_with_atomic_update() {
+    User currentUser = saveUser("state-increase-current@example.com", "current");
+    User withUser = saveUser("state-increase-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    ConversationUserState state = conversationUserStateRepository.saveAndFlush(
+        ConversationUserState.create(conversation, currentUser.getId())
+    );
+
+    int firstUpdateCount = conversationUserStateRepository.increaseUnreadCount(
+        conversation.getId(),
+        currentUser.getId()
+    );
+    int secondUpdateCount = conversationUserStateRepository.increaseUnreadCount(
+        conversation.getId(),
+        currentUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    ConversationUserState result = conversationUserStateRepository.findById(state.getId()).orElseThrow();
+    assertThat(firstUpdateCount).isEqualTo(1);
+    assertThat(secondUpdateCount).isEqualTo(1);
+    assertThat(result.getUnreadCount()).isEqualTo(2L);
+  }
+
+  @Test
+  @DisplayName("사용자별 대화방 상태의 읽지 않은 메시지 수를 0 미만으로 내려가지 않게 원자적으로 감소시킨다.")
+  void markAsReadAndDecreaseUnreadCount_success_with_atomic_update() {
+    User currentUser = saveUser("state-decrease-current@example.com", "current");
+    User withUser = saveUser("state-decrease-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    ConversationUserState state = conversationUserStateRepository.saveAndFlush(
+        ConversationUserState.create(conversation, currentUser.getId())
+    );
+    conversationUserStateRepository.increaseUnreadCount(conversation.getId(), currentUser.getId());
+    conversationUserStateRepository.increaseUnreadCount(conversation.getId(), currentUser.getId());
+    UUID lastReadMessageId = null;
+    Instant lastReadAt = Instant.parse("2026-01-01T00:00:00Z");
+
+    int updateCount = conversationUserStateRepository.markAsReadAndDecreaseUnreadCount(
+        conversation.getId(),
+        currentUser.getId(),
+        lastReadMessageId,
+        lastReadAt,
+        5L
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    ConversationUserState result = conversationUserStateRepository.findById(state.getId()).orElseThrow();
+    assertThat(updateCount).isEqualTo(1);
+    assertThat(result.getUnreadCount()).isZero();
+    assertThat(result.getLastReadAt()).isEqualTo(lastReadAt);
+  }
+
   private ConversationFindAllRequest request(
       String cursor,
       UUID idAfter,
