@@ -7,7 +7,7 @@
 #
 #   1) Gradle (jacocoTestCoverageVerification) ← 진짜 게이트
 #      - CI에서 -PcoverageMinimum 값을 브랜치별로 다르게 주입
-#      - dev: 40%, main: 80%
+#      - dev: 80%, main: 80%
 #      - 기준 미달 시 빌드 자체가 실패 → Branch Protection의
 #        "Require status checks to pass" 에서 CI 실패로 머지 차단됨
 #
