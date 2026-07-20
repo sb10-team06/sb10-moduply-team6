@@ -106,6 +106,8 @@ class DirectMessageServiceTest {
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.save(any(DirectMessage.class)))
         .willReturn(savedDirectMessage);
+    given(conversationUserStateRepository.increaseUnreadCount(conversationId, withUserId))
+        .willReturn(1);
     given(directMessageMapper.toDto(
         savedDirectMessage,
         conversation,
@@ -132,6 +134,8 @@ class DirectMessageServiceTest {
         request.content(),
         currentUserId
     );
+    verify(conversationUserStateRepository).increaseUnreadCount(conversationId, withUserId);
+    verify(conversationUserStateRepository, never()).saveAndFlush(any());
     ArgumentCaptor<DirectMessageReceivedEvent> eventCaptor = ArgumentCaptor.forClass(
         DirectMessageReceivedEvent.class
     );
