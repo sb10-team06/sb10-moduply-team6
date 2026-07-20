@@ -177,7 +177,13 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
     );
     UUID lastMessageId = UUID.randomUUID();
     Instant lastMessageAt = Instant.parse("2026-01-03T00:00:00Z");
-    conversation.updateLastMessage(lastMessageId, lastMessageAt, "latest", withUser.getId());
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        lastMessageId,
+        lastMessageAt,
+        "latest",
+        withUser.getId()
+    );
     ConversationUserState state = ConversationUserState.create(conversation, currentUser.getId());
     state.increaseUnreadCount();
     conversationUserStateRepository.saveAndFlush(state);
@@ -198,6 +204,113 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
     assertThat(item.lastMessageContent()).isEqualTo("latest");
     assertThat(item.lastMessageSenderId()).isEqualTo(withUser.getId());
     assertThat(item.unreadCount()).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("저장된 최신 메시지보다 새 메시지가 더 최신이면 대화방 최신 메시지 스냅샷을 갱신한다.")
+  void updateLastMessageIfNewer_success_when_message_is_newer() {
+    User currentUser = saveUser("last-current@example.com", "current");
+    User withUser = saveUser("last-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    UUID oldMessageId = UUID.fromString("10000000-0000-0000-0000-000000000000");
+    UUID newMessageId = UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    int firstUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        oldMessageId,
+        Instant.parse("2026-01-01T00:00:00Z"),
+        "old",
+        currentUser.getId()
+    );
+    int secondUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        newMessageId,
+        Instant.parse("2026-01-02T00:00:00Z"),
+        "new",
+        withUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    Conversation result = conversationRepository.findById(conversation.getId()).orElseThrow();
+    assertThat(firstUpdateCount).isEqualTo(1);
+    assertThat(secondUpdateCount).isEqualTo(1);
+    assertThat(result.getLastMessageId()).isEqualTo(newMessageId);
+    assertThat(result.getLastMessageAt()).isEqualTo(Instant.parse("2026-01-02T00:00:00Z"));
+    assertThat(result.getLastMessageContent()).isEqualTo("new");
+    assertThat(result.getLastMessageSenderId()).isEqualTo(withUser.getId());
+  }
+
+  @Test
+  @DisplayName("저장된 최신 메시지보다 오래된 메시지는 대화방 최신 메시지 스냅샷을 덮어쓰지 않는다.")
+  void updateLastMessageIfNewer_fail_when_message_is_older() {
+    User currentUser = saveUser("last-older-current@example.com", "current");
+    User withUser = saveUser("last-older-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    UUID latestMessageId = UUID.fromString("30000000-0000-0000-0000-000000000000");
+    UUID olderMessageId = UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        latestMessageId,
+        Instant.parse("2026-01-02T00:00:00Z"),
+        "latest",
+        withUser.getId()
+    );
+    int olderUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        olderMessageId,
+        Instant.parse("2026-01-01T00:00:00Z"),
+        "older",
+        currentUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    Conversation result = conversationRepository.findById(conversation.getId()).orElseThrow();
+    assertThat(olderUpdateCount).isZero();
+    assertThat(result.getLastMessageId()).isEqualTo(latestMessageId);
+    assertThat(result.getLastMessageContent()).isEqualTo("latest");
+    assertThat(result.getLastMessageSenderId()).isEqualTo(withUser.getId());
+  }
+
+  @Test
+  @DisplayName("생성 시각이 같으면 UUID가 더 큰 메시지만 대화방 최신 메시지 스냅샷을 갱신한다.")
+  void updateLastMessageIfNewer_success_with_id_tie_breaker_when_created_at_is_same() {
+    User currentUser = saveUser("last-tie-current@example.com", "current");
+    User withUser = saveUser("last-tie-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    Instant sameCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
+    UUID lowerMessageId = UUID.fromString("10000000-0000-0000-0000-000000000000");
+    UUID higherMessageId = UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        higherMessageId,
+        sameCreatedAt,
+        "higher",
+        withUser.getId()
+    );
+    int lowerUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        lowerMessageId,
+        sameCreatedAt,
+        "lower",
+        currentUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    Conversation result = conversationRepository.findById(conversation.getId()).orElseThrow();
+    assertThat(lowerUpdateCount).isZero();
+    assertThat(result.getLastMessageId()).isEqualTo(higherMessageId);
+    assertThat(result.getLastMessageContent()).isEqualTo("higher");
   }
 
   private ConversationFindAllRequest request(

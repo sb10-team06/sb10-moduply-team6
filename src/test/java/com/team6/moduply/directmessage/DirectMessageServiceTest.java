@@ -125,6 +125,13 @@ class DirectMessageServiceTest {
     assertThat(capturedDirectMessage.getContent()).isEqualTo(request.content());
     assertThat(capturedDirectMessage.getConversation()).isEqualTo(conversation);
     assertThat(capturedDirectMessage.getSender()).isEqualTo(currentUser);
+    verify(conversationRepository).updateLastMessageIfNewer(
+        conversationId,
+        directMessageId,
+        createdAt,
+        request.content(),
+        currentUserId
+    );
     ArgumentCaptor<DirectMessageReceivedEvent> eventCaptor = ArgumentCaptor.forClass(
         DirectMessageReceivedEvent.class
     );
