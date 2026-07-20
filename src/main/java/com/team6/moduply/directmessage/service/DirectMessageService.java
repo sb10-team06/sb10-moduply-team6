@@ -2,9 +2,11 @@ package com.team6.moduply.directmessage.service;
 
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.entity.Conversation;
+import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.repository.ConversationRepository;
+import com.team6.moduply.conversation.repository.ConversationUserStateRepository;
 import com.team6.moduply.directmessage.dto.DirectMessageCreateRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
@@ -18,6 +20,7 @@ import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DirectMessageService {
 
   private final ConversationRepository conversationRepository;
+  private final ConversationUserStateRepository conversationUserStateRepository;
   private final DirectMessageRepository directMessageRepository;
   private final UserRepository userRepository;
   private final DirectMessageMapper directMessageMapper;
@@ -44,12 +48,8 @@ public class DirectMessageService {
       DirectMessageCreateRequest request,
       UUID currentUserId
   ) {
-    log.debug(
-        "DM 생성 처리 시작. conversationId={}, currentUserId={}",
-        conversationId,
-        currentUserId
-    );
-    // 대화방 조회 및 참여자 검증
+    log.debug("DM 생성 처리를 시작합니다. conversationId={}, currentUserId={}", conversationId, currentUserId);
+
     Conversation conversation = conversationRepository.findById(conversationId)
         .orElseThrow(() -> new ConversationException(
             ConversationErrorCode.CONVERSATION_NOT_FOUND,
@@ -62,16 +62,28 @@ public class DirectMessageService {
     User withUser = findUser(withUserId);
     UserSummaryDto currentUserSummary = toUserSummaryDto(currentUser);
     UserSummaryDto withUserSummary = toUserSummaryDto(withUser);
+
     DirectMessage directMessage = directMessageRepository.save(
         DirectMessage.create(conversation, currentUser, request.content())
     );
-    // 메시지 수신 이벤트 발행
+    conversation.updateLastMessage(
+        directMessage.getId(),
+        directMessage.getCreatedAt(),
+        directMessage.getContent(),
+        currentUserId
+    );
+    ConversationUserState receiverState = Optional.ofNullable(conversationUserStateRepository
+        .findByConversationIdAndUserId(conversationId, withUserId))
+        .flatMap(optionalState -> optionalState)
+        .orElseGet(() -> createState(conversation, withUserId));
+    receiverState.increaseUnreadCount();
+
     eventPublisher.publishEvent(new DirectMessageReceivedEvent(
-            withUserId,
-            currentUserId,
-            currentUser.getName(),
-            conversationId,
-            request.content()
+        withUserId,
+        currentUserId,
+        currentUser.getName(),
+        conversationId,
+        request.content()
     ));
 
     DirectMessageDto response = directMessageMapper.toDto(
@@ -82,7 +94,7 @@ public class DirectMessageService {
         withUserSummary
     );
 
-    log.debug("DM 생성 처리 완료. directMessageId={}", response.id());
+    log.debug("DM 생성 처리를 완료했습니다. directMessageId={}", response.id());
     return response;
   }
 
@@ -92,6 +104,12 @@ public class DirectMessageService {
             UserErrorCode.USER_NOT_FOUND_EXCEPTION,
             Map.of("userId", userId)
         ));
+  }
+
+  private ConversationUserState createState(Conversation conversation, UUID userId) {
+    ConversationUserState state = ConversationUserState.create(conversation, userId);
+    ConversationUserState savedState = conversationUserStateRepository.save(state);
+    return savedState != null ? savedState : state;
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {

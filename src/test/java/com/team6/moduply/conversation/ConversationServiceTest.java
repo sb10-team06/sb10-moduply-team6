@@ -15,12 +15,15 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
 import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
+import com.team6.moduply.conversation.dto.ConversationListItemDto;
 import com.team6.moduply.conversation.dto.ConversationSortBy;
 import com.team6.moduply.conversation.entity.Conversation;
+import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.mapper.ConversationMapper;
 import com.team6.moduply.conversation.repository.ConversationRepository;
+import com.team6.moduply.conversation.repository.ConversationUserStateRepository;
 import com.team6.moduply.conversation.service.ConversationService;
 import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
@@ -58,6 +61,9 @@ class ConversationServiceTest {
 
   @Mock
   private ConversationRepository conversationRepository;
+
+  @Mock
+  private ConversationUserStateRepository conversationUserStateRepository;
 
   @Mock
   private DirectMessageRepository directMessageRepository;
@@ -123,11 +129,26 @@ class ConversationServiceTest {
     Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
     User currentUser = user(currentUserId, "current");
     User withUser = user(withUserId, "with");
-    Conversation conversation = Conversation.create(currentUserId, withUserId);
-    Conversation sentinelConversation = Conversation.create(currentUserId, UUID.randomUUID());
-    ReflectionTestUtils.setField(conversation, "id", conversationId);
-    ReflectionTestUtils.setField(conversation, "createdAt", createdAt);
-    ReflectionTestUtils.setField(sentinelConversation, "id", sentinelConversationId);
+    ConversationListItemDto conversation = new ConversationListItemDto(
+        conversationId,
+        createdAt,
+        withUser,
+        null,
+        null,
+        null,
+        null,
+        0L
+    );
+    ConversationListItemDto sentinelConversation = new ConversationListItemDto(
+        sentinelConversationId,
+        Instant.parse("2025-12-31T00:00:00Z"),
+        withUser,
+        null,
+        null,
+        null,
+        null,
+        0L
+    );
     ConversationFindAllRequest request = new ConversationFindAllRequest(
         null,
         null,
@@ -136,19 +157,14 @@ class ConversationServiceTest {
         SortDirection.DESCENDING,
         ConversationSortBy.createdAt
     );
-    ConversationDto expected = new ConversationDto(conversationId, null, null, false);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    ConversationDto expected = new ConversationDto(conversationId, withUserSummary, null, false);
 
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
-    given(conversationRepository.findAllWithCursor(request, currentUserId))
+    given(conversationRepository.findAllDtoWithCursor(request, currentUserId))
         .willReturn(List.of(conversation, sentinelConversation));
     given(conversationRepository.countWithCondition(request, currentUserId)).willReturn(2L);
-    given(userRepository.findAllById(any())).willReturn(List.of(withUser));
-    given(directMessageRepository.findLatestMessagesByConversationIds(any()))
-        .willReturn(List.of());
-    given(directMessageRepository.findUnreadConversationIds(any(), eq(currentUserId)))
-        .willReturn(List.of());
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, false))
-        .willReturn(expected);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
 
     CursorResponse<ConversationDto> result = conversationService.findAll(request, currentUserId);
 
@@ -257,18 +273,19 @@ class ConversationServiceTest {
     User withUser = user(withUserId, "with");
     Conversation conversation = Conversation.create(currentUserId, withUserId);
     ReflectionTestUtils.setField(conversation, "id", conversationId);
-    ConversationDto expected = new ConversationDto(conversationId, null, null, true);
+    ConversationUserState state = ConversationUserState.create(conversation, currentUserId);
+    ReflectionTestUtils.setField(state, "unreadCount", 1L);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    ConversationDto expected = new ConversationDto(conversationId, withUserSummary, null, true);
 
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId))
-        .willReturn(Optional.empty());
-    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
-        conversationId,
-        currentUserId
-    )).willReturn(true);
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, true)).willReturn(expected);
+    given(conversationUserStateRepository.findByConversationIdAndUserId(conversationId, currentUserId))
+        .willReturn(Optional.of(state));
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
 
     ConversationDto result = conversationService.findById(conversationId, currentUserId);
 
@@ -300,8 +317,17 @@ class ConversationServiceTest {
     UUID conversationId = UUID.randomUUID();
     User currentUser = user(currentUserId, "current");
     User withUser = user(withUserId, "with");
-    Conversation conversation = Conversation.create(currentUserId, withUserId);
-    ReflectionTestUtils.setField(conversation, "id", conversationId);
+    Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+    ConversationListItemDto conversation = new ConversationListItemDto(
+        conversationId,
+        createdAt,
+        withUser,
+        null,
+        null,
+        null,
+        null,
+        0L
+    );
     ConversationFindAllRequest request = new ConversationFindAllRequest(
         null,
         null,
@@ -310,19 +336,14 @@ class ConversationServiceTest {
         SortDirection.DESCENDING,
         ConversationSortBy.createdAt
     );
-    ConversationDto expected = new ConversationDto(conversationId, null, null, false);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    ConversationDto expected = new ConversationDto(conversationId, withUserSummary, null, false);
 
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
-    given(conversationRepository.findAllWithCursor(request, currentUserId))
+    given(conversationRepository.findAllDtoWithCursor(request, currentUserId))
         .willReturn(List.of(conversation));
     given(conversationRepository.countWithCondition(request, currentUserId)).willReturn(1L);
-    given(userRepository.findAllById(any())).willReturn(List.of(withUser));
-    given(directMessageRepository.findLatestMessagesByConversationIds(any()))
-        .willReturn(List.of());
-    given(directMessageRepository.findUnreadConversationIds(any(), eq(currentUserId)))
-        .willReturn(List.of());
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, false))
-        .willReturn(expected);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
 
     CursorResponse<ConversationDto> result = conversationService.findAll(request, currentUserId);
 
@@ -571,19 +592,20 @@ class ConversationServiceTest {
     User withUser = user(withUserId, "with");
     Conversation conversation = Conversation.create(currentUserId, withUserId);
     ReflectionTestUtils.setField(conversation, "id", conversationId);
-    ConversationDto expected = new ConversationDto(conversationId, null, null, true);
+    ConversationUserState state = ConversationUserState.create(conversation, currentUserId);
+    ReflectionTestUtils.setField(state, "unreadCount", 1L);
+    UserSummaryDto currentUserSummary = new UserSummaryDto(currentUserId, "current", null);
+    UserSummaryDto withUserSummary = new UserSummaryDto(withUserId, "with", null);
+    ConversationDto expected = new ConversationDto(conversationId, withUserSummary, null, true);
 
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
     given(conversationRepository.findByUser1IdAndUser2Id(conversation.getUser1Id(), conversation.getUser2Id()))
         .willReturn(Optional.of(conversation));
-    given(directMessageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId))
-        .willReturn(Optional.empty());
-    given(directMessageRepository.existsByConversationIdAndSenderIdNotAndReadFalse(
-        conversationId,
-        currentUserId
-    )).willReturn(true);
-    given(conversationMapper.toDto(conversation, currentUser, withUser, null, true)).willReturn(expected);
+    given(conversationUserStateRepository.findByConversationIdAndUserId(conversationId, currentUserId))
+        .willReturn(Optional.of(state));
+    given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
+    given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
 
     ConversationDto result = conversationService.findByUserId(withUserId, currentUserId);
 

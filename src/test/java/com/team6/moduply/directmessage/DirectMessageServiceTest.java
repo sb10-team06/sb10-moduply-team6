@@ -12,6 +12,7 @@ import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.repository.ConversationRepository;
+import com.team6.moduply.conversation.repository.ConversationUserStateRepository;
 import com.team6.moduply.directmessage.dto.DirectMessageCreateRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
@@ -47,6 +48,9 @@ class DirectMessageServiceTest {
 
   @Mock
   private ConversationRepository conversationRepository;
+
+  @Mock
+  private ConversationUserStateRepository conversationUserStateRepository;
 
   @Mock
   private DirectMessageRepository directMessageRepository;

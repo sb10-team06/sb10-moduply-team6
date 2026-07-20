@@ -182,7 +182,7 @@ class ConversationControllerTest {
         SortDirection.DESCENDING
     );
 
-    given(conversationService.findAll(any(), eq(currentUserId))).willReturn(response);
+    given(conversationService.findAll(any(), any(UserDto.class))).willReturn(response);
 
     mockMvc.perform(get("/api/conversations")
             .queryParam("limit", "10")
@@ -197,7 +197,7 @@ class ConversationControllerTest {
         .andExpect(jsonPath("$.sortBy").value("createdAt"))
         .andExpect(jsonPath("$.sortDirection").value("DESCENDING"));
 
-    verify(conversationService).findAll(any(), eq(currentUserId));
+    verify(conversationService).findAll(any(), any(UserDto.class));
   }
 
   @Test
@@ -209,7 +209,7 @@ class ConversationControllerTest {
             .with(user(userDetails(currentUserId))))
         .andExpect(status().isBadRequest());
 
-    verify(conversationService, never()).findAll(any(), eq(currentUserId));
+    verify(conversationService, never()).findAll(any(), any(UserDto.class));
   }
 
   @Test
@@ -227,7 +227,7 @@ class ConversationControllerTest {
             .with(user(userDetails(currentUserId))))
         .andExpect(status().isBadRequest());
 
-    verify(conversationService, never()).findAll(any(), eq(currentUserId));
+    verify(conversationService, never()).findAll(any(), any(UserDto.class));
   }
 
   @Test

@@ -6,8 +6,10 @@ import com.team6.moduply.common.config.JpaAuditingConfig;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
+import com.team6.moduply.conversation.dto.ConversationListItemDto;
 import com.team6.moduply.conversation.dto.ConversationSortBy;
 import com.team6.moduply.conversation.entity.Conversation;
+import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
@@ -25,6 +27,9 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
 
   @Autowired
   private ConversationRepository conversationRepository;
+
+  @Autowired
+  private ConversationUserStateRepository conversationUserStateRepository;
 
   @Autowired
   private UserRepository userRepository;
@@ -160,6 +165,39 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
     assertThat(result)
         .extracting(Conversation::getId)
         .containsExactly(nextConversation.getId(), laterConversation.getId());
+  }
+
+  @Test
+  @DisplayName("대화 목록 projection 조회 시 상대 사용자, 최신 메시지, 읽지 않은 개수를 한 번에 반환한다.")
+  void findAllDtoWithCursor_success_with_last_message_and_unread_count() {
+    User currentUser = saveUser("projection-current@example.com", "current");
+    User withUser = saveUser("projection-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    UUID lastMessageId = UUID.randomUUID();
+    Instant lastMessageAt = Instant.parse("2026-01-03T00:00:00Z");
+    conversation.updateLastMessage(lastMessageId, lastMessageAt, "latest", withUser.getId());
+    ConversationUserState state = ConversationUserState.create(conversation, currentUser.getId());
+    state.increaseUnreadCount();
+    conversationUserStateRepository.saveAndFlush(state);
+    entityManager.flush();
+    entityManager.clear();
+
+    List<ConversationListItemDto> result = conversationRepository.findAllDtoWithCursor(
+        request(null, null, 10, SortDirection.DESCENDING),
+        currentUser.getId()
+    );
+
+    assertThat(result).hasSize(1);
+    ConversationListItemDto item = result.get(0);
+    assertThat(item.id()).isEqualTo(conversation.getId());
+    assertThat(item.createdAt()).isEqualTo(lastMessageAt);
+    assertThat(item.withUser().getId()).isEqualTo(withUser.getId());
+    assertThat(item.lastMessageId()).isEqualTo(lastMessageId);
+    assertThat(item.lastMessageContent()).isEqualTo("latest");
+    assertThat(item.lastMessageSenderId()).isEqualTo(withUser.getId());
+    assertThat(item.unreadCount()).isEqualTo(1L);
   }
 
   private ConversationFindAllRequest request(

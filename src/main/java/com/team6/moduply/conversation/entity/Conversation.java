@@ -7,6 +7,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;
@@ -27,7 +28,9 @@ import org.hibernate.annotations.Check;
     },
     indexes = {
         @Index(name = "idx_conversations_user1_created_at_id", columnList = "user1_id, created_at, id"),
-        @Index(name = "idx_conversations_user2_created_at_id", columnList = "user2_id, created_at, id")
+        @Index(name = "idx_conversations_user2_created_at_id", columnList = "user2_id, created_at, id"),
+        @Index(name = "idx_conversations_user1_last_message_at_id", columnList = "user1_id, last_message_at, id"),
+        @Index(name = "idx_conversations_user2_last_message_at_id", columnList = "user2_id, last_message_at, id")
     }
 )
 public class Conversation extends BaseUpdatableEntity {
@@ -37,6 +40,18 @@ public class Conversation extends BaseUpdatableEntity {
 
   @Column(name = "user2_id", nullable = false)
   private UUID user2Id;
+
+  @Column(name = "last_message_id")
+  private UUID lastMessageId;
+
+  @Column(name = "last_message_at")
+  private Instant lastMessageAt;
+
+  @Column(name = "last_message_content", columnDefinition = "TEXT")
+  private String lastMessageContent;
+
+  @Column(name = "last_message_sender_id")
+  private UUID lastMessageSenderId;
 
     protected Conversation() {
     }
@@ -65,5 +80,12 @@ public class Conversation extends BaseUpdatableEntity {
         UUID user2Id = userAIsFirst ? userBId : userAId;
 
         return new Conversation(user1Id, user2Id);
+    }
+
+    public void updateLastMessage(UUID messageId, Instant createdAt, String content, UUID senderId) {
+        this.lastMessageId = Objects.requireNonNull(messageId, "메시지 ID는 null일 수 없습니다.");
+        this.lastMessageAt = Objects.requireNonNull(createdAt, "메시지 생성 시각은 null일 수 없습니다.");
+        this.lastMessageContent = content;
+        this.lastMessageSenderId = Objects.requireNonNull(senderId, "발신자 ID는 null일 수 없습니다.");
     }
 }
