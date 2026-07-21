@@ -329,8 +329,8 @@ public class ContentService {
 
     return tags.stream()
         .map(String::trim)
-        .collect(Collectors.toCollection(LinkedHashSet::new))
-        .stream()
+        .distinct()
+        .sorted()
         .toList();
   }
 
