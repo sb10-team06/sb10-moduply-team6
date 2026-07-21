@@ -3,6 +3,7 @@ package com.team6.moduply.content.search.service;
 import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
@@ -16,15 +17,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 public class ContentSearchService {
 
-  private static final List<String> SEARCH_FIELDS = List.of("title^3", "description", "tags");
+  private static final String CURSOR_DELIMITER = "|";
+  private static final List<String> SEARCH_FIELDS = List.of("title^5", "tags^3", "description");
 
   private final ElasticsearchOperations elasticsearchOperations;
 
@@ -43,16 +46,13 @@ public class ContentSearchService {
       SortDirection sortDirection
   ) {
     ContentSortBy searchSortBy = toSearchSortBy(sortBy);
-    NativeQuery query = NativeQuery.builder()
+    NativeQueryBuilder queryBuilder = NativeQuery.builder()
         .withQuery(buildQuery(
             typeEqual,
             keywordLike,
-            tagsIn,
-            cursor,
-            idAfter,
-            searchSortBy,
-            sortDirection
+            tagsIn
         ))
+        .withSort(sort -> sort.score(score -> score.order(SortOrder.Desc)))
         .withSort(sort -> sort.field(field -> field
             .field(toSearchSortField(searchSortBy))
             .order(toSearchSortOrder(sortDirection))
@@ -61,18 +61,19 @@ public class ContentSearchService {
             .field("id.keyword")
             .order(toSearchSortOrder(sortDirection))
         ))
-        .withMaxResults(limit)
-        .withTrackTotalHits(true)
-        .build();
+        .withMaxResults(limit + 1)
+        .withTrackTotalHits(true);
+    List<Object> searchAfter = buildSearchAfter(cursor, idAfter, searchSortBy);
+    if (!searchAfter.isEmpty()) {
+      queryBuilder.withSearchAfter(searchAfter);
+    }
+
+    NativeQuery query = queryBuilder.build();
     NativeQuery countQuery = NativeQuery.builder()
         .withQuery(buildQuery(
             typeEqual,
             keywordLike,
-            tagsIn,
-            null,
-            null,
-            searchSortBy,
-            sortDirection
+            tagsIn
         ))
         .build();
 
@@ -82,27 +83,34 @@ public class ContentSearchService {
     );
     long totalCount = elasticsearchOperations.count(countQuery, ContentSearchDocument.class);
 
-    List<UUID> contentIds = searchHits.getSearchHits().stream()
+    List<SearchHit<ContentSearchDocument>> hits = searchHits.getSearchHits();
+    boolean hasNext = hits.size() > limit;
+    List<SearchHit<ContentSearchDocument>> pageHits = hasNext
+        ? hits.subList(0, limit)
+        : hits;
+    List<UUID> contentIds = pageHits.stream()
         .map(hit -> UUID.fromString(hit.getContent().getId()))
         .toList();
+    SearchHit<ContentSearchDocument> lastHit = pageHits.isEmpty()
+        ? null
+        : pageHits.get(pageHits.size() - 1);
 
-    return new ContentSearchResult(contentIds, totalCount);
+    return new ContentSearchResult(
+        contentIds,
+        hasNext,
+        hasNext ? extractCursor(lastHit) : null,
+        hasNext ? UUID.fromString(lastHit.getContent().getId()) : null,
+        totalCount
+    );
   }
 
   private Query buildQuery(
       ContentType typeEqual,
       String keywordLike,
-      List<String> tagsIn,
-      String cursor,
-      UUID idAfter,
-      ContentSortBy sortBy,
-      SortDirection sortDirection
+      List<String> tagsIn
   ) {
     return Query.of(query -> query.bool(bool -> {
-      bool.must(must -> must.multiMatch(multiMatch -> multiMatch
-          .query(keywordLike)
-          .fields(SEARCH_FIELDS)
-      ));
+      bool.must(buildKeywordQuery(keywordLike));
 
       if (typeEqual != null) {
         bool.filter(filter -> filter.term(term -> term
@@ -120,95 +128,28 @@ public class ContentSearchService {
         ));
       }
 
-      if (StringUtils.hasText(cursor) && idAfter != null) {
-        bool.filter(buildCursorQuery(sortBy, sortDirection, cursor, idAfter));
-      }
-
       return bool;
     }));
   }
 
-  private Query buildCursorQuery(
-      ContentSortBy sortBy,
-      SortDirection sortDirection,
-      String cursor,
-      UUID idAfter
-  ) {
-    String sortField = toSearchSortField(sortBy);
-
+  private Query buildKeywordQuery(String keywordLike) {
     return Query.of(query -> query.bool(bool -> bool
-        .should(buildCursorRangeQuery(sortBy, sortDirection, sortField, cursor))
-        .should(equalSortValueAndAfterId(sortBy, sortDirection, sortField, cursor, idAfter))
+        .should(should -> should.multiMatch(multiMatch -> multiMatch
+            .query(keywordLike)
+            .fields(SEARCH_FIELDS)
+        ))
+        .should(should -> should.multiMatch(multiMatch -> multiMatch
+            .query(keywordLike)
+            .fields(SEARCH_FIELDS)
+            .type(TextQueryType.Phrase)
+        ))
+        .should(should -> should.multiMatch(multiMatch -> multiMatch
+            .query(keywordLike)
+            .fields(SEARCH_FIELDS)
+            .type(TextQueryType.PhrasePrefix)
+        ))
         .minimumShouldMatch("1")
     ));
-  }
-
-  private Query equalSortValueAndAfterId(
-      ContentSortBy sortBy,
-      SortDirection sortDirection,
-      String sortField,
-      String cursor,
-      UUID idAfter
-  ) {
-    return Query.of(query -> query.bool(bool -> bool
-        .filter(buildSortValueEqualsQuery(sortBy, sortField, cursor))
-        .filter(buildIdRangeQuery(sortDirection, idAfter))
-    ));
-  }
-
-  private Query buildCursorRangeQuery(
-      ContentSortBy sortBy,
-      SortDirection sortDirection,
-      String sortField,
-      String cursor
-  ) {
-    if (sortBy == ContentSortBy.createdAt) {
-      return Query.of(query -> query.range(range -> range.date(date -> {
-        date.field(sortField);
-        if (sortDirection == SortDirection.ASCENDING) {
-          return date.gt(cursor);
-        }
-        return date.lt(cursor);
-      })));
-    }
-
-    BigDecimal cursorValue = parseDecimalCursor(cursor);
-    return Query.of(query -> query.range(range -> range.number(number -> {
-      number.field(sortField);
-      if (sortDirection == SortDirection.ASCENDING) {
-        return number.gt(cursorValue.doubleValue());
-      }
-      return number.lt(cursorValue.doubleValue());
-    })));
-  }
-
-  private Query buildSortValueEqualsQuery(
-      ContentSortBy sortBy,
-      String sortField,
-      String cursor
-  ) {
-    if (sortBy == ContentSortBy.createdAt) {
-      parseInstantCursor(cursor);
-      return Query.of(query -> query.term(term -> term
-          .field(sortField)
-          .value(cursor)
-      ));
-    }
-
-    return Query.of(query -> query.term(term -> term
-        .field(sortField)
-        .value(parseDecimalCursor(cursor).doubleValue())
-    ));
-  }
-
-  private Query buildIdRangeQuery(SortDirection sortDirection, UUID idAfter) {
-    return Query.of(query -> query.range(range -> range.term(term -> {
-      term.field("id.keyword");
-      if (sortDirection == SortDirection.ASCENDING) {
-        return term.gt(idAfter.toString());
-      }
-      return term.lt(idAfter.toString());
-    })));
   }
 
   private String toSearchSortField(ContentSortBy sortBy) {
@@ -230,6 +171,66 @@ public class ContentSearchService {
 
   private SortOrder toSearchSortOrder(SortDirection sortDirection) {
     return sortDirection == SortDirection.ASCENDING ? SortOrder.Asc : SortOrder.Desc;
+  }
+
+  private List<Object> buildSearchAfter(String cursor, UUID idAfter, ContentSortBy sortBy) {
+    if (cursor == null || idAfter == null) {
+      return List.of();
+    }
+
+    String[] cursorValues = cursor.split("\\|", 2);
+    if (cursorValues.length != 2) {
+      throw new ContentException(
+          ContentErrorCode.INVALID_CURSOR,
+          Map.of("cursor", cursor)
+      );
+    }
+
+    return List.of(
+        parseScoreCursor(cursorValues[0]),
+        parseSortCursor(cursorValues[1], sortBy),
+        idAfter.toString()
+    );
+  }
+
+  private String extractCursor(SearchHit<ContentSearchDocument> hit) {
+    List<Object> sortValues = hit.getSortValues();
+    if (sortValues.size() < 2) {
+      return null;
+    }
+
+    return "%s%s%s".formatted(
+        sortValues.get(0),
+        CURSOR_DELIMITER,
+        sortValues.get(1)
+    );
+  }
+
+  private float parseScoreCursor(String cursor) {
+    try {
+      return Float.parseFloat(cursor);
+    } catch (NumberFormatException e) {
+      throw new ContentException(
+          ContentErrorCode.INVALID_CURSOR,
+          Map.of("sortBy", "_score", "cursor", cursor)
+      );
+    }
+  }
+
+  private Object parseSortCursor(String cursor, ContentSortBy sortBy) {
+    if (sortBy == ContentSortBy.createdAt) {
+      return parseDateSortCursor(cursor);
+    }
+
+    return parseDecimalCursor(cursor).doubleValue();
+  }
+
+  private Object parseDateSortCursor(String cursor) {
+    try {
+      return Long.parseLong(cursor);
+    } catch (NumberFormatException ignored) {
+      return parseInstantCursor(cursor).toString();
+    }
   }
 
   private Instant parseInstantCursor(String cursor) {
@@ -256,6 +257,9 @@ public class ContentSearchService {
 
   public record ContentSearchResult(
       List<UUID> contentIds,
+      boolean hasNext,
+      String nextCursor,
+      UUID nextIdAfter,
       long totalCount
   ) {
   }

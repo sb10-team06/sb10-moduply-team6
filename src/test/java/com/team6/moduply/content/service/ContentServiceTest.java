@@ -1086,10 +1086,10 @@ class ContentServiceTest {
         List.of("SF"),
         null,
         null,
-        21,
+        20,
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
-    )).willReturn(new ContentSearchResult(List.of(secondId, firstId), 2L));
+    )).willReturn(new ContentSearchResult(List.of(secondId, firstId), false, null, null, 2L));
     given(contentRepository.findAllByIdIn(List.of(secondId, firstId)))
         .willReturn(List.of(first, second));
     given(contentTagRepository.findTagNamesByContentIds(List.of(secondId, firstId)))

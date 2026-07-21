@@ -236,18 +236,14 @@ public class ContentService {
         normalizedTagsIn,
         request.cursor(),
         request.idAfter(),
-        request.limit() + 1,
+        request.limit(),
         searchSortBy,
         request.sortDirection()
     );
 
-    boolean hasNext = searchResult.contentIds().size() > request.limit();
-    List<UUID> pageContentIds = hasNext
-        ? searchResult.contentIds().subList(0, request.limit())
-        : searchResult.contentIds();
     List<Content> pageContents = sortBySearchResultOrder(
-        contentRepository.findAllByIdIn(pageContentIds),
-        pageContentIds
+        contentRepository.findAllByIdIn(searchResult.contentIds()),
+        searchResult.contentIds()
     );
     Map<UUID, List<String>> tagNamesByContentId = getTagNamesGroupedByContentId(pageContents);
     List<ContentDto> data = pageContents.stream()
@@ -256,13 +252,12 @@ public class ContentService {
             tagNamesByContentId.getOrDefault(content.getId(), List.of())
         ))
         .toList();
-    Content lastContent = data.isEmpty() ? null : pageContents.get(pageContents.size() - 1);
 
     return new CursorResponse<>(
         data,
-        hasNext ? extractCursor(lastContent, searchSortBy) : null,
-        hasNext ? lastContent.getId() : null,
-        hasNext,
+        searchResult.hasNext() ? searchResult.nextCursor() : null,
+        searchResult.hasNext() ? searchResult.nextIdAfter() : null,
+        searchResult.hasNext(),
         searchResult.totalCount(),
         searchSortBy.name(),
         request.sortDirection()

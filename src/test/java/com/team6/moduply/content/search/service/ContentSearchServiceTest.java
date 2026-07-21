@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.enums.ContentSortBy;
 import com.team6.moduply.content.enums.ContentType;
@@ -19,6 +20,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -79,6 +81,168 @@ class ContentSearchServiceTest {
     // Then
     assertThat(result.contentIds()).containsExactly(contentId);
     assertThat(result.totalCount()).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("검색 결과가 limit보다 많으면 다음 페이지 커서를 반환한다.")
+  void search_success_with_next_cursor() {
+    // Given
+    UUID firstContentId = UUID.randomUUID();
+    UUID secondContentId = UUID.randomUUID();
+    ContentSearchDocument firstDocument = ContentSearchDocument.builder()
+        .id(firstContentId.toString())
+        .build();
+    ContentSearchDocument secondDocument = ContentSearchDocument.builder()
+        .id(secondContentId.toString())
+        .build();
+    SearchHit<ContentSearchDocument> firstHit = new SearchHit<>(
+        "contents",
+        firstContentId.toString(),
+        null,
+        12.5f,
+        new Object[]{12.5f, "2026-07-21T00:00:00Z", firstContentId.toString()},
+        null,
+        null,
+        null,
+        null,
+        null,
+        firstDocument
+    );
+    SearchHit<ContentSearchDocument> secondHit = new SearchHit<>(
+        "contents",
+        secondContentId.toString(),
+        null,
+        10.0f,
+        new Object[]{10.0f, "2026-07-20T00:00:00Z", secondContentId.toString()},
+        null,
+        null,
+        null,
+        null,
+        null,
+        secondDocument
+    );
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of(firstHit, secondHit));
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(2L);
+
+    // When
+    ContentSearchResult result = contentSearchService.search(
+        ContentType.movie,
+        "악마",
+        List.of("스릴러"),
+        null,
+        null,
+        1,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result.contentIds()).containsExactly(firstContentId);
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo("12.5|2026-07-21T00:00:00Z");
+    assertThat(result.nextIdAfter()).isEqualTo(firstContentId);
+    assertThat(result.totalCount()).isEqualTo(2L);
+  }
+
+  @Test
+  @DisplayName("다음 페이지 조회 시 score, 정렬값, id를 search_after로 전달한다.")
+  void search_success_with_search_after() {
+    // Given
+    UUID idAfter = UUID.randomUUID();
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        ContentType.movie,
+        "악마",
+        List.of(),
+        "12.5|2026-07-21T00:00:00Z",
+        idAfter,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    assertThat(queryCaptor.getValue().getSearchAfter())
+        .containsExactly(12.5f, "2026-07-21T00:00:00Z", idAfter.toString());
+  }
+
+  @Test
+  @DisplayName("날짜 커서가 epoch millis 형식이면 숫자 정렬값으로 search_after를 전달한다.")
+  void search_success_with_epoch_millis_date_cursor() {
+    // Given
+    UUID idAfter = UUID.randomUUID();
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        ContentType.movie,
+        "악마",
+        List.of(),
+        "12.5|1784592000000",
+        idAfter,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    assertThat(queryCaptor.getValue().getSearchAfter())
+        .containsExactly(12.5f, 1784592000000L, idAfter.toString());
+  }
+
+  @Test
+  @DisplayName("검색어가 있으면 관련도 점수를 우선 정렬하고 요청 정렬값을 보조 정렬로 사용한다.")
+  void search_success_with_score_first_sort() {
+    // Given
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        ContentType.movie,
+        "악마",
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.rate,
+        SortDirection.ASCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    NativeQuery query = queryCaptor.getValue();
+    assertThat(query.getSortOptions()).hasSize(3);
+    assertThat(query.getSortOptions().get(0).isScore()).isTrue();
+    assertThat(query.getSortOptions().get(0).score().order()).isEqualTo(SortOrder.Desc);
+    assertThat(query.getSortOptions().get(1).field().field()).isEqualTo("averageRating");
+    assertThat(query.getSortOptions().get(1).field().order()).isEqualTo(SortOrder.Asc);
+    assertThat(query.getSortOptions().get(2).field().field()).isEqualTo("id.keyword");
   }
 
   @Test
