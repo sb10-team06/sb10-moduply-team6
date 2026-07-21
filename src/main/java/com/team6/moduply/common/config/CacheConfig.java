@@ -2,8 +2,15 @@ package com.team6.moduply.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.UUID;
+
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -62,10 +69,22 @@ public class CacheConfig {
       ObjectMapper objectMapper,
       Duration ttl
   ) {
+    // 모든 클래스를 허용하지 말고, 우리 애플리케이션 패키지에 속한 클래스만 타입으로 인정
+    // 외부에서 위조한 타입으로 역직렬화 할 수 있기때문
+    BasicPolymorphicTypeValidator typeValidator =
+            BasicPolymorphicTypeValidator.builder()
+                    .allowIfSubType("com.team6.moduply.")
+                    .allowIfSubType(ArrayList.class)
+                    .allowIfSubType(UUID.class)
+                    .allowIfSubType(LocalDateTime.class)
+                    .allowIfSubType(BigDecimal.class)
+                    .build();
+
     ObjectMapper cacheObjectMapper = objectMapper.copy();
+
     cacheObjectMapper.activateDefaultTyping(
-        cacheObjectMapper.getPolymorphicTypeValidator(),
-        ObjectMapper.DefaultTyping.EVERYTHING,
+        typeValidator,
+        ObjectMapper.DefaultTyping.EVERYTHING,      // Redis에 객체를 저장할 때 실제 클래스 정보를 JSON에 함께 넣는다.
         JsonTypeInfo.As.PROPERTY
     );
 
