@@ -214,10 +214,14 @@ public class ContentService {
     boolean hasNext = contents.size() > request.limit();
     List<Content> pageContents = hasNext ? contents.subList(0, request.limit()) : contents;
     Map<UUID, List<String>> tagNamesByContentId = getTagNamesGroupedByContentId(pageContents);
+    // (콘텐츠: 시청자 수)
+    Map<UUID, Long> watcherCountsByContentId = getWatcherCountsByContentId(pageContents);
     List<ContentDto> data = pageContents.stream()
         .map(content -> toDto(
             content,
-            tagNamesByContentId.getOrDefault(content.getId(), List.of())
+            tagNamesByContentId.getOrDefault(content.getId(), List.of()),
+            // 시청자 수 꺼내기
+            watcherCountsByContentId.getOrDefault(content.getId(), 0L)
         ))
         .toList();
     Content lastContent = data.isEmpty() ? null : pageContents.get(pageContents.size() - 1);
@@ -410,15 +414,24 @@ public class ContentService {
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {
+    long watcherCount = watchingSessionRepository.countByContentId(content.getId());
+    return toDto(content, tagNames, watcherCount);
+  }
+
+  private ContentDto toDto(Content content, List<String> tagNames, long watcherCount) {
     String thumbnailUrl = content.getContentImg() == null
         ? DEFAULT_THUMBNAIL_URL
         : binaryContentService.generateUrl(content.getContentImg());
     ContentDto contentDto = contentMapper.toDto(content, thumbnailUrl, tagNames);
-    return withCurrentWatcherCount(contentDto, content.getId());
+    return withWatcherCount(contentDto, watcherCount);
   }
 
   private ContentDto withCurrentWatcherCount(ContentDto contentDto, UUID contentId) {
     long watcherCount = watchingSessionRepository.countByContentId(contentId);
+    return withWatcherCount(contentDto, watcherCount);
+  }
+
+  private ContentDto withWatcherCount(ContentDto contentDto, long watcherCount) {
     return new ContentDto(
         contentDto.id(),
         contentDto.type(),
@@ -430,6 +443,17 @@ public class ContentService {
         contentDto.reviewCount(),
         watcherCount
     );
+  }
+
+  private Map<UUID, Long> getWatcherCountsByContentId(List<Content> contents) {
+    if (contents.isEmpty()) {
+      return Map.of();
+    }
+
+    List<UUID> contentIds = contents.stream()
+        .map(Content::getId)
+        .toList();
+    return watchingSessionRepository.countByContentIds(contentIds);
   }
 
   private CursorResponse<ContentDto> toContentResponseWithDynamicValues(

@@ -957,7 +957,7 @@ class ContentServiceTest {
     )).willReturn(List.of(first, second));
     given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
     given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(firstDto);
-    given(watchingSessionRepository.countByContentId(firstId)).willReturn(100L);
+    given(watchingSessionRepository.countByContentIds(List.of(firstId))).willReturn(Map.of(firstId, 100L));
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -991,6 +991,8 @@ class ContentServiceTest {
         ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     );
+    verify(watchingSessionRepository).countByContentIds(List.of(firstId));
+    verify(watchingSessionRepository, never()).countByContentId(firstId);
   }
 
   @Test
