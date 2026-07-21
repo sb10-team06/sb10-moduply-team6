@@ -184,6 +184,7 @@ function taggedApiSections(data, transactionCount, transactionTps) {
     taggedApiSection(data, 'follow-status', '팔로우 여부 조회 API'),
     taggedApiSection(data, 'follow-create', '팔로우 생성 API', transactionCount, transactionTps, duplicateCount),
     taggedApiSection(data, 'content-list-default', '콘텐츠 기본 목록조회 API'),
+    taggedApiSection(data, 'content-find-default', '콘텐츠 단건 조회 API'),
     taggedApiSection(data, 'conversation-list-default', '대화방 기본 목록조회 API'),
   ].join('');
 
@@ -212,10 +213,12 @@ export function createKoreanHtmlReport(data, scenarioName) {
   const transactionCount = value(data, 'content_created', 'count')
     || value(data, 'follow_created', 'count')
     || value(data, 'content_list_ok', 'count')
+    || value(data, 'content_find_ok', 'count')
     || value(data, 'conversation_list_ok', 'count');
   const transactionTps = value(data, 'content_created', 'rate')
     || value(data, 'follow_created', 'rate')
     || value(data, 'content_list_ok', 'rate')
+    || value(data, 'content_find_ok', 'rate')
     || value(data, 'conversation_list_ok', 'rate');
   const duplicateCount = hasMetric(data, 'follow_already_exists')
     ? value(data, 'follow_already_exists', 'count')
