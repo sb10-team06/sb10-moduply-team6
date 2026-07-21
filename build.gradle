@@ -73,6 +73,7 @@ dependencies {
     implementation 'org.springframework.security:spring-security-messaging'
     //redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.apache.commons:commons-pool2'
     // jwt
     implementation 'com.nimbusds:nimbus-jose-jwt:10.3'
 

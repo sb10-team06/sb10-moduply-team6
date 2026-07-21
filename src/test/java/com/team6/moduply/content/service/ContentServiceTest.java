@@ -23,6 +23,8 @@ import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
+import com.team6.moduply.content.dto.ContentListCacheItemDto;
+import com.team6.moduply.content.dto.ContentListCachePageDto;
 import com.team6.moduply.content.dto.ContentUpdateRequest;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.entity.ContentTag;
@@ -46,6 +48,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -78,6 +81,12 @@ class ContentServiceTest {
 
   @Mock
   private BinaryContentService binaryContentService;
+
+  @Mock
+  private ContentListCacheService contentListCacheService;
+
+  @Mock
+  private ContentTagCacheService contentTagCacheService;
 
   @Mock
   private ReviewQDSLRepository reviewQDSLRepository;
@@ -805,23 +814,6 @@ class ContentServiceTest {
     // Given
     UUID movieId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
     UUID sportId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
-    Content movie = new Content(
-        null,
-        null,
-        ContentType.movie,
-        "Inception",
-        "꿈과 현실을 넘나드는 SF 영화"
-    );
-    Content sport = new Content(
-        null,
-        null,
-        ContentType.sport,
-        "World Cup",
-        "스포츠 콘텐츠"
-    );
-    ReflectionTestUtils.setField(movie, "id", movieId);
-    ReflectionTestUtils.setField(sport, "id", sportId);
-
     ContentDto movieDto = new ContentDto(
         movieId,
         ContentType.movie,
@@ -829,9 +821,9 @@ class ContentServiceTest {
         "꿈과 현실을 넘나드는 SF 영화",
         null,
         List.of("SF", "액션"),
-        BigDecimal.ZERO,
-        0,
-        0L
+        BigDecimal.valueOf(4.50),
+        7,
+        3L
     );
     ContentDto sportDto = new ContentDto(
         sportId,
@@ -840,29 +832,10 @@ class ContentServiceTest {
         "스포츠 콘텐츠",
         null,
         List.of("스포츠"),
-        BigDecimal.ZERO,
-        0,
-        0L
+        BigDecimal.valueOf(3.20),
+        2,
+        5L
     );
-
-    given(contentRepository.findAllByCursor(
-        null,
-        null,
-        List.of(),
-        null,
-        null,
-        21,
-        ContentSortBy.createdAt,
-        SortDirection.DESCENDING
-    )).willReturn(List.of(movie, sport));
-    given(contentTagRepository.findTagNamesByContentIds(List.of(movieId, sportId)))
-        .willReturn(List.of(
-            new TestContentTagNameProjection(movieId, "SF"),
-            new TestContentTagNameProjection(movieId, "액션"),
-            new TestContentTagNameProjection(sportId, "스포츠")
-        ));
-    given(contentMapper.toDto(movie, DEFAULT_THUMBNAIL_URL, List.of("SF", "액션"))).willReturn(movieDto);
-    given(contentMapper.toDto(sport, DEFAULT_THUMBNAIL_URL, List.of("스포츠"))).willReturn(sportDto);
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -874,6 +847,47 @@ class ContentServiceTest {
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     );
+    given(contentListCacheService.findCreatedAtPage(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(new ContentListCachePageDto(
+        List.of(
+            new ContentListCacheItemDto(
+                movieId,
+                ContentType.movie,
+                "Inception",
+                "꿈과 현실을 넘나드는 SF 영화",
+                null,
+                List.of("SF", "액션"),
+                BigDecimal.valueOf(4.50),
+                7
+            ),
+            new ContentListCacheItemDto(
+                sportId,
+                ContentType.sport,
+                "World Cup",
+                "스포츠 콘텐츠",
+                null,
+                List.of("스포츠"),
+                BigDecimal.valueOf(3.20),
+                2
+            )
+        ),
+        null,
+        null,
+        false,
+        2L,
+        "createdAt",
+        SortDirection.DESCENDING
+    ));
+    given(watchingSessionRepository.countByContentIds(List.of(movieId, sportId)))
+        .willReturn(Map.of(movieId, 3L, sportId, 5L));
 
     // When
     CursorResponse<ContentDto> response = contentService.findAll(request);
@@ -886,20 +900,21 @@ class ContentServiceTest {
     assertThat(response.totalCount()).isEqualTo(2);
     assertThat(response.sortBy()).isEqualTo("createdAt");
     assertThat(response.sortDirection()).isEqualTo(SortDirection.DESCENDING);
-    verify(contentRepository).findAllByCursor(
+    verify(contentListCacheService).findCreatedAtPage(
         null,
         null,
         List.of(),
         null,
         null,
-        21,
+        20,
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     );
+    verify(watchingSessionRepository).countByContentIds(List.of(movieId, sportId));
+    verify(contentRepository, never()).findAllByCursor(any(), any(), anyList(), any(), any(), anyInt(), any(), any());
     verify(contentRepository, never()).countContents(any(), any(), anyList());
-    verify(contentTagRepository).findTagNamesByContentIds(List.of(movieId, sportId));
-    verify(contentMapper).toDto(movie, DEFAULT_THUMBNAIL_URL, List.of("SF", "액션"));
-    verify(contentMapper).toDto(sport, DEFAULT_THUMBNAIL_URL, List.of("스포츠"));
+    verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
+    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
 
   @Test
@@ -950,7 +965,7 @@ class ContentServiceTest {
     )).willReturn(List.of(first, second));
     given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
     given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(firstDto);
-    given(watchingSessionRepository.countByContentId(firstId)).willReturn(100L);
+    given(watchingSessionRepository.countByContentIds(List.of(firstId))).willReturn(Map.of(firstId, 100L));
 
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
@@ -984,23 +999,14 @@ class ContentServiceTest {
         ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     );
+    verify(watchingSessionRepository).countByContentIds(List.of(firstId));
+    verify(watchingSessionRepository, never()).countByContentId(firstId);
   }
 
   @Test
   @DisplayName("콘텐츠 목록이 비어 있으면 빈 목록 조회 응답을 반환한다.")
   void find_all_success_with_empty_contents() {
     // Given
-    given(contentRepository.findAllByCursor(
-        null,
-        null,
-        List.of(),
-        null,
-        null,
-        21,
-        ContentSortBy.createdAt,
-        SortDirection.DESCENDING
-    )).willReturn(List.of());
-
     ContentFindAllRequest request = new ContentFindAllRequest(
         null,
         null,
@@ -1011,6 +1017,24 @@ class ContentServiceTest {
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     );
+    given(contentListCacheService.findCreatedAtPage(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(new ContentListCachePageDto(
+        List.of(),
+        null,
+        null,
+        false,
+        0L,
+        "createdAt",
+        SortDirection.DESCENDING
+    ));
 
     // When
     CursorResponse<ContentDto> response = contentService.findAll(request);
@@ -1019,16 +1043,18 @@ class ContentServiceTest {
     assertThat(response.data()).isEmpty();
     assertThat(response.hasNext()).isFalse();
     assertThat(response.totalCount()).isZero();
-    verify(contentRepository).findAllByCursor(
+    verify(contentListCacheService).findCreatedAtPage(
         null,
         null,
         List.of(),
         null,
         null,
-        21,
+        20,
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
     );
+    verify(watchingSessionRepository, never()).countByContentIds(anyList());
+    verify(contentRepository, never()).findAllByCursor(any(), any(), anyList(), any(), any(), anyInt(), any(), any());
     verify(contentRepository, never()).countContents(any(), any(), anyList());
     verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
@@ -1154,7 +1180,7 @@ class ContentServiceTest {
     );
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(tagNames);
+    given(contentTagCacheService.findTagNamesByContentId(contentId)).willReturn(tagNames);
     given(binaryContentService.generateUrl(contentImg)).willReturn("https://example.com/thumbnail.jpg");
     given(contentMapper.toDto(content, "https://example.com/thumbnail.jpg", tagNames)).willReturn(expected);
 
@@ -1164,7 +1190,7 @@ class ContentServiceTest {
     // Then
     assertThat(response).isEqualTo(expected);
     verify(contentRepository).findByIdWithContentImg(contentId);
-    verify(contentTagRepository).findTagNamesByContentId(contentId);
+    verify(contentTagCacheService).findTagNamesByContentId(contentId);
     verify(binaryContentService).generateUrl(contentImg);
     verify(contentMapper).toDto(content, "https://example.com/thumbnail.jpg", tagNames);
   }
@@ -1196,7 +1222,7 @@ class ContentServiceTest {
     );
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(tagNames);
+    given(contentTagCacheService.findTagNamesByContentId(contentId)).willReturn(tagNames);
     given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, tagNames)).willReturn(mapped);
     given(watchingSessionRepository.countByContentId(contentId)).willReturn(7L);
 
