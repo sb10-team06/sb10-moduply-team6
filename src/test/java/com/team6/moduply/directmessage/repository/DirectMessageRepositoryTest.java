@@ -9,6 +9,7 @@ import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.conversation.repository.ConversationRepository;
 import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageSortBy;
+import com.team6.moduply.directmessage.dto.LatestDirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
@@ -42,7 +43,7 @@ class DirectMessageRepositoryTest extends RepositoryTestSupport {
   @Test
   @DisplayName("대화방 ID 목록이 비어 있으면 최신 DM 목록으로 빈 목록을 반환한다.")
   void findLatestMessagesByConversationIds_success_when_conversation_ids_empty() {
-    List<DirectMessage> result = directMessageRepository.findLatestMessagesByConversationIds(List.of());
+    List<LatestDirectMessageDto> result = directMessageRepository.findLatestMessagesByConversationIds(List.of());
 
     assertThat(result).isEmpty();
   }
@@ -75,12 +76,12 @@ class DirectMessageRepositoryTest extends RepositoryTestSupport {
         Instant.parse("2026-01-03T00:00:00Z")
     );
 
-    List<DirectMessage> result = directMessageRepository.findLatestMessagesByConversationIds(
+    List<LatestDirectMessageDto> result = directMessageRepository.findLatestMessagesByConversationIds(
         List.of(firstConversation.getId(), secondConversation.getId())
     );
 
     assertThat(result)
-        .extracting(DirectMessage::getId)
+        .extracting(LatestDirectMessageDto::id)
         .containsExactlyInAnyOrder(firstLatest.getId(), secondLatest.getId());
   }
 

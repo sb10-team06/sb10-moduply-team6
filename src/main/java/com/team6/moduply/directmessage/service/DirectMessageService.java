@@ -2,9 +2,11 @@ package com.team6.moduply.directmessage.service;
 
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.entity.Conversation;
+import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
 import com.team6.moduply.conversation.exception.ConversationException;
 import com.team6.moduply.conversation.repository.ConversationRepository;
+import com.team6.moduply.conversation.repository.ConversationUserStateRepository;
 import com.team6.moduply.directmessage.dto.DirectMessageCreateRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.entity.DirectMessage;
@@ -21,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DirectMessageService {
 
   private final ConversationRepository conversationRepository;
+  private final ConversationUserStateRepository conversationUserStateRepository;
   private final DirectMessageRepository directMessageRepository;
   private final UserRepository userRepository;
   private final DirectMessageMapper directMessageMapper;
@@ -44,12 +48,8 @@ public class DirectMessageService {
       DirectMessageCreateRequest request,
       UUID currentUserId
   ) {
-    log.debug(
-        "DM 생성 처리 시작. conversationId={}, currentUserId={}",
-        conversationId,
-        currentUserId
-    );
-    // 대화방 조회 및 참여자 검증
+    log.debug("DM 생성 처리를 시작합니다. conversationId={}, currentUserId={}", conversationId, currentUserId);
+
     Conversation conversation = conversationRepository.findById(conversationId)
         .orElseThrow(() -> new ConversationException(
             ConversationErrorCode.CONVERSATION_NOT_FOUND,
@@ -62,16 +62,26 @@ public class DirectMessageService {
     User withUser = findUser(withUserId);
     UserSummaryDto currentUserSummary = toUserSummaryDto(currentUser);
     UserSummaryDto withUserSummary = toUserSummaryDto(withUser);
+
     DirectMessage directMessage = directMessageRepository.save(
         DirectMessage.create(conversation, currentUser, request.content())
     );
-    // 메시지 수신 이벤트 발행
+    /// DM 동시 생성시 conversation.lastMessage가 lost update 방지
+    conversationRepository.updateLastMessageIfNewer(
+        conversationId,
+        directMessage.getId(),
+        directMessage.getCreatedAt(),
+        directMessage.getContent(),
+        currentUserId
+    );
+    increaseUnreadCount(conversation, withUserId);
+
     eventPublisher.publishEvent(new DirectMessageReceivedEvent(
-            withUserId,
-            currentUserId,
-            currentUser.getName(),
-            conversationId,
-            request.content()
+        withUserId,
+        currentUserId,
+        currentUser.getName(),
+        conversationId,
+        request.content()
     ));
 
     DirectMessageDto response = directMessageMapper.toDto(
@@ -82,7 +92,7 @@ public class DirectMessageService {
         withUserSummary
     );
 
-    log.debug("DM 생성 처리 완료. directMessageId={}", response.id());
+    log.debug("DM 생성 처리를 완료했습니다. directMessageId={}", response.id());
     return response;
   }
 
@@ -92,6 +102,37 @@ public class DirectMessageService {
             UserErrorCode.USER_NOT_FOUND_EXCEPTION,
             Map.of("userId", userId)
         ));
+  }
+
+  private ConversationUserState createState(Conversation conversation, UUID userId) {
+    ConversationUserState state = ConversationUserState.create(conversation, userId);
+    ConversationUserState savedState = conversationUserStateRepository.saveAndFlush(state);
+    return savedState != null ? savedState : state;
+  }
+
+  private void increaseUnreadCount(Conversation conversation, UUID userId) {
+    int updatedCount = conversationUserStateRepository.increaseUnreadCount(
+        conversation.getId(),
+        userId
+    );
+    if (updatedCount > 0) {
+      return;
+    }
+
+    ensureState(conversation, userId);
+    conversationUserStateRepository.increaseUnreadCount(conversation.getId(), userId);
+  }
+
+  private void ensureState(Conversation conversation, UUID userId) {
+    try {
+      createState(conversation, userId);
+    } catch (DataIntegrityViolationException ignored) {
+      log.debug(
+          "대화방 사용자 상태가 이미 생성되어 있습니다. conversationId={}, userId={}",
+          conversation.getId(),
+          userId
+      );
+    }
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {

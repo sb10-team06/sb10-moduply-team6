@@ -7,3 +7,8 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]     #실제로 메트릭을 가져올 서버 주소(localhost:9090)
+
+  - job_name: moduply-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]

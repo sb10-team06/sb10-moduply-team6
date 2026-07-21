@@ -7,6 +7,7 @@ import com.team6.moduply.conversation.dto.ConversationDto;
 import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
+import com.team6.moduply.user.dto.UserDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -284,7 +285,7 @@ public interface ConversationApi {
   })
   ResponseEntity<CursorResponse<ConversationDto>> findConversations(
       @ParameterObject ConversationFindAllRequest request,
-      @Parameter(hidden = true) UUID currentUserId
+      @Parameter(hidden = true) UserDto currentUser
   );
   @Operation(
       summary = "DM 목록 조회 (커서 페이지네이션)",

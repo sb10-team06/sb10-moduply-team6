@@ -6,8 +6,10 @@ import com.team6.moduply.common.config.JpaAuditingConfig;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
+import com.team6.moduply.conversation.dto.ConversationListItemDto;
 import com.team6.moduply.conversation.dto.ConversationSortBy;
 import com.team6.moduply.conversation.entity.Conversation;
+import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.user.entity.User;
 import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.repository.UserRepository;
@@ -25,6 +27,9 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
 
   @Autowired
   private ConversationRepository conversationRepository;
+
+  @Autowired
+  private ConversationUserStateRepository conversationUserStateRepository;
 
   @Autowired
   private UserRepository userRepository;
@@ -162,14 +167,321 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
         .containsExactly(nextConversation.getId(), laterConversation.getId());
   }
 
+  @Test
+  @DisplayName("대화 목록 projection 조회 시 상대 사용자, 최신 메시지, 읽지 않은 개수를 한 번에 반환한다.")
+  void findAllDtoWithCursor_success_with_last_message_and_unread_count() {
+    User currentUser = saveUser("projection-current@example.com", "current");
+    User withUser = saveUser("projection-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    UUID lastMessageId = UUID.randomUUID();
+    Instant lastMessageAt = Instant.parse("2026-01-03T00:00:00Z");
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        lastMessageId,
+        lastMessageAt,
+        "latest",
+        withUser.getId()
+    );
+    ConversationUserState state = ConversationUserState.create(conversation, currentUser.getId());
+    state.increaseUnreadCount();
+    conversationUserStateRepository.saveAndFlush(state);
+    entityManager.flush();
+    entityManager.clear();
+
+    List<ConversationListItemDto> result = conversationRepository.findAllDtoWithCursor(
+        request(null, null, 10, SortDirection.DESCENDING),
+        currentUser.getId()
+    );
+
+    assertThat(result).hasSize(1);
+    ConversationListItemDto item = result.get(0);
+    assertThat(item.id()).isEqualTo(conversation.getId());
+    assertThat(item.createdAt()).isEqualTo(lastMessageAt);
+    assertThat(item.withUser().getId()).isEqualTo(withUser.getId());
+    assertThat(item.lastMessageId()).isEqualTo(lastMessageId);
+    assertThat(item.lastMessageContent()).isEqualTo("latest");
+    assertThat(item.lastMessageSenderId()).isEqualTo(withUser.getId());
+    assertThat(item.unreadCount()).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("대화방 목록을 검색어로 조회하면 상대 사용자 이름과 이메일 기준으로 필터링한다.")
+  void findAllWithCursor_success_with_keyword_like_condition() {
+    User currentUser = saveUser("keyword-current@example.com", "current");
+    User matchedUser = saveUser("keyword-target@example.com", "targetName");
+    User unmatchedUser = saveUser("keyword-unmatched@example.com", "unmatched");
+    Conversation matchedConversation = saveConversation(
+        currentUser,
+        matchedUser,
+        Instant.parse("2026-01-01T00:00:00Z")
+    );
+    saveConversation(
+        currentUser,
+        unmatchedUser,
+        Instant.parse("2026-01-02T00:00:00Z")
+    );
+
+    List<Conversation> result = conversationRepository.findAllWithCursor(
+        request("target", null, null, 10, SortDirection.DESCENDING),
+        currentUser.getId()
+    );
+
+    assertThat(result)
+        .extracting(Conversation::getId)
+        .containsExactly(matchedConversation.getId());
+  }
+
+  @Test
+  @DisplayName("대화방 DTO 목록을 검색어와 커서로 조회하면 최신 활동 시각 기준 다음 목록을 반환한다.")
+  void findAllDtoWithCursor_success_with_keyword_and_last_activity_cursor() {
+    User currentUser = saveUser("dto-keyword-current@example.com", "current");
+    User oldUser = saveUser("dto-keyword-old@example.com", "targetOld");
+    User middleUser = saveUser("dto-keyword-middle@example.com", "targetMiddle");
+    User newUser = saveUser("dto-keyword-new@example.com", "targetNew");
+    Conversation oldConversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), oldUser.getId())
+    );
+    Conversation middleConversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), middleUser.getId())
+    );
+    Conversation newConversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), newUser.getId())
+    );
+    Instant oldLastMessageAt = Instant.parse("2026-01-01T00:00:00Z");
+    Instant middleLastMessageAt = Instant.parse("2026-01-02T00:00:00Z");
+    Instant newLastMessageAt = Instant.parse("2026-01-03T00:00:00Z");
+    updateLastMessage(oldConversation, oldLastMessageAt, oldUser.getId(), "old");
+    updateLastMessage(middleConversation, middleLastMessageAt, middleUser.getId(), "middle");
+    updateLastMessage(newConversation, newLastMessageAt, newUser.getId(), "new");
+    entityManager.flush();
+    entityManager.clear();
+
+    List<ConversationListItemDto> result = conversationRepository.findAllDtoWithCursor(
+        request(
+            "target",
+            newLastMessageAt.toString(),
+            newConversation.getId(),
+            10,
+            SortDirection.DESCENDING
+        ),
+        currentUser.getId()
+    );
+
+    assertThat(result)
+        .extracting(ConversationListItemDto::id)
+        .containsExactly(middleConversation.getId(), oldConversation.getId());
+  }
+
+  @Test
+  @DisplayName("대화방 개수를 조회하면 검색어 유무에 따라 참여 대화방 개수를 반환한다.")
+  void countWithCondition_success_with_and_without_keyword() {
+    User currentUser = saveUser("count-current@example.com", "current");
+    User matchedUser = saveUser("count-target@example.com", "target");
+    User unmatchedUser = saveUser("count-unmatched@example.com", "unmatched");
+    saveConversation(currentUser, matchedUser, Instant.parse("2026-01-01T00:00:00Z"));
+    saveConversation(currentUser, unmatchedUser, Instant.parse("2026-01-02T00:00:00Z"));
+
+    long totalCount = conversationRepository.countWithCondition(
+        request(null, null, null, 10, SortDirection.DESCENDING),
+        currentUser.getId()
+    );
+    long keywordCount = conversationRepository.countWithCondition(
+        request("target", null, null, 10, SortDirection.DESCENDING),
+        currentUser.getId()
+    );
+
+    assertThat(totalCount).isEqualTo(2L);
+    assertThat(keywordCount).isEqualTo(1L);
+  }
+
+  @Test
+  @DisplayName("저장된 최신 메시지보다 새 메시지가 더 최신이면 대화방 최신 메시지 스냅샷을 갱신한다.")
+  void updateLastMessageIfNewer_success_when_message_is_newer() {
+    User currentUser = saveUser("last-current@example.com", "current");
+    User withUser = saveUser("last-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    UUID oldMessageId = UUID.fromString("10000000-0000-0000-0000-000000000000");
+    UUID newMessageId = UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    int firstUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        oldMessageId,
+        Instant.parse("2026-01-01T00:00:00Z"),
+        "old",
+        currentUser.getId()
+    );
+    int secondUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        newMessageId,
+        Instant.parse("2026-01-02T00:00:00Z"),
+        "new",
+        withUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    Conversation result = conversationRepository.findById(conversation.getId()).orElseThrow();
+    assertThat(firstUpdateCount).isEqualTo(1);
+    assertThat(secondUpdateCount).isEqualTo(1);
+    assertThat(result.getLastMessageId()).isEqualTo(newMessageId);
+    assertThat(result.getLastMessageAt()).isEqualTo(Instant.parse("2026-01-02T00:00:00Z"));
+    assertThat(result.getLastMessageContent()).isEqualTo("new");
+    assertThat(result.getLastMessageSenderId()).isEqualTo(withUser.getId());
+  }
+
+  @Test
+  @DisplayName("저장된 최신 메시지보다 오래된 메시지는 대화방 최신 메시지 스냅샷을 덮어쓰지 않는다.")
+  void updateLastMessageIfNewer_fail_when_message_is_older() {
+    User currentUser = saveUser("last-older-current@example.com", "current");
+    User withUser = saveUser("last-older-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    UUID latestMessageId = UUID.fromString("30000000-0000-0000-0000-000000000000");
+    UUID olderMessageId = UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        latestMessageId,
+        Instant.parse("2026-01-02T00:00:00Z"),
+        "latest",
+        withUser.getId()
+    );
+    int olderUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        olderMessageId,
+        Instant.parse("2026-01-01T00:00:00Z"),
+        "older",
+        currentUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    Conversation result = conversationRepository.findById(conversation.getId()).orElseThrow();
+    assertThat(olderUpdateCount).isZero();
+    assertThat(result.getLastMessageId()).isEqualTo(latestMessageId);
+    assertThat(result.getLastMessageContent()).isEqualTo("latest");
+    assertThat(result.getLastMessageSenderId()).isEqualTo(withUser.getId());
+  }
+
+  @Test
+  @DisplayName("생성 시각이 같으면 UUID가 더 큰 메시지만 대화방 최신 메시지 스냅샷을 갱신한다.")
+  void updateLastMessageIfNewer_success_with_id_tie_breaker_when_created_at_is_same() {
+    User currentUser = saveUser("last-tie-current@example.com", "current");
+    User withUser = saveUser("last-tie-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    Instant sameCreatedAt = Instant.parse("2026-01-01T00:00:00Z");
+    UUID lowerMessageId = UUID.fromString("10000000-0000-0000-0000-000000000000");
+    UUID higherMessageId = UUID.fromString("20000000-0000-0000-0000-000000000000");
+
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        higherMessageId,
+        sameCreatedAt,
+        "higher",
+        withUser.getId()
+    );
+    int lowerUpdateCount = conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        lowerMessageId,
+        sameCreatedAt,
+        "lower",
+        currentUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    Conversation result = conversationRepository.findById(conversation.getId()).orElseThrow();
+    assertThat(lowerUpdateCount).isZero();
+    assertThat(result.getLastMessageId()).isEqualTo(higherMessageId);
+    assertThat(result.getLastMessageContent()).isEqualTo("higher");
+  }
+
+  @Test
+  @DisplayName("사용자별 대화방 상태의 읽지 않은 메시지 수를 원자적으로 증가시킨다.")
+  void increaseUnreadCount_success_with_atomic_update() {
+    User currentUser = saveUser("state-increase-current@example.com", "current");
+    User withUser = saveUser("state-increase-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    ConversationUserState state = conversationUserStateRepository.saveAndFlush(
+        ConversationUserState.create(conversation, currentUser.getId())
+    );
+
+    int firstUpdateCount = conversationUserStateRepository.increaseUnreadCount(
+        conversation.getId(),
+        currentUser.getId()
+    );
+    int secondUpdateCount = conversationUserStateRepository.increaseUnreadCount(
+        conversation.getId(),
+        currentUser.getId()
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    ConversationUserState result = conversationUserStateRepository.findById(state.getId()).orElseThrow();
+    assertThat(firstUpdateCount).isEqualTo(1);
+    assertThat(secondUpdateCount).isEqualTo(1);
+    assertThat(result.getUnreadCount()).isEqualTo(2L);
+  }
+
+  @Test
+  @DisplayName("사용자별 대화방 상태의 읽지 않은 메시지 수를 0 미만으로 내려가지 않게 원자적으로 감소시킨다.")
+  void markAsReadAndDecreaseUnreadCount_success_with_atomic_update() {
+    User currentUser = saveUser("state-decrease-current@example.com", "current");
+    User withUser = saveUser("state-decrease-with@example.com", "with");
+    Conversation conversation = conversationRepository.saveAndFlush(
+        Conversation.create(currentUser.getId(), withUser.getId())
+    );
+    ConversationUserState state = conversationUserStateRepository.saveAndFlush(
+        ConversationUserState.create(conversation, currentUser.getId())
+    );
+    conversationUserStateRepository.increaseUnreadCount(conversation.getId(), currentUser.getId());
+    conversationUserStateRepository.increaseUnreadCount(conversation.getId(), currentUser.getId());
+    UUID lastReadMessageId = null;
+    Instant lastReadAt = Instant.parse("2026-01-01T00:00:00Z");
+
+    int updateCount = conversationUserStateRepository.markAsReadAndDecreaseUnreadCount(
+        conversation.getId(),
+        currentUser.getId(),
+        lastReadMessageId,
+        lastReadAt,
+        5L
+    );
+    entityManager.flush();
+    entityManager.clear();
+
+    ConversationUserState result = conversationUserStateRepository.findById(state.getId()).orElseThrow();
+    assertThat(updateCount).isEqualTo(1);
+    assertThat(result.getUnreadCount()).isZero();
+    assertThat(result.getLastReadAt()).isEqualTo(lastReadAt);
+  }
+
   private ConversationFindAllRequest request(
       String cursor,
       UUID idAfter,
       int limit,
       SortDirection sortDirection
   ) {
+    return request(null, cursor, idAfter, limit, sortDirection);
+  }
+
+  private ConversationFindAllRequest request(
+      String keywordLike,
+      String cursor,
+      UUID idAfter,
+      int limit,
+      SortDirection sortDirection
+  ) {
     return new ConversationFindAllRequest(
-        null,
+        keywordLike,
         cursor,
         idAfter,
         limit,
@@ -200,5 +512,20 @@ class ConversationRepositoryTest extends RepositoryTestSupport {
     entityManager.clear();
 
     return conversationRepository.findById(conversation.getId()).orElseThrow();
+  }
+
+  private void updateLastMessage(
+      Conversation conversation,
+      Instant createdAt,
+      UUID senderId,
+      String content
+  ) {
+    conversationRepository.updateLastMessageIfNewer(
+        conversation.getId(),
+        UUID.randomUUID(),
+        createdAt,
+        content,
+        senderId
+    );
   }
 }

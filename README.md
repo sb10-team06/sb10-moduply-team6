@@ -42,7 +42,27 @@
 
 ## k6 Prometheus/Grafana 성능 측정
 
-콘텐츠 생성 API 부하 테스트 결과는 k6 Docker 컨테이너에서 실행하고, Prometheus remote write로 저장한 뒤 Grafana에서 확인한다. 로컬에 k6를 설치하지 않아도 된다.
+API 부하 테스트는 k6 Docker 컨테이너에서 실행하고, Prometheus remote write로 저장한 뒤 Grafana에서 확인한다. 로컬에 k6를 설치하지 않아도 된다.
+
+### 대화방 목록 조회 HikariCP 커넥션 풀 설정
+
+대화방 목록 조회 부하 테스트에서 HikariCP 지표는 Spring Actuator의 `/actuator/prometheus`를 Prometheus가 수집하는 방식으로 확인했다. `max active / max`, `min idle`, `max pending`, `max acquire time` 지표를 기준으로 커넥션 풀 대기 여부를 분석했다.
+
+| HikariCP max pool | max active / max | min idle | max pending | max acquire time | 판단 |
+|---:|---:|---:|---:|---:|---|
+| 10 | 10 / 10 | 0 | 185 | 14.37 s | 커넥션 풀이 모두 사용되어 대기가 크게 발생함 |
+| 30 | 30 / 30 | 0 | 160 | 3.97 s | 대기는 남았지만 acquire 시간이 크게 줄어 가장 안정적임 |
+| 50 | 50 / 50 | 0 | 132 | 5.00 s | pending은 줄었지만 DB 동시 처리 부담으로 응답 시간이 악화됨 |
+
+위 결과를 기준으로 local profile의 HikariCP 풀을 아래처럼 설정했다.
+
+```yml
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+```
 
 ### 1. Prometheus와 Grafana 실행
 
@@ -68,6 +88,8 @@ URL: http://prometheus:9090
 Grafana 컨테이너에서 Prometheus 컨테이너를 바라보는 주소이므로 `localhost`가 아니라 `prometheus` 서비스명을 사용한다.
 
 ### 3. Spring 서버 실행
+
+#### 콘텐츠 생성 API 부하 테스트용 서버 실행
 
 동기/비동기 측정 차이는 k6 명령이 아니라 Spring Boot 서버의 `MODUPLY_BINARY_CONTENT_ASYNC_ENABLED` 값으로 결정된다. 측정하려는 방식에 맞게 서버를 먼저 실행한다.
 
@@ -116,6 +138,8 @@ SPRING_PROFILES_ACTIVE=local MODUPLY_BINARY_CONTENT_ASYNC_ENABLED=true ./gradlew
 ```
 
 ### 4. k6 실행
+
+#### 콘텐츠 생성 API k6 실행
 
 `ACCESS_TOKEN`에는 관리자 또는 콘텐츠 생성 권한이 있는 사용자의 Access Token을 넣는다. 토큰 값은 코드나 문서에 커밋하지 않는다.
 

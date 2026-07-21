@@ -1,6 +1,7 @@
 package com.team6.moduply.playlist.service;
 
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.repository.ContentRepository;
@@ -33,6 +34,8 @@ import com.team6.moduply.user.repository.UserRepository;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,6 +79,7 @@ public class PlaylistService {
     return playlistMapper.toDto(saved, null, 0L, false, List.of());
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public PlaylistDto update(UUID playlistId, PlaylistUpdateRequest request, UUID ownerId) {
 
@@ -92,6 +96,7 @@ public class PlaylistService {
     return playlistMapper.toDto(playlist, null, 0L, false, List.of());
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void delete(UUID playlistId, UUID ownerId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -105,6 +110,7 @@ public class PlaylistService {
     playlistRepository.delete(playlist);
   }
 
+  @Cacheable(value = CacheConfig.PLAYLIST_DETAIL, key = "#playlistId + ':' + #currentUserId")
   @Transactional(readOnly = true)
   public PlaylistDto findById(UUID playlistId, UUID currentUserId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -114,10 +120,12 @@ public class PlaylistService {
         ));
 
     PlaylistDto.OwnerDto ownerDto = userRepository.findById(playlist.getOwnerId())
-        .map(user -> new PlaylistDto.OwnerDto(user.getId(), user.getName(), null))
+        .map(user -> new PlaylistDto.OwnerDto(
+            user.getId(),
+            user.getName(),
+            binaryContentService.generateUrl(user.getProfileImg())))
         .orElse(null);
 
-    // TODO: 실시간성이 중요하지 않으므로 캐싱 적용하기
     long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
     boolean subscribedByMe = currentUserId != null &&
         playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId);
@@ -251,6 +259,7 @@ public class PlaylistService {
     );
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void addContent(UUID playlistId, UUID contentId, UUID ownerId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -299,6 +308,7 @@ public class PlaylistService {
     ));
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void removeContent(UUID playlistId, UUID contentId, UUID ownerId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -328,6 +338,7 @@ public class PlaylistService {
     }
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void subscribe(UUID playlistId, UUID subscriberId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -381,6 +392,7 @@ public class PlaylistService {
     ));
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void unsubscribe(UUID playlistId, UUID subscriberId) {
     Playlist playlist = playlistRepository.findById(playlistId)

@@ -7,6 +7,7 @@ import com.team6.moduply.conversation.dto.ConversationFindAllRequest;
 import com.team6.moduply.conversation.service.ConversationService;
 import com.team6.moduply.directmessage.dto.DirectMessageDto;
 import com.team6.moduply.directmessage.dto.DirectMessageFindAllRequest;
+import com.team6.moduply.user.dto.UserDto;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -63,9 +64,9 @@ public class ConversationController implements ConversationApi {
   @Override
   public ResponseEntity<CursorResponse<ConversationDto>> findConversations(
       @ParameterObject @ModelAttribute @Valid ConversationFindAllRequest request,
-      @AuthenticationPrincipal(expression = "userDto.id") UUID currentUserId
+      @AuthenticationPrincipal(expression = "userDto") UserDto currentUser
   ) {
-    return ResponseEntity.ok(conversationService.findAll(request, currentUserId));
+    return ResponseEntity.ok(conversationService.findAll(request, currentUser));
   }
 
   @PostMapping("/{conversationId}/direct-messages/{directMessageId}/read")
