@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
@@ -143,14 +144,21 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
     return count == null ? 0 : count;
   }
 
+  /// Redis Pipeline을 이용해서 여러 콘텐츠의 시청자 수를 한번의 네트워크 왕복으로 조회.
+  /// 콘텐츠 20개의 현재 시청자 수를 Redis에 20번 물어보지않고 한번에 물어보는 코드.
   @Override
   public Map<UUID, Long> countByContentIds(Collection<UUID> contentIds) {
+    // 빈 목록이면 바로 종료
     if (contentIds == null || contentIds.isEmpty()) {
       return Map.of();
     }
 
-    List<UUID> orderedContentIds = contentIds.stream().toList();
-    StringRedisSerializer serializer = new StringRedisSerializer();
+    // 순서를 유지하는 List만든다. (ex 0:콘텐츠A, 1:콘텐츠B, 2:콘텐츠C)
+    List<UUID> orderedContentIds = contentIds.stream().distinct().toList();
+    @SuppressWarnings("unchecked")
+    RedisSerializer<String> serializer = (RedisSerializer<String>) sessionIdAndUserIdRedisTemplate.getKeySerializer();
+
+    // [5명, 2명, 8명] 이런식으로 한번에 돌려줌, 누구껀지는 모름
     List<Object> counts = sessionIdAndUserIdRedisTemplate.executePipelined((RedisConnection connection) -> {
       for (UUID contentId : orderedContentIds) {
         byte[] key = serializer.serialize(CONTENT_KEY_PREFIX + contentId);
@@ -159,6 +167,7 @@ public class RedisWatchingSessionRepository implements WatchingSessionRepository
       return null;
     });
 
+    // [0] -> 5명/ [1] -> 2명/ [2] -> 8명: 인덱스로 매칭
     Map<UUID, Long> result = new LinkedHashMap<>();
     for (int i = 0; i < orderedContentIds.size(); i++) {
       Object count = counts.get(i);
