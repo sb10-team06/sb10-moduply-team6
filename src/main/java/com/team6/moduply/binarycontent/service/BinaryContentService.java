@@ -23,12 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- 프로필이나 콘텐츠 이미지 수정시
- (1)기존 이미지: BinaryContent oldProfileImg = user.getProfileImg();
- (2)변경할 이미지: newProfileImg = binaryContentService.createUserProfile(userId, newProfileIamge)
- (3)새이미지로 변경: user.updateProfileImg(newProfileImg) -> event발행하고 리스너쪽에서 after commit으로 delete하게 설계
- (4)기존 이미지 정보(oldBinaryContent)를 createUserProfile/createContentImage에 넘김
- → 새 이미지 S3 업로드 성공 후 기존 이미지 삭제 이벤트 발행
+ 프로필 이미지는 수정 직후 화면 반영이 필요하므로 동기 업로드한다.
+ 콘텐츠 이미지는 수집/관리 작업에서 사용하므로 기존처럼 이벤트 기반 비동기 업로드를 유지한다.
 
  ** 기존이미지를 먼저 삭제하면 안됨.
  ** 새 이미지로 변경후, 기존 이미지 삭제할것.
@@ -68,8 +64,45 @@ public class BinaryContentService {
     // image S3 경로값 생성
     String storageKey = createUserProfileStorageKey(userId, image.getOriginalFilename());
 
-    return create(image, storageKey, userId, null, oldProfileImg);
+    return createUserProfileSync(image, storageKey, oldProfileImg);
 
+  }
+
+  private BinaryContent createUserProfileSync(
+      MultipartFile image,
+      String storageKey,
+      BinaryContent oldProfileImg
+  ) throws IOException {
+    BinaryContent binaryContent = BinaryContent.create(
+        image.getOriginalFilename(),
+        image.getSize(),
+        image.getContentType(),
+        storageKey
+    );
+    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
+
+    binaryContentStorage.upload(
+        savedBinaryContent.getStorageKey(),
+        image.getBytes(),
+        savedBinaryContent.getContentType()
+    );
+
+    savedBinaryContent.success();
+
+    if (oldProfileImg != null) {
+      eventPublisher.publishEvent(new BinaryContentDeletedEvent(
+          oldProfileImg.getId(),
+          oldProfileImg.getStorageKey()
+      ));
+    }
+
+    log.info("프로필 이미지 동기 업로드 완료: id={}, fileName={}, size={}, storageKey={}",
+        savedBinaryContent.getId(),
+        savedBinaryContent.getFileName(),
+        savedBinaryContent.getSize(),
+        savedBinaryContent.getStorageKey());
+
+    return savedBinaryContent;
   }
 
   /// 콘텐츠 생성시 썸네일 등록

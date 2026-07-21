@@ -49,8 +49,8 @@ class BinaryContentServiceTest {
   private BinaryContentService binaryContentService;
 
   @Test
-  @DisplayName("프로필 이미지 생성 시 BinaryContent를 PROCESSING 상태로 저장하고 S3 업로드 이벤트를 발행한다.")
-  void createUserProfile_success_publish_event() throws IOException {
+  @DisplayName("프로필 이미지 생성 시 S3에 동기 업로드하고 SUCCESS 상태로 저장한다.")
+  void createUserProfile_success_upload_sync() throws IOException {
     // given
     // userId 생성
     UUID userId = UUID.randomUUID();
@@ -87,22 +87,20 @@ class BinaryContentServiceTest {
     assertThat(result.getStorageKey())
         .startsWith("users/%s/profile/".formatted(userId))
         .endsWith(".png");
-    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
+    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
     //binaryContent.save() 실행됐는지
     verify(binaryContentRepository).save(result);
+    verify(binaryContentStorage).upload(result.getStorageKey(), image.getBytes(), "image/png");
 
-    //event 발행 잘 됐는지
-    ArgumentCaptor<BinaryContentCreatedEvent> eventCaptor =
-        ArgumentCaptor.forClass(BinaryContentCreatedEvent.class);
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+
+    ArgumentCaptor<BinaryContentDeletedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentDeletedEvent.class);
     verify(eventPublisher).publishEvent(eventCaptor.capture());
 
-    BinaryContentCreatedEvent event = eventCaptor.getValue();
-    assertThat(event.getBinaryContentId()).isEqualTo(result.getId());
-    assertThat(event.getBytes()).isEqualTo(image.getBytes());
-    assertThat(event.getUserId()).isEqualTo(userId);
-    assertThat(event.getContentId()).isNull();
-    assertThat(event.getOldBinaryContentId()).isEqualTo(oldBinaryContentId);
-    assertThat(event.getOldStorageKey()).isEqualTo(oldStorageKey);
+    BinaryContentDeletedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(oldBinaryContentId);
+    assertThat(event.getStorageKey()).isEqualTo(oldStorageKey);
   }
 
   @Test
