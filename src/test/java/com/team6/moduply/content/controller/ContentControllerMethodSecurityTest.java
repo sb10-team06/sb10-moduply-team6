@@ -22,7 +22,9 @@ import com.team6.moduply.content.mapper.ContentMapper;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.service.ContentListCacheService;
 import com.team6.moduply.content.service.ContentService;
+import com.team6.moduply.content.service.ContentTagCacheService;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import jakarta.servlet.http.HttpServletResponse;
@@ -82,6 +84,12 @@ class ContentControllerMethodSecurityTest {
 
   @MockitoBean
   private BinaryContentService binaryContentService;
+
+  @MockitoBean
+  private ContentListCacheService contentListCacheService;
+
+  @MockitoBean
+  private ContentTagCacheService contentTagCacheService;
 
   @MockitoBean
   private ReviewQDSLRepository reviewQDSLRepository;
