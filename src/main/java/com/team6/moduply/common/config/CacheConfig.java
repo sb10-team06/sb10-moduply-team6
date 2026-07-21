@@ -1,13 +1,26 @@
 package com.team6.moduply.common.config;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.UUID;
+
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 @EnableCaching
@@ -16,76 +29,96 @@ public class CacheConfig {
   public static final String USER_SUMMARY = "userSummary";
   public static final String CONTENT_LIST = "contentList";
   public static final String CONTENT_DETAIL = "contentDetail";
+  public static final String CONTENT_TAGS = "contentTags";
   public static final String PROFILE_IMAGE_URL = "profileImageUrl";
   public static final String PLAYLIST_DETAIL = "playlistDetail";
   public static final String FOLLOW_COUNT = "followCount";
   public static final String CONTENT_RANKING = "contentRanking";
 
-  /** 전체 캐시 관리자 등록
-
-   Spring Cache 흐름
-   @Cacheable -> CacheManager -> Caffeine Cache -> JVM Memory
-   **/
-
   @Bean
-  public CacheManager cacheManager() {
-    // Spring과 Caffeine 연결해주는 객체
-    CaffeineCacheManager cacheManager = new CaffeineCacheManager();
-    // null을 캐싱하지 않는다.
-    // 나중에 null값이던게 data가 생성되면 캐시에 null이 남아있어서 새 데이터 못읽음 이슈대비.
-    cacheManager.setAllowNullValues(false);
-
-    // 캐시이름: userSummary
-    // TTL(만료시간): 5분
-    // 최대 저장 개수 10,000개
-    cacheManager.registerCustomCache(
-        USER_SUMMARY,
-        cache(Duration.ofMinutes(5), 10_000)
-    );
-    // 캐시이름: contentList
-    cacheManager.registerCustomCache(
-        CONTENT_LIST,
-        cache(Duration.ofSeconds(30), 5_000)
-    );
-    cacheManager.registerCustomCache(
-        CONTENT_DETAIL,
-        cache(Duration.ofMinutes(10), 5_000)
-    );
-
-    // Presigned URL 만료 문제 고려해서 TTL 5분으로 설정.
-    cacheManager.registerCustomCache(
-        PROFILE_IMAGE_URL,
-        cache(Duration.ofMinutes(5), 20_000)
-    );
-    cacheManager.registerCustomCache(
-        PLAYLIST_DETAIL,
-        cache(Duration.ofMinutes(5), 5_000)
-    );
-
-    // 팔로우 수는 자주 바뀌므로 TTL 짧게: 30초
-    cacheManager.registerCustomCache(
-        FOLLOW_COUNT,
-        cache(Duration.ofSeconds(30), 20_000)
-    );
-    cacheManager.registerCustomCache(
-        CONTENT_RANKING,
-        cache(Duration.ofMinutes(2), 1_000)
-    );
-
-    return cacheManager;
-  }
-
-  private Cache<Object, Object> cache(
-      Duration ttl,
-      long maximumSize
+  public CacheManager cacheManager(
+      RedisConnectionFactory connectionFactory,
+      ObjectMapper objectMapper
   ) {
-    return Caffeine.newBuilder()
-        // 캐시 저장된수 TTL만큼 경과하면 자동제거
-        .expireAfterWrite(ttl)
-        .maximumSize(maximumSize)
-        // 캐시 통계 수집
-        // cache.status()로 hitCount, missCount로 통계 확인가능.
-        .recordStats()
+    // TTL: 5분
+    RedisCacheConfiguration defaultConfig = redisCacheConfiguration(
+        objectMapper,
+        Duration.ofMinutes(5)
+    );
+
+    Map<String, RedisCacheConfiguration> cacheConfigurations = Map.of(
+        USER_SUMMARY, defaultConfig.entryTtl(Duration.ofMinutes(5)),
+        CONTENT_LIST, defaultConfig.entryTtl(Duration.ofMinutes(5)),
+        CONTENT_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(10)),
+        CONTENT_TAGS, defaultConfig.entryTtl(Duration.ofMinutes(10)),
+        PROFILE_IMAGE_URL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
+        PLAYLIST_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
+        FOLLOW_COUNT, defaultConfig.entryTtl(Duration.ofSeconds(30)),       //  Follow 수는 자주 변하므로 30초
+        CONTENT_RANKING, defaultConfig.entryTtl(Duration.ofMinutes(2))      //  Ranking도 자주 바뀌지만 실시간일 필요는 없다: 2분
+    );
+
+    ///  Redis CacheManager 만든다.
+    return RedisCacheManager.builder(connectionFactory)
+        .cacheDefaults(defaultConfig)
+        .withInitialCacheConfigurations(cacheConfigurations)
+        .transactionAware()
         .build();
   }
+
+  private RedisCacheConfiguration redisCacheConfiguration(
+      ObjectMapper objectMapper,
+      Duration ttl
+  ) {
+    // 모든 클래스를 허용하지 말고, 우리 애플리케이션 패키지에 속한 클래스만 타입으로 인정
+    // 외부에서 위조한 타입으로 역직렬화 할 수 있기때문
+    BasicPolymorphicTypeValidator typeValidator =
+            BasicPolymorphicTypeValidator.builder()
+                    .allowIfSubType("com.team6.moduply.")
+                    .allowIfSubType(ArrayList.class)
+                    .allowIfSubType(UUID.class)
+                    .allowIfSubType(LocalDateTime.class)
+                    .allowIfSubType(BigDecimal.class)
+                    .build();
+
+    ObjectMapper cacheObjectMapper = objectMapper.copy();
+
+    cacheObjectMapper.activateDefaultTyping(
+        typeValidator,
+        ObjectMapper.DefaultTyping.EVERYTHING,      // Redis에 객체를 저장할 때 실제 클래스 정보를 JSON에 함께 넣는다.
+        JsonTypeInfo.As.PROPERTY
+    );
+
+    return RedisCacheConfiguration.defaultCacheConfig()
+        .entryTtl(ttl)                  // 캐시 유지 시간
+        .prefixCacheNameWith("moduply:cache:v3:")
+        .disableCachingNullValues()     // null은 캐싱 x
+        .serializeKeysWith(
+            RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())     // Redis Key를 문자열로 저장
+        )
+        .serializeValuesWith(
+            RedisSerializationContext.SerializationPair.fromSerializer(
+                new GenericJackson2JsonRedisSerializer(cacheObjectMapper)
+            )
+        );
+  }
+
+  /*
+   * 기존 Caffeine L1 캐시 설정.
+   * 분산 환경에서는 인스턴스별 로컬 캐시가 서로 공유되지 않으므로 Redis CacheManager로 전환한다.
+   *
+   * @Bean
+   * public CacheManager cacheManager() {
+   *   CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+   *   cacheManager.setAllowNullValues(false);
+   *   cacheManager.registerCustomCache(USER_SUMMARY, cache(Duration.ofMinutes(5), 10_000));
+   *   cacheManager.registerCustomCache(CONTENT_LIST, cache(Duration.ofSeconds(30), 5_000));
+   *   cacheManager.registerCustomCache(CONTENT_DETAIL, cache(Duration.ofMinutes(10), 5_000));
+   *   cacheManager.registerCustomCache(CONTENT_TAGS, cache(Duration.ofMinutes(10), 10_000));
+   *   cacheManager.registerCustomCache(PROFILE_IMAGE_URL, cache(Duration.ofMinutes(5), 20_000));
+   *   cacheManager.registerCustomCache(PLAYLIST_DETAIL, cache(Duration.ofMinutes(5), 5_000));
+   *   cacheManager.registerCustomCache(FOLLOW_COUNT, cache(Duration.ofSeconds(30), 20_000));
+   *   cacheManager.registerCustomCache(CONTENT_RANKING, cache(Duration.ofMinutes(2), 1_000));
+   *   return cacheManager;
+   * }
+   */
 }

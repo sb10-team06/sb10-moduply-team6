@@ -18,4 +18,5 @@ public interface ContentRepository extends JpaRepository<Content, UUID>, Content
   @EntityGraph(attributePaths = "contentImg")
   @Query("select c from Content c where c.id = :id")
   Optional<Content> findByIdWithContentImg(@Param("id") UUID id);
+
 }
