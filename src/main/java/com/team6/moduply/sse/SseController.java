@@ -33,6 +33,6 @@ public class SseController {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
     UUID userId = userDetails.getUserDto().getId();
-    return ResponseEntity.ok(sseEmitterManager.connect(userId));
+    return ResponseEntity.ok(sseEmitterManager.connect(userId, lastEventId));
   }
 }

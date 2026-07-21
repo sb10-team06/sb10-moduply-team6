@@ -174,4 +174,13 @@ public class NotificationService {
     Notification saved = notificationRepository.save(notification);
     return notificationMapper.toDto(saved);
   }
+
+  ///  유실된 알림 재전송
+  @Transactional(readOnly = true)
+  public List<NotificationDto> findMissedNotifications(UUID receiverId, UUID lastEventId) {
+    return notificationRepository.findByReceiverIdAndIdAfterOrderByCreatedAtAsc(receiverId, lastEventId)
+        .stream()
+        .map(notificationMapper::toDto)
+        .toList();
+  }
 }
