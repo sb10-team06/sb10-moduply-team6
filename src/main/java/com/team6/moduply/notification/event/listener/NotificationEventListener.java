@@ -13,6 +13,7 @@ import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.follow.repository.FollowRepository;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.sse.SseEmitterManager;
+import com.team6.moduply.sse.SseRedisPublisher;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,7 @@ public class NotificationEventListener {
   private final NotificationService notificationService;
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
   private final FollowRepository followRepository;
-  private final SseEmitterManager sseEmitterManager;
+  private final SseRedisPublisher sseRedisPublisher;
 
   /// 플레이리스트 관련 알림
   @Async(AsyncConfig.NOTIFICATION_TASK_EXECUTOR)
@@ -46,7 +47,7 @@ public class NotificationEventListener {
           event.getSubscriberName(),
           event.getPlaylistTitle()
       );
-      sseEmitterManager.send(event.getPlaylistOwnerId(), dto);
+      sseRedisPublisher.publish(event.getPlaylistOwnerId(), dto);
     } catch (Exception e) {
       log.error("[알림 저장 실패] 플레이리스트 구독 알림 - playlistId={}",
           event.getPlaylistId(), e);
@@ -68,7 +69,7 @@ public class NotificationEventListener {
             event.getContentTitle()
         );
         for (int i = 0; i < subscriberIds.size(); i++) {
-          sseEmitterManager.send(subscriberIds.get(i), dtos.get(i));
+          sseRedisPublisher.publish(subscriberIds.get(i), dtos.get(i));
         }
       }
     } catch (Exception e) {
@@ -89,7 +90,7 @@ public class NotificationEventListener {
           event.getFollowerName()
       );
 
-      sseEmitterManager.send(event.getFolloweeId(), dto);
+      sseRedisPublisher.publish(event.getFolloweeId(), dto);
     } catch (Exception e) {
       log.error("[알림 저장 실패] 팔로우 알림 - followerId={}, followeeId={}",
           event.getFollowerId(), event.getFolloweeId(), e);
@@ -107,7 +108,7 @@ public class NotificationEventListener {
           event.getSenderName(),
           event.getContent()
       );
-      sseEmitterManager.send(event.getReceiverId(), dto);
+      sseRedisPublisher.publish(event.getReceiverId(), dto);
     } catch (Exception e) {
       log.error("[알림 저장 실패] DM 수신 알림 - senderId={}, receiverId={}, conversationId={}",
           event.getSenderId(), event.getReceiverId(), event.getConversationId(), e);
@@ -136,7 +137,7 @@ public class NotificationEventListener {
               event.getActivityContent()
           );
           for (NotificationDto dto : dtos) {
-            sseEmitterManager.send(dto.receiverId(), dto);
+            sseRedisPublisher.publish(dto.receiverId(), dto);
           }
         }
         page++;
@@ -165,7 +166,7 @@ public class NotificationEventListener {
     }
 
     try {
-      sseEmitterManager.send(event.getReceiverId(), dto);
+      sseRedisPublisher.publish(event.getReceiverId(), dto);
     } catch (Exception e) {
       log.error("[SSE 전송 실패] 사용자 권한 변경 알림 - receiverId={}, role={}",
           event.getReceiverId(), event.getNewRole(), e);
