@@ -3,6 +3,7 @@ package com.team6.moduply.content.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,9 +37,10 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.content.search.service.ContentSearchIndexService;
+import com.team6.moduply.content.search.service.ContentSearchService;
+import com.team6.moduply.content.search.service.ContentSearchService.ContentSearchResult;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
-import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -85,6 +87,9 @@ class ContentServiceTest {
 
   @Mock
   private ContentSearchIndexService contentSearchIndexService;
+
+  @Mock
+  private ContentSearchService contentSearchService;
 
   @InjectMocks
   private ContentService contentService;
@@ -1027,6 +1032,94 @@ class ContentServiceTest {
     verify(contentRepository, never()).countContents(any(), any(), anyList());
     verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  @Test
+  @DisplayName("검색어가 있으면 Elasticsearch 검색 결과 ID 순서대로 콘텐츠 목록을 반환한다.")
+  void find_all_success_with_keyword_search_index() {
+    // Given
+    UUID firstId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    UUID secondId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content first = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화"
+    );
+    Content second = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "Interstellar",
+        "우주 SF 영화"
+    );
+    ReflectionTestUtils.setField(first, "id", firstId);
+    ReflectionTestUtils.setField(second, "id", secondId);
+
+    ContentDto firstDto = new ContentDto(
+        firstId,
+        ContentType.movie,
+        "Inception",
+        "꿈과 현실을 넘나드는 SF 영화",
+        DEFAULT_THUMBNAIL_URL,
+        List.of("SF"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+    ContentDto secondDto = new ContentDto(
+        secondId,
+        ContentType.movie,
+        "Interstellar",
+        "우주 SF 영화",
+        DEFAULT_THUMBNAIL_URL,
+        List.of("우주"),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentSearchService.search(
+        ContentType.movie,
+        "SF",
+        List.of("SF"),
+        null,
+        null,
+        21,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(new ContentSearchResult(List.of(secondId, firstId), 2L));
+    given(contentRepository.findAllByIdIn(List.of(secondId, firstId)))
+        .willReturn(List.of(first, second));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(secondId, firstId)))
+        .willReturn(List.of(
+            new TestContentTagNameProjection(firstId, "SF"),
+            new TestContentTagNameProjection(secondId, "우주")
+        ));
+    given(contentMapper.toDto(second, DEFAULT_THUMBNAIL_URL, List.of("우주"))).willReturn(secondDto);
+    given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of("SF"))).willReturn(firstDto);
+
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        ContentType.movie,
+        "SF",
+        List.of("SF"),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
+    // Then
+    assertThat(response.data()).containsExactly(secondDto, firstDto);
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.totalCount()).isEqualTo(2);
+    verify(contentRepository, never()).findAllByCursor(any(), any(), anyList(), any(), any(), anyInt(), any(), any());
+    verify(contentRepository, never()).countContents(any(), any(), anyList());
   }
 
   @Test

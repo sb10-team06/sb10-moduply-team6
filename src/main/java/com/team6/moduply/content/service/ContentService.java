@@ -5,7 +5,6 @@ import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
-import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
@@ -23,6 +22,8 @@ import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameP
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.content.search.service.ContentSearchIndexService;
+import com.team6.moduply.content.search.service.ContentSearchService;
+import com.team6.moduply.content.search.service.ContentSearchService.ContentSearchResult;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
@@ -41,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -58,6 +60,7 @@ public class ContentService {
   private final ReviewQDSLRepository reviewQDSLRepository;
   private final WatchingSessionRepository watchingSessionRepository;
   private final ContentSearchIndexService contentSearchIndexService;
+  private final ContentSearchService contentSearchService;
 
   @PreAuthorize("hasRole('ADMIN')")
   @Transactional
@@ -174,9 +177,13 @@ public class ContentService {
         request.sortDirection()
     );
 
+    if (StringUtils.hasText(request.keywordLike())) {
+      return findAllBySearchIndex(request, normalizedTagsIn);
+    }
+
     List<Content> contents = contentRepository.findAllByCursor(
         request.typeEqual(),
-        request.keywordLike(),
+        null,
         normalizedTagsIn,
         request.cursor(),
         request.idAfter(),
@@ -199,7 +206,7 @@ public class ContentService {
         ? pageContents.size()
         : contentRepository.countContents(
             request.typeEqual(),
-            request.keywordLike(),
+            null,
             normalizedTagsIn
         );
 
@@ -216,6 +223,50 @@ public class ContentService {
     log.debug("콘텐츠 목록 조회 처리 완료: count={}, hasNext={}", data.size(), hasNext);
 
     return response;
+  }
+
+  private CursorResponse<ContentDto> findAllBySearchIndex(
+      ContentFindAllRequest request,
+      List<String> normalizedTagsIn
+  ) {
+    ContentSortBy searchSortBy = toSearchSortBy(request.sortBy());
+    ContentSearchResult searchResult = contentSearchService.search(
+        request.typeEqual(),
+        request.keywordLike(),
+        normalizedTagsIn,
+        request.cursor(),
+        request.idAfter(),
+        request.limit() + 1,
+        searchSortBy,
+        request.sortDirection()
+    );
+
+    boolean hasNext = searchResult.contentIds().size() > request.limit();
+    List<UUID> pageContentIds = hasNext
+        ? searchResult.contentIds().subList(0, request.limit())
+        : searchResult.contentIds();
+    List<Content> pageContents = sortBySearchResultOrder(
+        contentRepository.findAllByIdIn(pageContentIds),
+        pageContentIds
+    );
+    Map<UUID, List<String>> tagNamesByContentId = getTagNamesGroupedByContentId(pageContents);
+    List<ContentDto> data = pageContents.stream()
+        .map(content -> toDto(
+            content,
+            tagNamesByContentId.getOrDefault(content.getId(), List.of())
+        ))
+        .toList();
+    Content lastContent = data.isEmpty() ? null : pageContents.get(pageContents.size() - 1);
+
+    return new CursorResponse<>(
+        data,
+        hasNext ? extractCursor(lastContent, searchSortBy) : null,
+        hasNext ? lastContent.getId() : null,
+        hasNext,
+        searchResult.totalCount(),
+        searchSortBy.name(),
+        request.sortDirection()
+    );
   }
 
   @Transactional(readOnly = true)
@@ -384,6 +435,24 @@ public class ContentService {
             ContentTagNameProjection::getContentId,
             Collectors.mapping(ContentTagNameProjection::getTagName, Collectors.toList())
         ));
+  }
+
+  private List<Content> sortBySearchResultOrder(List<Content> contents, List<UUID> orderedIds) {
+    Map<UUID, Content> contentById = contents.stream()
+        .collect(Collectors.toMap(Content::getId, Function.identity()));
+
+    return orderedIds.stream()
+        .map(contentById::get)
+        .filter(content -> content != null)
+        .toList();
+  }
+
+  private ContentSortBy toSearchSortBy(ContentSortBy sortBy) {
+    if (sortBy == ContentSortBy.watcherCount) {
+      return ContentSortBy.createdAt;
+    }
+
+    return sortBy;
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {

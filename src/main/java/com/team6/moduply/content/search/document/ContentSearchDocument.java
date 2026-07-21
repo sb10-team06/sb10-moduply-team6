@@ -25,6 +25,10 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 public class ContentSearchDocument {
 
   @Id
+  @MultiField(
+      mainField = @Field(type = FieldType.Text),
+      otherFields = @InnerField(suffix = "keyword", type = FieldType.Keyword)
+  )
   private String id;
 
   @Field(type = FieldType.Keyword)
