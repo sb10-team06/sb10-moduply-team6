@@ -9,6 +9,9 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.repository.ContentRepository;
+import com.team6.moduply.content.repository.ContentTagRepository;
+import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.search.document.ContentSearchDocument;
 import com.team6.moduply.content.search.mapper.ContentSearchDocumentMapper;
 import com.team6.moduply.content.search.repository.ContentSearchRepository;
@@ -22,6 +25,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.IndexOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -34,6 +42,18 @@ class ContentSearchIndexServiceTest {
 
   @Mock
   private ContentSearchDocumentMapper contentSearchDocumentMapper;
+
+  @Mock
+  private ContentRepository contentRepository;
+
+  @Mock
+  private ContentTagRepository contentTagRepository;
+
+  @Mock
+  private ElasticsearchOperations elasticsearchOperations;
+
+  @Mock
+  private IndexOperations indexOperations;
 
   @InjectMocks
   private ContentSearchIndexService contentSearchIndexService;
@@ -142,6 +162,66 @@ class ContentSearchIndexServiceTest {
   }
 
   @Test
+  @DisplayName("DB 콘텐츠가 있고 검색 인덱스가 비어 있으면 전체 재색인한다.")
+  void rebuildAllIfEmpty_success_when_index_is_empty() {
+    // Given
+    Content movie = createContent();
+    Content sport = createContent();
+    ContentSearchDocument movieDocument = ContentSearchDocument.builder()
+        .id(movie.getId().toString())
+        .build();
+    ContentSearchDocument sportDocument = ContentSearchDocument.builder()
+        .id(sport.getId().toString())
+        .build();
+    PageRequest pageRequest = PageRequest.of(
+        0,
+        500,
+        Sort.by(Sort.Direction.ASC, "id")
+    );
+
+    given(contentRepository.count()).willReturn(2L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(false);
+    given(indexOperations.createWithMapping()).willReturn(true);
+    given(contentRepository.findAll(pageRequest))
+        .willReturn(new PageImpl<>(List.of(movie, sport), pageRequest, 2));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(movie.getId(), sport.getId())))
+        .willReturn(List.of(
+            new TestContentTagNameProjection(movie.getId(), "movie"),
+            new TestContentTagNameProjection(sport.getId(), "SportsDB"),
+            new TestContentTagNameProjection(sport.getId(), "Soccer")
+        ));
+    given(contentSearchDocumentMapper.toDocument(movie, List.of("movie")))
+        .willReturn(movieDocument);
+    given(contentSearchDocumentMapper.toDocument(sport, List.of("SportsDB", "Soccer")))
+        .willReturn(sportDocument);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(indexOperations).createWithMapping();
+    verify(contentSearchRepository).saveAll(List.of(movieDocument, sportDocument));
+  }
+
+  @Test
+  @DisplayName("검색 인덱스에 문서가 이미 있으면 전체 재색인을 건너뛴다.")
+  void rebuildAllIfEmpty_skip_when_index_has_documents() {
+    // Given
+    given(contentRepository.count()).willReturn(10L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(true);
+    given(contentSearchRepository.count()).willReturn(10L);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(contentRepository, never()).findAll(any(PageRequest.class));
+    verify(contentSearchRepository, never()).saveAll(anyList());
+  }
+
+  @Test
   @DisplayName("콘텐츠 삭제 시 검색 인덱스도 삭제한다.")
   void delete_success() {
     // Given
@@ -164,5 +244,21 @@ class ContentSearchIndexServiceTest {
     );
     ReflectionTestUtils.setField(content, "id", UUID.randomUUID());
     return content;
+  }
+
+  private record TestContentTagNameProjection(
+      UUID contentId,
+      String tagName
+  ) implements ContentTagNameProjection {
+
+    @Override
+    public UUID getContentId() {
+      return contentId;
+    }
+
+    @Override
+    public String getTagName() {
+      return tagName;
+    }
   }
 }

@@ -1149,6 +1149,89 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("Elasticsearch 검색 실패 시 기존 DB 검색으로 콘텐츠 목록을 반환한다.")
+  void find_all_success_with_database_fallback_when_search_index_fails() {
+    // Given
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "악마 변호사",
+        "잔혹한 범죄의 누명을 쓴 젊은 변호사"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentDto contentDto = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "악마 변호사",
+        "잔혹한 범죄의 누명을 쓴 젊은 변호사",
+        DEFAULT_THUMBNAIL_URL,
+        List.of("movie"),
+        BigDecimal.ZERO,
+        0,
+        2L
+    );
+
+    given(contentSearchService.search(
+        ContentType.movie,
+        "악마",
+        List.of("movie"),
+        null,
+        null,
+        20,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    )).willThrow(new RuntimeException("elasticsearch unavailable"));
+    given(contentRepository.findAllByCursor(
+        ContentType.movie,
+        "악마",
+        List.of("movie"),
+        null,
+        null,
+        21,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    )).willReturn(List.of(content));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(contentId)))
+        .willReturn(List.of(new TestContentTagNameProjection(contentId, "movie")));
+    given(watchingSessionRepository.countByContentIds(List.of(contentId)))
+        .willReturn(Map.of(contentId, 2L));
+    given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, List.of("movie")))
+        .willReturn(contentDto);
+
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        ContentType.movie,
+        "악마",
+        List.of("movie"),
+        null,
+        null,
+        20,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
+    // Then
+    assertThat(response.data()).containsExactly(contentDto);
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.totalCount()).isEqualTo(1);
+    verify(contentRepository).findAllByCursor(
+        ContentType.movie,
+        "악마",
+        List.of("movie"),
+        null,
+        null,
+        21,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+    verify(contentRepository, never()).findAllByIdIn(anyList());
+  }
+
+  @Test
   @DisplayName("콘텐츠가 존재하면 단건 조회 응답을 반환한다.")
   void find_success_with_existing_content() {
     // Given

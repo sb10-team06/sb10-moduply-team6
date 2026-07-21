@@ -194,7 +194,14 @@ public class ContentService {
     );
 
     if (StringUtils.hasText(request.keywordLike())) {
-      return findAllBySearchIndex(request, normalizedTagsIn);
+      try {
+        return findAllBySearchIndex(request, normalizedTagsIn);
+      } catch (RuntimeException e) {
+        // ES 인덱스가 비어 있거나 장애가 나도 기본 검색은 동작하도록 기존 DB 검색으로 보조 처리한다.
+        log.warn("Elasticsearch 콘텐츠 검색 실패. QueryDSL 검색으로 대체합니다. keyword={}",
+            request.keywordLike(), e);
+        return findAllByDatabase(request, normalizedTagsIn, request.keywordLike());
+      }
     }
 
     /// 최신순(createdAt) 정렬이라면 contentListCacheService.findCreatedAtPage 호출
@@ -215,9 +222,17 @@ public class ContentService {
       return response;
     }
 
+    return findAllByDatabase(request, normalizedTagsIn, null);
+  }
+
+  private CursorResponse<ContentDto> findAllByDatabase(
+      ContentFindAllRequest request,
+      List<String> normalizedTagsIn,
+      String keywordLike
+  ) {
     List<Content> contents = contentRepository.findAllByCursor(
         request.typeEqual(),
-        null,
+        keywordLike,
         normalizedTagsIn,
         request.cursor(),
         request.idAfter(),
@@ -244,7 +259,7 @@ public class ContentService {
         ? pageContents.size()
         : contentRepository.countContents(
             request.typeEqual(),
-            null,
+            keywordLike,
             normalizedTagsIn
         );
 
