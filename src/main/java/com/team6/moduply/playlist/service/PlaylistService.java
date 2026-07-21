@@ -79,7 +79,7 @@ public class PlaylistService {
     return playlistMapper.toDto(saved, null, 0L, false, List.of());
   }
 
-  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, key = "#playlistId")
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public PlaylistDto update(UUID playlistId, PlaylistUpdateRequest request, UUID ownerId) {
 
@@ -96,7 +96,7 @@ public class PlaylistService {
     return playlistMapper.toDto(playlist, null, 0L, false, List.of());
   }
 
-  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, key = "#playlistId")
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void delete(UUID playlistId, UUID ownerId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -259,7 +259,7 @@ public class PlaylistService {
     );
   }
 
-  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, key = "#playlistId")
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void addContent(UUID playlistId, UUID contentId, UUID ownerId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -308,7 +308,7 @@ public class PlaylistService {
     ));
   }
 
-  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, key = "#playlistId")
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void removeContent(UUID playlistId, UUID contentId, UUID ownerId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -338,6 +338,7 @@ public class PlaylistService {
     }
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void subscribe(UUID playlistId, UUID subscriberId) {
     Playlist playlist = playlistRepository.findById(playlistId)
@@ -391,6 +392,7 @@ public class PlaylistService {
     ));
   }
 
+  @CacheEvict(value = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @Transactional
   public void unsubscribe(UUID playlistId, UUID subscriberId) {
     Playlist playlist = playlistRepository.findById(playlistId)
