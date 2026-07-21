@@ -42,6 +42,7 @@ public class BinaryContentService {
       "image/png",
       "image/webp"
   );
+  private static final long IMAGE_MAX_SIZE_BYTES = 5L * 1024 * 1024;
 
   private final BinaryContentStorage binaryContentStorage;
   private final BinaryContentRepository binaryContentRepository;
@@ -276,6 +277,19 @@ public class BinaryContentService {
       throw new BinaryContentException(
           BinaryContentErrorCode.INVALID_FILE_SIZE,
           Map.of("fileName", image.getOriginalFilename(), "size", image.getSize())
+      );
+    }
+    // 크기 제한 검증
+    if (image.getSize() > IMAGE_MAX_SIZE_BYTES) {
+      log.warn("이미지 검증 실패. fileName={}, size={}, maxSize={}",
+          image.getOriginalFilename(), image.getSize(), IMAGE_MAX_SIZE_BYTES);
+      throw new BinaryContentException(
+          BinaryContentErrorCode.FILE_SIZE_EXCEEDED,
+          Map.of(
+              "fileName", image.getOriginalFilename(),
+              "size", image.getSize(),
+              "maxSize", IMAGE_MAX_SIZE_BYTES
+          )
       );
     }
 
