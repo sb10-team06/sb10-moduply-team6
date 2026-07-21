@@ -49,7 +49,7 @@ public class CacheConfig {
     Map<String, RedisCacheConfiguration> cacheConfigurations = Map.of(
         USER_SUMMARY, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         CONTENT_LIST, defaultConfig.entryTtl(Duration.ofMinutes(5)),
-        CONTENT_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(10)),
+        CONTENT_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         CONTENT_TAGS, defaultConfig.entryTtl(Duration.ofMinutes(10)),
         PROFILE_IMAGE_URL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         PLAYLIST_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
@@ -112,7 +112,7 @@ public class CacheConfig {
    *   cacheManager.setAllowNullValues(false);
    *   cacheManager.registerCustomCache(USER_SUMMARY, cache(Duration.ofMinutes(5), 10_000));
    *   cacheManager.registerCustomCache(CONTENT_LIST, cache(Duration.ofSeconds(30), 5_000));
-   *   cacheManager.registerCustomCache(CONTENT_DETAIL, cache(Duration.ofMinutes(10), 5_000));
+   *   cacheManager.registerCustomCache(CONTENT_DETAIL, cache(Duration.ofMinutes(5), 5_000));
    *   cacheManager.registerCustomCache(CONTENT_TAGS, cache(Duration.ofMinutes(10), 10_000));
    *   cacheManager.registerCustomCache(PROFILE_IMAGE_URL, cache(Duration.ofMinutes(5), 20_000));
    *   cacheManager.registerCustomCache(PLAYLIST_DETAIL, cache(Duration.ofMinutes(5), 5_000));
