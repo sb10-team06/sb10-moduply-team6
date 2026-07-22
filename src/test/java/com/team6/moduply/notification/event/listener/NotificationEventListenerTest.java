@@ -119,7 +119,7 @@ class NotificationEventListenerTest {
     UUID subscriberId = UUID.randomUUID();
     UUID playlistId = UUID.randomUUID();
     PlaylistSubscribedEvent event = new PlaylistSubscribedEvent(
-        ownerId, subscriberId, playlistId, "테스트 플레이리스트", "테스터");
+        ownerId, subscriberId, playlistId, "테스터", "테스트 플레이리스트");
     NotificationDto dto = new NotificationDto(
         UUID.randomUUID(), null, ownerId, "구독 알림", "내용", NotificationLevel.INFO);
 
