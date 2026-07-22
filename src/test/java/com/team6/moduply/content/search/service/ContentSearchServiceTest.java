@@ -246,6 +246,139 @@ class ContentSearchServiceTest {
   }
 
   @Test
+  @DisplayName("인기순 검색은 리뷰 수, 평균 평점, 생성일을 보조 정렬로 사용한다.")
+  void search_success_with_popularity_sort() {
+    // Given
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    NativeQuery query = queryCaptor.getValue();
+    assertThat(query.getSortOptions()).hasSize(5);
+    assertThat(query.getSortOptions().get(0).isScore()).isTrue();
+    assertThat(query.getSortOptions().get(1).field().field()).isEqualTo("reviewCount");
+    assertThat(query.getSortOptions().get(1).field().order()).isEqualTo(SortOrder.Desc);
+    assertThat(query.getSortOptions().get(2).field().field()).isEqualTo("averageRating");
+    assertThat(query.getSortOptions().get(2).field().order()).isEqualTo(SortOrder.Desc);
+    assertThat(query.getSortOptions().get(3).field().field()).isEqualTo("createdAt");
+    assertThat(query.getSortOptions().get(3).field().order()).isEqualTo(SortOrder.Desc);
+    assertThat(query.getSortOptions().get(4).field().field()).isEqualTo("id.keyword");
+  }
+
+  @Test
+  @DisplayName("인기순 다음 페이지 조회 시 리뷰 수, 평균 평점, 생성일, id를 search_after로 전달한다.")
+  void search_success_with_popularity_search_after() {
+    // Given
+    UUID idAfter = UUID.randomUUID();
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|10|4.5|2026-07-21T00:00:00Z",
+        idAfter,
+        20,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    assertThat(queryCaptor.getValue().getSearchAfter())
+        .containsExactly(12.5f, 10L, 4.5, "2026-07-21T00:00:00Z", idAfter.toString());
+  }
+
+  @Test
+  @DisplayName("인기순 검색 결과가 limit보다 많으면 복합 정렬값으로 다음 페이지 커서를 반환한다.")
+  void search_success_with_popularity_next_cursor() {
+    // Given
+    UUID firstContentId = UUID.randomUUID();
+    UUID secondContentId = UUID.randomUUID();
+    ContentSearchDocument firstDocument = ContentSearchDocument.builder()
+        .id(firstContentId.toString())
+        .build();
+    ContentSearchDocument secondDocument = ContentSearchDocument.builder()
+        .id(secondContentId.toString())
+        .build();
+    SearchHit<ContentSearchDocument> firstHit = new SearchHit<>(
+        "contents",
+        firstContentId.toString(),
+        null,
+        12.5f,
+        new Object[]{12.5f, 10, 4.5, "2026-07-21T00:00:00Z", firstContentId.toString()},
+        null,
+        null,
+        null,
+        null,
+        null,
+        firstDocument
+    );
+    SearchHit<ContentSearchDocument> secondHit = new SearchHit<>(
+        "contents",
+        secondContentId.toString(),
+        null,
+        10.0f,
+        new Object[]{10.0f, 8, 4.0, "2026-07-20T00:00:00Z", secondContentId.toString()},
+        null,
+        null,
+        null,
+        null,
+        null,
+        secondDocument
+    );
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of(firstHit, secondHit));
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(2L);
+
+    // When
+    ContentSearchResult result = contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        null,
+        null,
+        1,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result.contentIds()).containsExactly(firstContentId);
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo("12.5|10|4.5|2026-07-21T00:00:00Z");
+    assertThat(result.nextIdAfter()).isEqualTo(firstContentId);
+  }
+
+  @Test
   @DisplayName("검색어가 여러 단어이면 기본 검색 조건에 최소 매칭 비율을 적용한다.")
   void search_success_with_keyword_minimum_should_match() {
     // Given

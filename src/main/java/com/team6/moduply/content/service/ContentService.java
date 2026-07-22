@@ -285,7 +285,6 @@ public class ContentService {
       ContentFindAllRequest request,
       List<String> normalizedTagsIn
   ) {
-    ContentSortBy searchSortBy = toSearchSortBy(request.sortBy());
     ContentSearchResult searchResult = contentSearchService.search(
         request.typeEqual(),
         request.keywordLike(),
@@ -293,7 +292,7 @@ public class ContentService {
         request.cursor(),
         request.idAfter(),
         request.limit(),
-        searchSortBy,
+        request.sortBy(),
         request.sortDirection()
     );
 
@@ -315,7 +314,7 @@ public class ContentService {
         searchResult.hasNext() ? searchResult.nextIdAfter() : null,
         searchResult.hasNext(),
         searchResult.totalCount(),
-        searchSortBy.name(),
+        request.sortBy().name(),
         request.sortDirection()
     );
   }
@@ -490,14 +489,6 @@ public class ContentService {
         .map(contentById::get)
         .filter(content -> content != null)
         .toList();
-  }
-
-  private ContentSortBy toSearchSortBy(ContentSortBy sortBy) {
-    if (sortBy == ContentSortBy.watcherCount) {
-      return ContentSortBy.createdAt;
-    }
-
-    return sortBy;
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {

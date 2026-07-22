@@ -46,24 +46,17 @@ public class ContentSearchService {
       ContentSortBy sortBy,
       SortDirection sortDirection
   ) {
-    ContentSortBy searchSortBy = toSearchSortBy(sortBy);
+    ContentSortBy searchSortBy = sortBy;
     NativeQueryBuilder queryBuilder = NativeQuery.builder()
         .withQuery(buildQuery(
             typeEqual,
             keywordLike,
             tagsIn
         ))
-        .withSort(sort -> sort.score(score -> score.order(SortOrder.Desc)))
-        .withSort(sort -> sort.field(field -> field
-            .field(toSearchSortField(searchSortBy))
-            .order(toSearchSortOrder(sortDirection))
-        ))
-        .withSort(sort -> sort.field(field -> field
-            .field("id.keyword")
-            .order(toSearchSortOrder(sortDirection))
-        ))
         .withMaxResults(limit + 1)
         .withTrackTotalHits(true);
+    applySort(queryBuilder, searchSortBy, sortDirection);
+
     List<Object> searchAfter = buildSearchAfter(cursor, idAfter, searchSortBy);
     if (!searchAfter.isEmpty()) {
       queryBuilder.withSearchAfter(searchAfter);
@@ -99,7 +92,7 @@ public class ContentSearchService {
     return new ContentSearchResult(
         contentIds,
         hasNext,
-        hasNext ? extractCursor(lastHit) : null,
+        hasNext ? extractCursor(lastHit, searchSortBy) : null,
         hasNext ? UUID.fromString(lastHit.getContent().getId()) : null,
         totalCount
     );
@@ -162,13 +155,38 @@ public class ContentSearchService {
     return "createdAt";
   }
 
-  private ContentSortBy toSearchSortBy(ContentSortBy sortBy) {
-    // 검색 인덱스에는 실시간 시청자 수를 저장하지 않으므로 watcherCount 정렬은 최신순으로 대체한다.
+  private void applySort(
+      NativeQueryBuilder queryBuilder,
+      ContentSortBy sortBy,
+      SortDirection sortDirection
+  ) {
+    SortOrder sortOrder = toSearchSortOrder(sortDirection);
+    queryBuilder.withSort(sort -> sort.score(score -> score.order(SortOrder.Desc)));
+
     if (sortBy == ContentSortBy.watcherCount) {
-      return ContentSortBy.createdAt;
+      queryBuilder.withSort(sort -> sort.field(field -> field
+          .field("reviewCount")
+          .order(sortOrder)
+      ));
+      queryBuilder.withSort(sort -> sort.field(field -> field
+          .field("averageRating")
+          .order(sortOrder)
+      ));
+      queryBuilder.withSort(sort -> sort.field(field -> field
+          .field("createdAt")
+          .order(sortOrder)
+      ));
+    } else {
+      queryBuilder.withSort(sort -> sort.field(field -> field
+          .field(toSearchSortField(sortBy))
+          .order(sortOrder)
+      ));
     }
 
-    return sortBy;
+    queryBuilder.withSort(sort -> sort.field(field -> field
+        .field("id.keyword")
+        .order(sortOrder)
+    ));
   }
 
   private SortOrder toSearchSortOrder(SortDirection sortDirection) {
@@ -180,7 +198,11 @@ public class ContentSearchService {
       return List.of();
     }
 
-    String[] cursorValues = cursor.split("\\|", 2);
+    String[] cursorValues = cursor.split("\\|");
+    if (sortBy == ContentSortBy.watcherCount) {
+      return buildWatcherCountSearchAfter(cursorValues, idAfter, cursor);
+    }
+
     if (cursorValues.length != 2) {
       throw new ContentException(
           ContentErrorCode.INVALID_CURSOR,
@@ -195,10 +217,46 @@ public class ContentSearchService {
     );
   }
 
-  private String extractCursor(SearchHit<ContentSearchDocument> hit) {
+  private List<Object> buildWatcherCountSearchAfter(
+      String[] cursorValues,
+      UUID idAfter,
+      String cursor
+  ) {
+    if (cursorValues.length != 4) {
+      throw new ContentException(
+          ContentErrorCode.INVALID_CURSOR,
+          Map.of("cursor", cursor)
+      );
+    }
+
+    return List.of(
+        parseScoreCursor(cursorValues[0]),
+        parseLongCursor(ContentSortBy.watcherCount, cursorValues[1]),
+        parseDecimalCursor(cursorValues[2]).doubleValue(),
+        parseDateSortCursor(cursorValues[3]),
+        idAfter.toString()
+    );
+  }
+
+  private String extractCursor(SearchHit<ContentSearchDocument> hit, ContentSortBy sortBy) {
     List<Object> sortValues = hit.getSortValues();
     if (sortValues.size() < 2) {
       return null;
+    }
+
+    if (sortBy == ContentSortBy.watcherCount) {
+      if (sortValues.size() < 4) {
+        return null;
+      }
+      return "%s%s%s%s%s%s%s".formatted(
+          sortValues.get(0),
+          CURSOR_DELIMITER,
+          sortValues.get(1),
+          CURSOR_DELIMITER,
+          sortValues.get(2),
+          CURSOR_DELIMITER,
+          sortValues.get(3)
+      );
     }
 
     return "%s%s%s".formatted(
@@ -242,6 +300,17 @@ public class ContentSearchService {
       throw new ContentException(
           ContentErrorCode.INVALID_CURSOR,
           Map.of("sortBy", ContentSortBy.createdAt, "cursor", cursor)
+      );
+    }
+  }
+
+  private long parseLongCursor(ContentSortBy sortBy, String cursor) {
+    try {
+      return Long.parseLong(cursor);
+    } catch (NumberFormatException e) {
+      throw new ContentException(
+          ContentErrorCode.INVALID_CURSOR,
+          Map.of("sortBy", sortBy, "cursor", cursor)
       );
     }
   }
