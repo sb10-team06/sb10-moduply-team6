@@ -81,13 +81,13 @@ class SseEmitterManagerTest {
   void old_emitter_callback_does_not_remove_new_emitter() {
     // given
     UUID userId = UUID.randomUUID();
-    sseEmitterManager.connect(userId, null);
+    SseEmitter first = sseEmitterManager.connect(userId, null);
+    sseEmitterManager.connect(userId, null); // 재연결 트리거 (반환값 미사용)
 
-    // when - 구 emitter의 complete 호출 (onCompletion 콜백 트리거)
-    first.complete();
+    // when - 구 emitter 타임아웃 강제 트리거
+    first.completeWithError(new RuntimeException("timeout simulation"));
 
-    // then - 새 emitter는 여전히 맵에 남아있어야 함
-    // send가 예외 없이 실행되면 새 emitter가 살아있다는 것
+    // then
     assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
   }
 
