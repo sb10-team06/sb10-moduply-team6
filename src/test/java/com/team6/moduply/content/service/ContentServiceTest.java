@@ -21,6 +21,7 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentCreateRequest;
+import com.team6.moduply.content.dto.ContentDetailCacheDto;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
 import com.team6.moduply.content.dto.ContentListCacheItemDto;
@@ -84,7 +85,7 @@ class ContentServiceTest {
   private ContentListCacheService contentListCacheService;
 
   @Mock
-  private ContentTagCacheService contentTagCacheService;
+  private ContentDetailCacheService contentDetailCacheService;
 
   @Mock
   private ReviewQDSLRepository reviewQDSLRepository;
@@ -1057,20 +1058,17 @@ class ContentServiceTest {
   void find_success_with_existing_content() {
     // Given
     UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
-    BinaryContent contentImg = BinaryContent.create(
-        "thumbnail.jpg",
-        1024L,
-        "image/jpeg",
-        "contents/images/thumbnail.jpg"
-    );
-    Content content = new Content(
-        contentImg,
-        null,
+    List<String> tagNames = List.of("SF", "액션");
+    ContentDetailCacheDto cachedContent = new ContentDetailCacheDto(
+        contentId,
         ContentType.movie,
         "Inception",
-        "꿈과 현실을 넘나드는 SF 영화"
+        "꿈과 현실을 넘나드는 SF 영화",
+        "https://example.com/thumbnail.jpg",
+        tagNames,
+        BigDecimal.ZERO,
+        0
     );
-    List<String> tagNames = List.of("SF", "액션");
     ContentDto expected = new ContentDto(
         contentId,
         ContentType.movie,
@@ -1083,20 +1081,18 @@ class ContentServiceTest {
         0L
     );
 
-    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(contentTagCacheService.findTagNamesByContentId(contentId)).willReturn(tagNames);
-    given(binaryContentService.generateUrl(contentImg)).willReturn("https://example.com/thumbnail.jpg");
-    given(contentMapper.toDto(content, "https://example.com/thumbnail.jpg", tagNames)).willReturn(expected);
+    given(contentDetailCacheService.find(contentId)).willReturn(cachedContent);
 
     // When
     ContentDto response = contentService.find(contentId);
 
     // Then
     assertThat(response).isEqualTo(expected);
-    verify(contentRepository).findByIdWithContentImg(contentId);
-    verify(contentTagCacheService).findTagNamesByContentId(contentId);
-    verify(binaryContentService).generateUrl(contentImg);
-    verify(contentMapper).toDto(content, "https://example.com/thumbnail.jpg", tagNames);
+    verify(contentDetailCacheService).find(contentId);
+    verify(contentRepository, never()).findByIdWithContentImg(contentId);
+    verify(contentTagRepository, never()).findTagNamesByContentId(contentId);
+    verify(binaryContentService, never()).generateUrl(any(BinaryContent.class));
+    verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
 
   @Test
@@ -1104,16 +1100,8 @@ class ContentServiceTest {
   void find_success_with_current_watcher_count() {
     // Given
     UUID contentId = UUID.randomUUID();
-    Content content = new Content(
-        null,
-        null,
-        ContentType.movie,
-        "Inception",
-        "꿈과 현실을 넘나드는 SF 영화"
-    );
-    ReflectionTestUtils.setField(content, "id", contentId);
     List<String> tagNames = List.of("SF", "액션");
-    ContentDto mapped = new ContentDto(
+    ContentDetailCacheDto cachedContent = new ContentDetailCacheDto(
         contentId,
         ContentType.movie,
         "Inception",
@@ -1121,13 +1109,10 @@ class ContentServiceTest {
         DEFAULT_THUMBNAIL_URL,
         tagNames,
         BigDecimal.ZERO,
-        0,
-        0L
+        0
     );
 
-    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(contentTagCacheService.findTagNamesByContentId(contentId)).willReturn(tagNames);
-    given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, tagNames)).willReturn(mapped);
+    given(contentDetailCacheService.find(contentId)).willReturn(cachedContent);
     given(watchingSessionRepository.countByContentId(contentId)).willReturn(7L);
 
     // When
@@ -1143,7 +1128,10 @@ class ContentServiceTest {
   void find_fail_when_content_not_found() {
     // Given
     UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
-    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.empty());
+    given(contentDetailCacheService.find(contentId)).willThrow(new ContentException(
+        ContentErrorCode.CONTENT_NOT_FOUND,
+        Map.of("contentId", contentId)
+    ));
 
     // When & Then
     assertThatThrownBy(() -> contentService.find(contentId))
@@ -1152,7 +1140,8 @@ class ContentServiceTest {
           assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
         });
 
-    verify(contentRepository).findByIdWithContentImg(contentId);
+    verify(contentDetailCacheService).find(contentId);
+    verify(contentRepository, never()).findByIdWithContentImg(contentId);
     verify(contentTagRepository, never()).findTagNamesByContentId(any(UUID.class));
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
