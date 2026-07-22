@@ -1,5 +1,6 @@
 package com.team6.moduply.content.search.service;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
@@ -271,6 +272,61 @@ class ContentSearchIndexServiceTest {
 
     // Then
     verify(indexOperations).createWithMapping();
+    verify(contentRepository, never()).findAll(any(PageRequest.class));
+    verify(contentSearchRepository, never()).saveAll(anyList());
+  }
+
+  @Test
+  @DisplayName("DB 콘텐츠가 없고 검색 인덱스에 문서가 남아 있으면 인덱스를 재생성한다.")
+  void rebuildAllIfEmpty_success_recreate_index_when_content_is_empty_and_index_has_documents() {
+    // Given
+    given(contentRepository.count()).willReturn(0L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(true);
+    given(contentSearchRepository.count()).willReturn(2L);
+    given(indexOperations.delete()).willReturn(true);
+    given(indexOperations.createWithMapping()).willReturn(true);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(indexOperations).delete();
+    verify(indexOperations).createWithMapping();
+    verify(contentRepository, never()).findAll(any(PageRequest.class));
+    verify(contentSearchRepository, never()).saveAll(anyList());
+  }
+
+  @Test
+  @DisplayName("검색 인덱스 생성이 실패하면 재색인을 중단한다.")
+  void rebuildAllIfEmpty_fail_when_create_index_fails() {
+    // Given
+    given(contentRepository.count()).willReturn(1L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(false);
+    given(indexOperations.createWithMapping()).willReturn(false);
+
+    // When & Then
+    assertThatThrownBy(() -> contentSearchIndexService.rebuildAllIfEmpty())
+        .isInstanceOf(IllegalStateException.class);
+    verify(contentRepository, never()).findAll(any(PageRequest.class));
+    verify(contentSearchRepository, never()).saveAll(anyList());
+  }
+
+  @Test
+  @DisplayName("검색 인덱스 삭제가 실패하면 재색인을 중단한다.")
+  void rebuildAllIfEmpty_fail_when_delete_index_fails() {
+    // Given
+    given(contentRepository.count()).willReturn(1L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(true);
+    given(contentSearchRepository.count()).willReturn(2L);
+    given(indexOperations.delete()).willReturn(false);
+
+    // When & Then
+    assertThatThrownBy(() -> contentSearchIndexService.rebuildAllIfEmpty())
+        .isInstanceOf(IllegalStateException.class);
+    verify(indexOperations, never()).createWithMapping();
     verify(contentRepository, never()).findAll(any(PageRequest.class));
     verify(contentSearchRepository, never()).saveAll(anyList());
   }

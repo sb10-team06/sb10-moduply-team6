@@ -61,6 +61,9 @@ public class ContentSearchIndexService {
     }
 
     if (contentCount == 0) {
+      if (indexStatus.documentCount() > 0) {
+        recreateIndex(contentCount, indexStatus.documentCount());
+      }
       log.info("콘텐츠가 없어 검색 인덱스 재색인을 건너뜁니다.");
       return;
     }
@@ -149,7 +152,7 @@ public class ContentSearchIndexService {
   private IndexStatus getIndexStatus() {
     IndexOperations indexOperations = elasticsearchOperations.indexOps(ContentSearchDocument.class);
     if (!indexOperations.exists()) {
-      indexOperations.createWithMapping();
+      createIndex(indexOperations);
       log.info("콘텐츠 검색 인덱스가 없어 새로 생성했습니다.");
       return new IndexStatus(0L);
     }
@@ -159,10 +162,18 @@ public class ContentSearchIndexService {
 
   private void recreateIndex(long contentCount, long indexedCount) {
     IndexOperations indexOperations = elasticsearchOperations.indexOps(ContentSearchDocument.class);
-    indexOperations.delete();
-    indexOperations.createWithMapping();
+    if (!indexOperations.delete()) {
+      throw new IllegalStateException("콘텐츠 검색 인덱스 삭제에 실패했습니다.");
+    }
+    createIndex(indexOperations);
     log.info("콘텐츠 검색 인덱스 문서 수가 DB 콘텐츠 수와 달라 인덱스를 재생성했습니다. contentCount={}, indexedCount={}",
         contentCount, indexedCount);
+  }
+
+  private void createIndex(IndexOperations indexOperations) {
+    if (!indexOperations.createWithMapping()) {
+      throw new IllegalStateException("콘텐츠 검색 인덱스 생성에 실패했습니다.");
+    }
   }
 
   private Map<UUID, List<String>> getTagNamesGroupedByContentId(List<Content> contents) {
