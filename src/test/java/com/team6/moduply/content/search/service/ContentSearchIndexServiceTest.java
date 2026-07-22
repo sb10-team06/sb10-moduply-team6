@@ -222,6 +222,42 @@ class ContentSearchIndexServiceTest {
   }
 
   @Test
+  @DisplayName("DB 콘텐츠 수와 검색 인덱스 문서 수가 다르면 인덱스를 재생성하고 전체 재색인한다.")
+  void rebuildAllIfEmpty_success_recreate_index_when_document_count_is_mismatched() {
+    // Given
+    Content movie = createContent();
+    ContentSearchDocument movieDocument = ContentSearchDocument.builder()
+        .id(movie.getId().toString())
+        .build();
+    PageRequest pageRequest = PageRequest.of(
+        0,
+        500,
+        Sort.by(Sort.Direction.ASC, "id")
+    );
+
+    given(contentRepository.count()).willReturn(1L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(true);
+    given(contentSearchRepository.count()).willReturn(2L);
+    given(indexOperations.delete()).willReturn(true);
+    given(indexOperations.createWithMapping()).willReturn(true);
+    given(contentRepository.findAll(pageRequest))
+        .willReturn(new PageImpl<>(List.of(movie), pageRequest, 1));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(movie.getId())))
+        .willReturn(List.of(new TestContentTagNameProjection(movie.getId(), "movie")));
+    given(contentSearchDocumentMapper.toDocument(movie, List.of("movie")))
+        .willReturn(movieDocument);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(indexOperations).delete();
+    verify(indexOperations).createWithMapping();
+    verify(contentSearchRepository).saveAll(List.of(movieDocument));
+  }
+
+  @Test
   @DisplayName("DB 콘텐츠가 없어도 검색 인덱스가 없으면 인덱스를 생성한다.")
   void rebuildAllIfEmpty_success_create_index_when_content_is_empty() {
     // Given

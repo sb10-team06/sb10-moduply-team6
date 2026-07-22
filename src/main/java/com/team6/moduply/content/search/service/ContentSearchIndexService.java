@@ -53,14 +53,20 @@ public class ContentSearchIndexService {
 
   public void rebuildAllIfEmpty() {
     long contentCount = contentRepository.count();
-    if (hasIndexedDocuments()) {
-      log.info("콘텐츠 검색 인덱스가 이미 존재하여 재색인을 건너뜁니다. contentCount={}", contentCount);
+    IndexStatus indexStatus = getIndexStatus();
+    if (indexStatus.documentCount() > 0 && indexStatus.documentCount() == contentCount) {
+      log.info("콘텐츠 검색 인덱스가 이미 존재하여 재색인을 건너뜁니다. contentCount={}, indexedCount={}",
+          contentCount, indexStatus.documentCount());
       return;
     }
 
     if (contentCount == 0) {
       log.info("콘텐츠가 없어 검색 인덱스 재색인을 건너뜁니다.");
       return;
+    }
+
+    if (indexStatus.documentCount() > 0 && indexStatus.documentCount() != contentCount) {
+      recreateIndex(contentCount, indexStatus.documentCount());
     }
 
     int indexedCount = rebuildAll();
@@ -140,15 +146,23 @@ public class ContentSearchIndexService {
     }
   }
 
-  private boolean hasIndexedDocuments() {
+  private IndexStatus getIndexStatus() {
     IndexOperations indexOperations = elasticsearchOperations.indexOps(ContentSearchDocument.class);
     if (!indexOperations.exists()) {
       indexOperations.createWithMapping();
       log.info("콘텐츠 검색 인덱스가 없어 새로 생성했습니다.");
-      return false;
+      return new IndexStatus(0L);
     }
 
-    return contentSearchRepository.count() > 0;
+    return new IndexStatus(contentSearchRepository.count());
+  }
+
+  private void recreateIndex(long contentCount, long indexedCount) {
+    IndexOperations indexOperations = elasticsearchOperations.indexOps(ContentSearchDocument.class);
+    indexOperations.delete();
+    indexOperations.createWithMapping();
+    log.info("콘텐츠 검색 인덱스 문서 수가 DB 콘텐츠 수와 달라 인덱스를 재생성했습니다. contentCount={}, indexedCount={}",
+        contentCount, indexedCount);
   }
 
   private Map<UUID, List<String>> getTagNamesGroupedByContentId(List<Content> contents) {
@@ -165,5 +179,8 @@ public class ContentSearchIndexService {
             ContentTagNameProjection::getContentId,
             Collectors.mapping(ContentTagNameProjection::getTagName, Collectors.toList())
         ));
+  }
+
+  private record IndexStatus(long documentCount) {
   }
 }
