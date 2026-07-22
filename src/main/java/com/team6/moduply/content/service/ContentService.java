@@ -7,6 +7,7 @@ import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.dto.ContentCreateRequest;
+import com.team6.moduply.content.dto.ContentDetailCacheDto;
 import com.team6.moduply.content.dto.ContentDto;
 import com.team6.moduply.content.dto.ContentFindAllRequest;
 import com.team6.moduply.content.dto.ContentListCacheItemDto;
@@ -63,7 +64,7 @@ public class ContentService {
   private final ContentMapper contentMapper;
   private final BinaryContentService binaryContentService;
   private final ContentListCacheService contentListCacheService;
-  private final ContentTagCacheService contentTagCacheService;
+  private final ContentDetailCacheService contentDetailCacheService;
   private final ReviewQDSLRepository reviewQDSLRepository;
   private final WatchingSessionRepository watchingSessionRepository;
   private final ContentSearchIndexService contentSearchIndexService;
@@ -117,7 +118,8 @@ public class ContentService {
   @PreAuthorize("hasRole('ADMIN')")
   @Caching(evict = {
       @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
-      @CacheEvict(cacheNames = CacheConfig.CONTENT_TAGS, key = "#contentId")
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_TAGS, key = "#contentId"),
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
   })
   @Transactional
   public ContentDto update(
@@ -151,7 +153,8 @@ public class ContentService {
   @PreAuthorize("hasRole('ADMIN')")
   @Caching(evict = {
       @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
-      @CacheEvict(cacheNames = CacheConfig.CONTENT_TAGS, key = "#contentId")
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_TAGS, key = "#contentId"),
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
   })
   @Transactional
   public void delete(UUID contentId) {
@@ -321,18 +324,8 @@ public class ContentService {
   public ContentDto find(UUID contentId) {
     log.debug("콘텐츠 단건 조회 처리 시작: contentId={}", contentId);
 
-    Content content = contentRepository.findByIdWithContentImg(contentId)
-        .orElseThrow(() -> {
-          log.warn("콘텐츠 단건 조회 실패: 콘텐츠 없음. contentId={}", contentId);
-          return new ContentException(
-              ContentErrorCode.CONTENT_NOT_FOUND,
-              Map.of("contentId", contentId)
-          );
-        });
-
-    List<String> tagNames = contentTagCacheService.findTagNamesByContentId(contentId);
-
-    ContentDto response = toDto(content, tagNames);
+    ContentDetailCacheDto cachedContent = contentDetailCacheService.find(contentId);
+    ContentDto response = toDto(cachedContent);
 
     log.debug("콘텐츠 단건 조회 처리 완료: contentId={}", contentId);
 
@@ -348,7 +341,10 @@ public class ContentService {
   }
 
   @Transactional
-  @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
+  @Caching(evict = {
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
+      @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId")
+  })
   public void refreshReviewStats(UUID contentId) {
     Content content = findContentById(contentId);
     ReviewStats stats = reviewQDSLRepository.calculateStatsByContentId(contentId);
@@ -507,6 +503,21 @@ public class ContentService {
   private ContentDto toDto(Content content, List<String> tagNames) {
     long watcherCount = watchingSessionRepository.countByContentId(content.getId());
     return toDto(content, tagNames, watcherCount);
+  }
+
+  private ContentDto toDto(ContentDetailCacheDto cachedContent) {
+    long watcherCount = watchingSessionRepository.countByContentId(cachedContent.id());
+    return new ContentDto(
+        cachedContent.id(),
+        cachedContent.type(),
+        cachedContent.title(),
+        cachedContent.description(),
+        cachedContent.thumbnailUrl(),
+        cachedContent.tags(),
+        cachedContent.averageRating() != null ? cachedContent.averageRating() : BigDecimal.ZERO,
+        cachedContent.reviewCount(),
+        watcherCount
+    );
   }
 
   private ContentDto toDto(Content content, List<String> tagNames, long watcherCount) {

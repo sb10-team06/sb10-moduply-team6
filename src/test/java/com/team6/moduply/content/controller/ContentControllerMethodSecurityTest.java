@@ -24,6 +24,7 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.content.search.service.ContentSearchIndexService;
 import com.team6.moduply.content.search.service.ContentSearchService;
+import com.team6.moduply.content.service.ContentDetailCacheService;
 import com.team6.moduply.content.service.ContentListCacheService;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.content.service.ContentTagCacheService;
@@ -89,6 +90,9 @@ class ContentControllerMethodSecurityTest {
 
   @MockitoBean
   private ContentListCacheService contentListCacheService;
+
+  @MockitoBean
+  private ContentDetailCacheService contentDetailCacheService;
 
   @MockitoBean
   private ContentTagCacheService contentTagCacheService;

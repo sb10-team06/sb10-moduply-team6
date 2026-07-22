@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public record ContentListCacheItemDto(
+public record ContentDetailCacheDto(
     UUID id,
     ContentType type,
     String title,
@@ -16,8 +16,7 @@ public record ContentListCacheItemDto(
     BigDecimal averageRating,
     int reviewCount
 ) {
-  /// Redis 캐시에 저장될 data 리스트의 실제 구현체를 ArrayList로 고정하기 위한 방어 코드
-  public ContentListCacheItemDto {
+  public ContentDetailCacheDto {
     tags = tags == null ? new ArrayList<>() : new ArrayList<>(tags);
   }
 }

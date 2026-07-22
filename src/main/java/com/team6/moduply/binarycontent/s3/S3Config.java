@@ -1,5 +1,6 @@
 package com.team6.moduply.binarycontent.s3;
 
+import java.time.Duration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -8,6 +9,9 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -30,6 +34,10 @@ public class S3Config {
         return S3Client.builder()
                 .region(region())
                 .credentialsProvider(credentialsProvider())
+                // HTTP 연결/읽기 단계에서 오래 대기하지 않도록 Apache HTTP client timeout을 지정한다.
+                .httpClientBuilder(s3HttpClientBuilder())
+                // S3 API 호출 전체 시간과 재시도 정책을 제한한다.
+                .overrideConfiguration(s3ClientOverrideConfiguration())
                 .build();
 
     }
@@ -76,5 +84,28 @@ public class S3Config {
                     )
                 )
                 : DefaultCredentialsProvider.create();
+    }
+
+    private ClientOverrideConfiguration s3ClientOverrideConfiguration() {
+        return ClientOverrideConfiguration.builder()
+            // SDK 내부 재시도가 길어지면 요청 스레드와 DB 트랜잭션 점유 시간이 길어지므로 횟수를 제한한다.
+            .retryPolicy(RetryPolicy.builder()
+                .numRetries(properties.getMaxRetries())
+                .build())
+            // 재시도를 포함한 S3 API 호출 전체 제한 시간이다.
+            .apiCallTimeout(Duration.ofMillis(properties.getApiCallTimeoutMillis()))
+            // S3 API 호출 1회 시도당 제한 시간이다.
+            .apiCallAttemptTimeout(Duration.ofMillis(properties.getApiCallAttemptTimeoutMillis()))
+            .build();
+    }
+
+    private ApacheHttpClient.Builder s3HttpClientBuilder() {
+        return ApacheHttpClient.builder()
+            // S3 서버와 TCP 연결을 맺는 데 허용할 최대 시간이다.
+            .connectionTimeout(Duration.ofMillis(properties.getConnectTimeoutMillis()))
+            // 연결 이후 응답 데이터를 읽는 동안 허용할 최대 대기 시간이다.
+            .socketTimeout(Duration.ofMillis(properties.getSocketTimeoutMillis()))
+            // HTTP 커넥션 풀에서 사용 가능한 커넥션을 얻기까지 허용할 최대 시간이다.
+            .connectionAcquisitionTimeout(Duration.ofMillis(properties.getConnectionAcquisitionTimeoutMillis()));
     }
 }

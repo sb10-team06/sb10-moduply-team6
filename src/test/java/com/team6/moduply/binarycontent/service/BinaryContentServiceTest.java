@@ -49,8 +49,8 @@ class BinaryContentServiceTest {
   private BinaryContentService binaryContentService;
 
   @Test
-  @DisplayName("프로필 이미지 생성 시 BinaryContent를 PROCESSING 상태로 저장하고 S3 업로드 이벤트를 발행한다.")
-  void createUserProfile_success_publish_event() throws IOException {
+  @DisplayName("프로필 이미지 생성 시 S3에 동기 업로드하고 SUCCESS 상태로 저장한다.")
+  void createUserProfile_success_upload_sync() throws IOException {
     // given
     // userId 생성
     UUID userId = UUID.randomUUID();
@@ -87,22 +87,20 @@ class BinaryContentServiceTest {
     assertThat(result.getStorageKey())
         .startsWith("users/%s/profile/".formatted(userId))
         .endsWith(".png");
-    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
+    assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
     //binaryContent.save() 실행됐는지
     verify(binaryContentRepository).save(result);
+    verify(binaryContentStorage).upload(result.getStorageKey(), image.getBytes(), "image/png");
 
-    //event 발행 잘 됐는지
-    ArgumentCaptor<BinaryContentCreatedEvent> eventCaptor =
-        ArgumentCaptor.forClass(BinaryContentCreatedEvent.class);
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+
+    ArgumentCaptor<BinaryContentDeletedEvent> eventCaptor =
+        ArgumentCaptor.forClass(BinaryContentDeletedEvent.class);
     verify(eventPublisher).publishEvent(eventCaptor.capture());
 
-    BinaryContentCreatedEvent event = eventCaptor.getValue();
-    assertThat(event.getBinaryContentId()).isEqualTo(result.getId());
-    assertThat(event.getBytes()).isEqualTo(image.getBytes());
-    assertThat(event.getUserId()).isEqualTo(userId);
-    assertThat(event.getContentId()).isNull();
-    assertThat(event.getOldBinaryContentId()).isEqualTo(oldBinaryContentId);
-    assertThat(event.getOldStorageKey()).isEqualTo(oldStorageKey);
+    BinaryContentDeletedEvent event = eventCaptor.getValue();
+    assertThat(event.getBinaryContentId()).isEqualTo(oldBinaryContentId);
+    assertThat(event.getStorageKey()).isEqualTo(oldStorageKey);
   }
 
   @Test
@@ -172,6 +170,61 @@ class BinaryContentServiceTest {
         );
 
     verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("프로필 이미지가 5MB를 초과하면 FILE_SIZE_EXCEEDED 예외가 발생하고 저장소 업로드를 하지 않는다.")
+  void createUserProfile_fail_when_image_size_exceeded() {
+    // given
+    UUID userId = UUID.randomUUID();
+    byte[] bytes = new byte[5 * 1024 * 1024 + 1];
+    MockMultipartFile image = new MockMultipartFile(
+        "image",
+        "profile.png",
+        "image/png",
+        bytes
+    );
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image, null))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.FILE_SIZE_EXCEEDED);
+          assertThat(exception.getDetails().get("maxSize")).isEqualTo(5L * 1024 * 1024);
+        });
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(binaryContentStorage, never()).upload(any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("프로필 이미지 업로드가 실패하면 SUCCESS 처리와 기존 이미지 삭제 이벤트를 수행하지 않는다.")
+  void createUserProfile_fail_when_storage_upload_failed() {
+    // given
+    UUID userId = UUID.randomUUID();
+    MockMultipartFile image = createImage("profile.png", "image/png");
+    BinaryContent oldProfileImg = BinaryContent.create(
+        "old-profile.png",
+        1000L,
+        "image/png",
+        "users/%s/profile/old-profile.png".formatted(userId)
+    );
+
+    given(binaryContentRepository.save(any(BinaryContent.class)))
+        .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
+    given(binaryContentStorage.upload(any(String.class), any(byte[].class), eq("image/png")))
+        .willThrow(new RuntimeException("S3 upload timeout"));
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createUserProfile(userId, image, oldProfileImg))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("S3 upload timeout");
+
+    ArgumentCaptor<BinaryContent> binaryContentCaptor = ArgumentCaptor.forClass(BinaryContent.class);
+    verify(binaryContentRepository).save(binaryContentCaptor.capture());
+    assertThat(binaryContentCaptor.getValue().getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentDeletedEvent.class));
     verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
   }
 
@@ -369,6 +422,31 @@ class BinaryContentServiceTest {
         );
 
     verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
+  }
+
+  @Test
+  @DisplayName("콘텐츠 이미지가 5MB를 초과하면 FILE_SIZE_EXCEEDED 예외가 발생하고 저장과 이벤트 발행을 하지 않는다.")
+  void createContentImage_fail_when_image_size_exceeded() {
+    // given
+    UUID contentId = UUID.randomUUID();
+    byte[] bytes = new byte[5 * 1024 * 1024 + 1];
+    MockMultipartFile image = new MockMultipartFile(
+        "image",
+        "thumbnail.png",
+        "image/png",
+        bytes
+    );
+
+    // when & then
+    assertThatThrownBy(() -> binaryContentService.createContentImage(contentId, image, null))
+        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.FILE_SIZE_EXCEEDED);
+          assertThat(exception.getDetails().get("maxSize")).isEqualTo(5L * 1024 * 1024);
+        });
+
+    verify(binaryContentRepository, never()).save(any(BinaryContent.class));
+    verify(binaryContentStorage, never()).upload(any(), any(), any());
     verify(eventPublisher, never()).publishEvent(any(BinaryContentCreatedEvent.class));
   }
 
