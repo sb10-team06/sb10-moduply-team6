@@ -26,7 +26,7 @@ const PRE_ALLOCATED_VUS = Number(__ENV.PRE_ALLOCATED_VUS || 100);
 const MAX_VUS = Number(__ENV.MAX_VUS || 1000);
 
 const IMAGE_PATH = __ENV.IMAGE_PATH;
-const IMAGE_MIME_TYPE = __ENV.IMAGE_MIME_TYPE || 'image/jpeg';
+const IMAGE_MIME_TYPE = __ENV.IMAGE_MIME_TYPE || (IMAGE_PATH ? 'image/jpeg' : 'image/png');
 const IMAGE_FILE_NAME = __ENV.IMAGE_FILE_NAME || 'profile-test.jpg';
 
 const DEFAULT_PROFILE_IMAGE = encoding.b64decode(
