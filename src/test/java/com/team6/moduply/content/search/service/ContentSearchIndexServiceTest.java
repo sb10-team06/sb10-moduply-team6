@@ -1,5 +1,6 @@
 package com.team6.moduply.content.search.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -10,6 +11,8 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
@@ -308,7 +311,9 @@ class ContentSearchIndexServiceTest {
 
     // When & Then
     assertThatThrownBy(() -> contentSearchIndexService.rebuildAllIfEmpty())
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_SEARCH_INDEX_REBUILD_FAILED)
+        );
     verify(contentRepository, never()).findAll(any(PageRequest.class));
     verify(contentSearchRepository, never()).saveAll(anyList());
   }
@@ -325,7 +330,9 @@ class ContentSearchIndexServiceTest {
 
     // When & Then
     assertThatThrownBy(() -> contentSearchIndexService.rebuildAllIfEmpty())
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_SEARCH_INDEX_REBUILD_FAILED)
+        );
     verify(indexOperations, never()).createWithMapping();
     verify(contentRepository, never()).findAll(any(PageRequest.class));
     verify(contentSearchRepository, never()).saveAll(anyList());

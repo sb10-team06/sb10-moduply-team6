@@ -1,12 +1,15 @@
 package com.team6.moduply.content.search.service;
 
 import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.search.document.ContentSearchDocument;
 import com.team6.moduply.content.search.mapper.ContentSearchDocumentMapper;
 import com.team6.moduply.content.search.repository.ContentSearchRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -163,7 +166,7 @@ public class ContentSearchIndexService {
   private void recreateIndex(long contentCount, long indexedCount) {
     IndexOperations indexOperations = elasticsearchOperations.indexOps(ContentSearchDocument.class);
     if (!indexOperations.delete()) {
-      throw new IllegalStateException("콘텐츠 검색 인덱스 삭제에 실패했습니다.");
+      throw indexRebuildException("deleteIndex", contentCount, indexedCount);
     }
     createIndex(indexOperations);
     log.info("콘텐츠 검색 인덱스 문서 수가 DB 콘텐츠 수와 달라 인덱스를 재생성했습니다. contentCount={}, indexedCount={}",
@@ -172,8 +175,28 @@ public class ContentSearchIndexService {
 
   private void createIndex(IndexOperations indexOperations) {
     if (!indexOperations.createWithMapping()) {
-      throw new IllegalStateException("콘텐츠 검색 인덱스 생성에 실패했습니다.");
+      throw indexRebuildException("createIndex", null, null);
     }
+  }
+
+  private ContentException indexRebuildException(
+      String operation,
+      Long contentCount,
+      Long indexedCount
+  ) {
+    Map<String, Object> details = new LinkedHashMap<>();
+    details.put("operation", operation);
+    if (contentCount != null) {
+      details.put("contentCount", contentCount);
+    }
+    if (indexedCount != null) {
+      details.put("indexedCount", indexedCount);
+    }
+
+    return new ContentException(
+        ContentErrorCode.CONTENT_SEARCH_INDEX_REBUILD_FAILED,
+        details
+    );
   }
 
   private Map<UUID, List<String>> getTagNamesGroupedByContentId(List<Content> contents) {
