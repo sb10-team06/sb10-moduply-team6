@@ -6,8 +6,6 @@ import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -33,23 +31,10 @@ public class S3BinaryContentStorage implements BinaryContentStorage {
 
 
 
-    //TODO 재시도 전략 설정 추후 필요.
     /// user프로필, content이미지 파일 upload
     /// key: 이미지가 S3에 저장되는 경로.
     /// user의 프로필: String key = "users/%s/profile/%s".formatted(userId, binaryContentId);
     /// content의 이미지: String key = "contents/%s/images/%s".formatted(contentId, binaryContentId);
-    @Retryable(
-            retryFor = {
-                    S3StorageException.class,
-                    S3Exception.class
-            },
-            /// 재시도 정책: 최초 실행 1회 + 재시도 2회 = 총 3회
-            maxAttempts = 3,
-            /// 실패 후 1초 대기
-            /// multiplier = 2: 재시도할수록 대기시간 증가
-            /// 1차 실패후 1초대기, 2차 실패후 2초 대기.
-            backoff = @Backoff(delay = 1000, multiplier = 2)
-    )
     @Override
     public String upload(String key, byte[] bytes, String contentType) {
         try {
@@ -110,18 +95,6 @@ public class S3BinaryContentStorage implements BinaryContentStorage {
 
     }
 
-    @Retryable(
-            retryFor = {
-                    S3StorageException.class,
-                    S3Exception.class
-            },
-            /// 재시도 정책: 최초 실행 1회 + 재시도 2회 = 총 3회
-            maxAttempts = 3,
-            /// 실패 후 1초 대기
-            /// multiplier = 2: 재시도할수록 대기시간 증가
-            /// 1차 실패후 1초대기, 2차 실패후 2초 대기.
-            backoff = @Backoff(delay = 1000, multiplier = 2)
-    )
     @Override
     public String delete(String key) {
         try {
