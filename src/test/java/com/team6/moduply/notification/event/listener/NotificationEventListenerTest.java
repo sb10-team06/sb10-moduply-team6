@@ -11,6 +11,8 @@ import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.follow.repository.FollowRepository;
 import com.team6.moduply.notification.dto.NotificationDto;
 import com.team6.moduply.notification.enums.NotificationLevel;
+import com.team6.moduply.notification.event.DirectMessageReceivedEvent;
+import com.team6.moduply.notification.event.FollowedEvent;
 import com.team6.moduply.notification.event.UserRoleUpdatedEvent;
 import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
@@ -106,6 +108,62 @@ class NotificationEventListenerTest {
 
     verify(notificationService).sendRoleUpdatedNotification(
             receiverId, Role.USER, Role.ADMIN);
+    verify(redisPublisher).publish(SSE_CHANNEL_PREFIX + receiverId, dto);
+  }
+
+  @Test
+  @DisplayName("플레이리스트 구독 이벤트를 받으면 알림을 저장하고 Redis로 전송한다.")
+  void handlePlaylistSubscribed_success() {
+    UUID ownerId = UUID.randomUUID();
+    UUID subscriberId = UUID.randomUUID();
+    UUID playlistId = UUID.randomUUID();
+    PlaylistSubscribedEvent event = new PlaylistSubscribedEvent(
+        ownerId, subscriberId, playlistId, "테스트 플레이리스트", "테스터");
+    NotificationDto dto = new NotificationDto(
+        UUID.randomUUID(), null, ownerId, "구독 알림", "내용", NotificationLevel.INFO);
+
+    given(notificationService.sendPlaylistSubscribedNotification(
+        ownerId, "테스터", "테스트 플레이리스트")).willReturn(dto);
+
+    listener.handlePlaylistSubscribed(event);
+
+    verify(notificationService).sendPlaylistSubscribedNotification(ownerId, "테스터", "테스트 플레이리스트");
+    verify(redisPublisher).publish(SSE_CHANNEL_PREFIX + ownerId, dto);
+  }
+
+  @Test
+  @DisplayName("팔로우 이벤트를 받으면 알림을 저장하고 Redis로 전송한다.")
+  void handleFollowed_success() {
+    UUID followerId = UUID.randomUUID();
+    UUID followeeId = UUID.randomUUID();
+    FollowedEvent event = new FollowedEvent(followerId, followeeId, "팔로워");
+    NotificationDto dto = new NotificationDto(
+        UUID.randomUUID(), null, followeeId, "팔로우 알림", "내용", NotificationLevel.INFO);
+
+    given(notificationService.sendFollowedNotification(followeeId, "팔로워")).willReturn(dto);
+
+    listener.handleFollowed(event);
+
+    verify(notificationService).sendFollowedNotification(followeeId, "팔로워");
+    verify(redisPublisher).publish(SSE_CHANNEL_PREFIX + followeeId, dto);
+  }
+
+  @Test
+  @DisplayName("DM 수신 이벤트를 받으면 알림을 저장하고 Redis로 전송한다.")
+  void handleDirectMessageReceived_success() {
+    UUID senderId = UUID.randomUUID();
+    UUID receiverId = UUID.randomUUID();
+    UUID conversationId = UUID.randomUUID();
+    DirectMessageReceivedEvent event = new DirectMessageReceivedEvent(
+        receiverId, senderId, "발신자", conversationId, "안녕하세요");
+    NotificationDto dto = new NotificationDto(
+        UUID.randomUUID(), null, receiverId, "DM 알림", "내용", NotificationLevel.INFO);
+
+    given(notificationService.sendDmReceivedNotification(receiverId, "발신자", "안녕하세요")).willReturn(dto);
+
+    listener.handleDirectMessageReceived(event);
+
+    verify(notificationService).sendDmReceivedNotification(receiverId, "발신자", "안녕하세요");
     verify(redisPublisher).publish(SSE_CHANNEL_PREFIX + receiverId, dto);
   }
 }
