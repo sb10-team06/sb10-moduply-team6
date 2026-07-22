@@ -72,6 +72,9 @@ export function setup() {
   validateMode();
 
   const sessions = loginUsers();
+  if (sessions.length === 0) {
+    throw new Error('생성된 세션이 없습니다. USER_COUNT 설정을 확인하세요.');
+  }
   // 조회할 콘텐츠 ID 확보
   const contentIds = resolveContentIds(sessions[0].accessToken);
   const hotContentIds = contentIds.slice(0, Math.max(1, Math.min(HOT_CONTENT_COUNT, contentIds.length)));
