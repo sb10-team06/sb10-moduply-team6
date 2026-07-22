@@ -13,6 +13,7 @@ import com.team6.moduply.notification.dto.NotificationDto;
 import com.team6.moduply.notification.enums.NotificationLevel;
 import com.team6.moduply.notification.event.DirectMessageReceivedEvent;
 import com.team6.moduply.notification.event.FollowedEvent;
+import com.team6.moduply.notification.event.PlaylistSubscribedEvent;
 import com.team6.moduply.notification.event.UserRoleUpdatedEvent;
 import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
@@ -136,7 +137,7 @@ class NotificationEventListenerTest {
   void handleFollowed_success() {
     UUID followerId = UUID.randomUUID();
     UUID followeeId = UUID.randomUUID();
-    FollowedEvent event = new FollowedEvent(followerId, followeeId, "팔로워");
+    FollowedEvent event = new FollowedEvent(followerId, "팔로워", followeeId);
     NotificationDto dto = new NotificationDto(
         UUID.randomUUID(), null, followeeId, "팔로우 알림", "내용", NotificationLevel.INFO);
 
