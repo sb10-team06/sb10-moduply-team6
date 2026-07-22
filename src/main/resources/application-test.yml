@@ -1,4 +1,8 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -48,6 +52,12 @@ moduply:
       region: ap-northeast-2
       bucket: test-bucket
       presigned-url-expiration: 600
+      connect-timeout-millis: 3000
+      socket-timeout-millis: 5000
+      connection-acquisition-timeout-millis: 3000
+      api-call-timeout-millis: 10000
+      api-call-attempt-timeout-millis: 5000
+      max-retries: 1
 
   external:
     tmdb:
