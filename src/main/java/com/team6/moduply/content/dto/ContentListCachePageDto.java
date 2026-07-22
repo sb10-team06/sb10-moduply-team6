@@ -16,6 +16,6 @@ public record ContentListCachePageDto(
 ) {
   /// Redis 캐시에 저장될 data 리스트의 실제 구현체를 ArrayList로 고정하기 위한 방어 코드
   public ContentListCachePageDto {
-    data = data == null ? List.of() : new ArrayList<>(data);
+    data = data == null ? new ArrayList<>() : new ArrayList<>(data);
   }
 }

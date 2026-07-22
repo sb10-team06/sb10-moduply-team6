@@ -17,6 +17,6 @@ public record ContentDetailCacheDto(
     int reviewCount
 ) {
   public ContentDetailCacheDto {
-    tags = tags == null ? List.of() : new ArrayList<>(tags);
+    tags = tags == null ? new ArrayList<>() : new ArrayList<>(tags);
   }
 }
