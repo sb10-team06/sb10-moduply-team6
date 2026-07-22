@@ -11,6 +11,10 @@ public class UserException extends ModuPlyException {
     super(errorCode, details);
   }
 
+  public UserException(ErrorCode errorCode, Map<String, Object> details, Throwable cause) {
+    super(errorCode, details, cause);
+  }
+
   public UserException(ErrorCode errorCode, UUID id) {
     super(errorCode, id);
   }
