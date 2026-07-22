@@ -7,13 +7,13 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.follow.repository.FollowRepository;
 import com.team6.moduply.notification.dto.NotificationDto;
 import com.team6.moduply.notification.enums.NotificationLevel;
 import com.team6.moduply.notification.event.UserRoleUpdatedEvent;
 import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
-import com.team6.moduply.sse.SseRedisPublisher;
 import com.team6.moduply.user.enums.Role;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationEventListenerTest {
+
+  private static final String SSE_CHANNEL_PREFIX = "sse:notification:";
 
   @InjectMocks
   private NotificationEventListener listener;
@@ -39,7 +41,7 @@ class NotificationEventListenerTest {
   private FollowRepository followRepository;
 
   @Mock
-  private SseRedisPublisher sseRedisPublisher;
+  private RedisPublisher redisPublisher;
 
   @Test
   @DisplayName("권한 변경 이벤트를 받으면 알림을 저장하고 SSE로 전송한다.")
@@ -62,7 +64,7 @@ class NotificationEventListenerTest {
 
     verify(notificationService).sendRoleUpdatedNotification(
             receiverId, Role.USER, Role.ADMIN);
-    verify(sseRedisPublisher).publish(receiverId, dto);   // ← send → publish
+    verify(redisPublisher).publish(SSE_CHANNEL_PREFIX + receiverId, dto);
   }
 
   @Test
@@ -77,7 +79,7 @@ class NotificationEventListenerTest {
     assertThatCode(() -> listener.handleUserRoleUpdate(event))
             .doesNotThrowAnyException();
 
-    verify(sseRedisPublisher, never()).publish(any(), any());   // ← send → publish
+    verify(redisPublisher, never()).publish(any(), any());
   }
 
   @Test
@@ -97,7 +99,7 @@ class NotificationEventListenerTest {
     given(notificationService.sendRoleUpdatedNotification(
             receiverId, Role.USER, Role.ADMIN)).willReturn(dto);
     willThrow(new RuntimeException("sse failed"))
-            .given(sseRedisPublisher).publish(receiverId, dto);
+            .given(redisPublisher).publish(SSE_CHANNEL_PREFIX + receiverId, dto);
 
     assertThatCode(() -> listener.handleUserRoleUpdate(event))
             .doesNotThrowAnyException();
