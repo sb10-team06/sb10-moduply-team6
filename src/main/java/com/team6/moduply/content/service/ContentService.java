@@ -203,7 +203,8 @@ public class ContentService {
         // ES 인덱스가 비어 있거나 장애가 나도 기본 검색은 동작하도록 기존 DB 검색으로 보조 처리한다.
         log.warn("Elasticsearch 콘텐츠 검색 실패. QueryDSL 검색으로 대체합니다. keyword={}",
             request.keywordLike(), e);
-        return findAllByDatabase(request, normalizedTagsIn, request.keywordLike());
+        ContentFindAllRequest fallbackRequest = resetCursor(request);
+        return findAllByDatabase(fallbackRequest, normalizedTagsIn, request.keywordLike());
       }
     }
 
@@ -301,10 +302,12 @@ public class ContentService {
         searchResult.contentIds()
     );
     Map<UUID, List<String>> tagNamesByContentId = getTagNamesGroupedByContentId(pageContents);
+    Map<UUID, Long> watcherCountsByContentId = getWatcherCountsByContentId(pageContents);
     List<ContentDto> data = pageContents.stream()
         .map(content -> toDto(
             content,
-            tagNamesByContentId.getOrDefault(content.getId(), List.of())
+            tagNamesByContentId.getOrDefault(content.getId(), List.of()),
+            watcherCountsByContentId.getOrDefault(content.getId(), 0L)
         ))
         .toList();
 
@@ -315,6 +318,19 @@ public class ContentService {
         searchResult.hasNext(),
         searchResult.totalCount(),
         request.sortBy().name(),
+        request.sortDirection()
+    );
+  }
+
+  private ContentFindAllRequest resetCursor(ContentFindAllRequest request) {
+    return new ContentFindAllRequest(
+        request.typeEqual(),
+        request.keywordLike(),
+        request.tagsIn(),
+        null,
+        null,
+        request.limit(),
+        request.sortBy(),
         request.sortDirection()
     );
   }

@@ -63,8 +63,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of(searchHit));
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(1L);
+    given(searchHits.getTotalHits()).willReturn(1L);
 
     // When
     ContentSearchResult result = contentSearchService.search(
@@ -125,8 +124,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of(firstHit, secondHit));
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(2L);
+    given(searchHits.getTotalHits()).willReturn(2L);
 
     // When
     ContentSearchResult result = contentSearchService.search(
@@ -157,8 +155,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of());
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(0L);
+    given(searchHits.getTotalHits()).willReturn(0L);
 
     // When
     contentSearchService.search(
@@ -188,8 +185,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of());
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(0L);
+    given(searchHits.getTotalHits()).willReturn(0L);
 
     // When
     contentSearchService.search(
@@ -218,8 +214,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of());
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(0L);
+    given(searchHits.getTotalHits()).willReturn(0L);
 
     // When
     contentSearchService.search(
@@ -253,8 +248,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of());
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(0L);
+    given(searchHits.getTotalHits()).willReturn(0L);
 
     // When
     contentSearchService.search(
@@ -292,8 +286,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of());
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(0L);
+    given(searchHits.getTotalHits()).willReturn(0L);
 
     // When
     contentSearchService.search(
@@ -356,8 +349,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of(firstHit, secondHit));
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(2L);
+    given(searchHits.getTotalHits()).willReturn(2L);
 
     // When
     ContentSearchResult result = contentSearchService.search(
@@ -386,8 +378,7 @@ class ContentSearchServiceTest {
     given(searchHits.getSearchHits()).willReturn(List.of());
     given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
         .willReturn(searchHits);
-    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
-        .willReturn(0L);
+    given(searchHits.getTotalHits()).willReturn(0L);
 
     // When
     contentSearchService.search(

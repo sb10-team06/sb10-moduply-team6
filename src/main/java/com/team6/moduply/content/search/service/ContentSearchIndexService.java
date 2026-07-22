@@ -53,13 +53,13 @@ public class ContentSearchIndexService {
 
   public void rebuildAllIfEmpty() {
     long contentCount = contentRepository.count();
-    if (contentCount == 0) {
-      log.info("콘텐츠가 없어 검색 인덱스 재색인을 건너뜁니다.");
+    if (hasIndexedDocuments()) {
+      log.info("콘텐츠 검색 인덱스가 이미 존재하여 재색인을 건너뜁니다. contentCount={}", contentCount);
       return;
     }
 
-    if (hasIndexedDocuments()) {
-      log.info("콘텐츠 검색 인덱스가 이미 존재하여 재색인을 건너뜁니다. contentCount={}", contentCount);
+    if (contentCount == 0) {
+      log.info("콘텐츠가 없어 검색 인덱스 재색인을 건너뜁니다.");
       return;
     }
 

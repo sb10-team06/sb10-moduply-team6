@@ -1093,7 +1093,7 @@ class ContentServiceTest {
         List.of("SF"),
         BigDecimal.ZERO,
         0,
-        0L
+        1L
     );
     ContentDto secondDto = new ContentDto(
         secondId,
@@ -1104,7 +1104,7 @@ class ContentServiceTest {
         List.of("우주"),
         BigDecimal.ZERO,
         0,
-        0L
+        3L
     );
 
     given(contentSearchService.search(
@@ -1124,6 +1124,8 @@ class ContentServiceTest {
             new TestContentTagNameProjection(firstId, "SF"),
             new TestContentTagNameProjection(secondId, "우주")
         ));
+    given(watchingSessionRepository.countByContentIds(List.of(secondId, firstId)))
+        .willReturn(Map.of(secondId, 3L, firstId, 1L));
     given(contentMapper.toDto(second, DEFAULT_THUMBNAIL_URL, List.of("우주"))).willReturn(secondDto);
     given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of("SF"))).willReturn(firstDto);
 
@@ -1145,6 +1147,8 @@ class ContentServiceTest {
     assertThat(response.data()).containsExactly(secondDto, firstDto);
     assertThat(response.hasNext()).isFalse();
     assertThat(response.totalCount()).isEqualTo(2);
+    verify(watchingSessionRepository).countByContentIds(List.of(secondId, firstId));
+    verify(watchingSessionRepository, never()).countByContentId(any(UUID.class));
     verify(contentRepository, never()).findAllByCursor(any(), any(), anyList(), any(), any(), anyInt(), any(), any());
     verify(contentRepository, never()).countContents(any(), any(), anyList());
   }
@@ -1178,10 +1182,10 @@ class ContentServiceTest {
         ContentType.movie,
         "악마",
         List.of("movie"),
-        null,
-        null,
+        "12.5|10|4.5|2026-07-21T00:00:00Z",
+        contentId,
         20,
-        ContentSortBy.rate,
+        ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     )).willThrow(new RuntimeException("elasticsearch unavailable"));
     given(contentRepository.findAllByCursor(
@@ -1191,7 +1195,7 @@ class ContentServiceTest {
         null,
         null,
         21,
-        ContentSortBy.rate,
+        ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     )).willReturn(List.of(content));
     given(contentTagRepository.findTagNamesByContentIds(List.of(contentId)))
@@ -1205,10 +1209,10 @@ class ContentServiceTest {
         ContentType.movie,
         "악마",
         List.of("movie"),
-        null,
-        null,
+        "12.5|10|4.5|2026-07-21T00:00:00Z",
+        contentId,
         20,
-        ContentSortBy.rate,
+        ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     );
 
@@ -1226,7 +1230,7 @@ class ContentServiceTest {
         null,
         null,
         21,
-        ContentSortBy.rate,
+        ContentSortBy.watcherCount,
         SortDirection.DESCENDING
     );
     verify(contentRepository, never()).findAllByIdIn(anyList());

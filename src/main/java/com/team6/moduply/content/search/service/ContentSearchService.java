@@ -63,19 +63,11 @@ public class ContentSearchService {
     }
 
     NativeQuery query = queryBuilder.build();
-    NativeQuery countQuery = NativeQuery.builder()
-        .withQuery(buildQuery(
-            typeEqual,
-            keywordLike,
-            tagsIn
-        ))
-        .build();
-
     SearchHits<ContentSearchDocument> searchHits = elasticsearchOperations.search(
         query,
         ContentSearchDocument.class
     );
-    long totalCount = elasticsearchOperations.count(countQuery, ContentSearchDocument.class);
+    long totalCount = searchHits.getTotalHits();
 
     List<SearchHit<ContentSearchDocument>> hits = searchHits.getSearchHits();
     boolean hasNext = hits.size() > limit;

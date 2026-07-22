@@ -222,6 +222,24 @@ class ContentSearchIndexServiceTest {
   }
 
   @Test
+  @DisplayName("DB 콘텐츠가 없어도 검색 인덱스가 없으면 인덱스를 생성한다.")
+  void rebuildAllIfEmpty_success_create_index_when_content_is_empty() {
+    // Given
+    given(contentRepository.count()).willReturn(0L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(false);
+    given(indexOperations.createWithMapping()).willReturn(true);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(indexOperations).createWithMapping();
+    verify(contentRepository, never()).findAll(any(PageRequest.class));
+    verify(contentSearchRepository, never()).saveAll(anyList());
+  }
+
+  @Test
   @DisplayName("콘텐츠 삭제 시 검색 인덱스도 삭제한다.")
   void delete_success() {
     // Given
