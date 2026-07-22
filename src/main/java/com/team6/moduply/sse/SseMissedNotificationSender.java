@@ -19,17 +19,18 @@ public class SseMissedNotificationSender {
   public void send(UUID userId, UUID lastEventId, SseEmitter emitter) {
     if (lastEventId == null) return;
 
-    notificationService.findMissedNotifications(userId, lastEventId)
-        .forEach(dto -> {
-          try {
-            emitter.send(SseEmitter.event()
-                .id(dto.id().toString())
-                .name("notifications")
-                .data(dto));
-            log.debug("[SSE] 유실 알림 재전송 - userId={}, notificationId={}", userId, dto.id());
-          } catch (IOException | IllegalStateException e) {
-            log.error("[SSE] 유실 알림 재전송 실패 - userId={}", userId, e);
-          }
-        });
+    for (NotificationDto dto : notificationService.findMissedNotifications(userId, lastEventId)) {
+      try {
+        emitter.send(SseEmitter.event()
+            .id(dto.id().toString())
+            .name("notifications")
+            .data(dto));
+        log.debug("[SSE] 유실 알림 재전송 - userId={}, notificationId={}", userId, dto.id());
+      } catch (IOException | IllegalStateException e) {
+        log.error("[SSE] 유실 알림 재전송 실패 - userId={}", userId, e);
+        emitter.completeWithError(e);
+        break;
+      }
+    }
   }
 }

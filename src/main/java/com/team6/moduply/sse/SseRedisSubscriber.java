@@ -1,6 +1,7 @@
 package com.team6.moduply.sse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team6.moduply.notification.dto.NotificationDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.Message;
@@ -26,7 +27,7 @@ public class SseRedisSubscriber implements MessageListener {
       String channel = new String(message.getChannel());
       String userId = channel.replace(SSE_CHANNEL_PREFIX, "");
 
-      Object data = objectMapper.readValue(message.getBody(), Object.class);
+      NotificationDto data = objectMapper.readValue(message.getBody(), NotificationDto.class);
       sseEmitterManager.send(UUID.fromString(userId), data);
 
       log.debug("[SSE Redis] 메시지 수신 - channel={}", channel);
