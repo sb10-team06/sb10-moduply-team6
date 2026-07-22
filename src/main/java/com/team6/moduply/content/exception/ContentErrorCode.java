@@ -14,11 +14,7 @@ public enum ContentErrorCode implements ErrorCode {
   EXTERNAL_CONTENT_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "content04", "외부 콘텐츠 응답이 올바르지 않습니다."),
   EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED(HttpStatus.BAD_GATEWAY, "content05", "외부 콘텐츠 이미지 다운로드에 실패했습니다."),
   EXTERNAL_CONTENT_CONFIG_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "content06", "외부 콘텐츠 API 설정이 올바르지 않습니다."),
-  CONTENT_SEARCH_INDEX_REBUILD_FAILED(
-      HttpStatus.INTERNAL_SERVER_ERROR,
-      "content07",
-      "콘텐츠 검색 인덱스 재색인에 실패했습니다."
-  );
+  CONTENT_SEARCH_INDEX_REBUILD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "content07", "콘텐츠 검색 인덱스 재색인에 실패했습니다.");
 
   private final HttpStatus httpStatus;
   private final String code;
