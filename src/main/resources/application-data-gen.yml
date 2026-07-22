@@ -5,6 +5,7 @@ moduply:
       follower-size: ${MODUPLY_TEST_DATA_USER_FOLLOWER_SIZE:100}
       followee-size: ${MODUPLY_TEST_DATA_USER_FOLLOWEE_SIZE:1000}
       conversation-size: ${MODUPLY_TEST_DATA_USER_CONVERSATION_SIZE:0}
+      profile-update-size: ${MODUPLY_TEST_DATA_USER_PROFILE_UPDATE_SIZE:0}
       chunk-size: ${MODUPLY_TEST_DATA_USER_CHUNK_SIZE:500}
       skip-if-exists: ${MODUPLY_TEST_DATA_USER_SKIP_IF_EXISTS:true}
       password: ${MODUPLY_TEST_DATA_USER_PASSWORD:k6-password}
