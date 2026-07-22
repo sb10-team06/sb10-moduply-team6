@@ -3,6 +3,9 @@ package com.team6.moduply.sse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.UUID;
@@ -10,13 +13,17 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
+@ExtendWith(MockitoExtension.class)
 class SseEmitterManagerTest {
+
+  @Mock
+  private SseMissedNotificationSender missedNotificationSender;
 
   private SseEmitterManager sseEmitterManager;
 
   @BeforeEach
   void setUp() {
-    sseEmitterManager = new SseEmitterManager();
+    sseEmitterManager = new SseEmitterManager(missedNotificationSender);
   }
 
   @Test
@@ -26,7 +33,7 @@ class SseEmitterManagerTest {
     UUID userId = UUID.randomUUID();
 
     // when
-    SseEmitter emitter = sseEmitterManager.connect(userId);
+    SseEmitter emitter = sseEmitterManager.connect(userId, null);
 
     // then
     assertThat(emitter).isNotNull();
@@ -37,10 +44,10 @@ class SseEmitterManagerTest {
   void connect_replace_existing() {
     // given
     UUID userId = UUID.randomUUID();
-    SseEmitter first = sseEmitterManager.connect(userId);
+    SseEmitter first = sseEmitterManager.connect(userId, null);
 
     // when
-    SseEmitter second = sseEmitterManager.connect(userId);
+    SseEmitter second = sseEmitterManager.connect(userId, null);
 
     // then
     assertThat(second).isNotSameAs(first);
@@ -51,7 +58,7 @@ class SseEmitterManagerTest {
   void send_to_connected_user() {
     // given
     UUID userId = UUID.randomUUID();
-    sseEmitterManager.connect(userId);
+    sseEmitterManager.connect(userId, null);
 
     // when & then
     assertDoesNotThrow(() -> sseEmitterManager.send(userId, "test"));
@@ -74,8 +81,8 @@ class SseEmitterManagerTest {
   void old_emitter_callback_does_not_remove_new_emitter() {
     // given
     UUID userId = UUID.randomUUID();
-    SseEmitter first = sseEmitterManager.connect(userId);
-    SseEmitter second = sseEmitterManager.connect(userId);
+    SseEmitter first = sseEmitterManager.connect(userId, null);
+    SseEmitter second = sseEmitterManager.connect(userId, null);
 
     // when - 구 emitter의 complete 호출 (onCompletion 콜백 트리거)
     first.complete();
@@ -90,9 +97,8 @@ class SseEmitterManagerTest {
   void old_emitter_timeout_does_not_remove_new_emitter() {
     // given
     UUID userId = UUID.randomUUID();
-    SseEmitter first = sseEmitterManager.connect(userId);
-    SseEmitter second = sseEmitterManager.connect(userId);
-
+    SseEmitter first = sseEmitterManager.connect(userId, null);
+    SseEmitter second = sseEmitterManager.connect(userId, null);
     // when - 구 emitter 타임아웃 강제 트리거
     first.completeWithError(new RuntimeException("timeout simulation"));
 
@@ -105,7 +111,7 @@ class SseEmitterManagerTest {
   void sendHeartbeat_success() {
     // given
     UUID userId = UUID.randomUUID();
-    sseEmitterManager.connect(userId);
+    sseEmitterManager.connect(userId, null);
 
     // when & then
     assertDoesNotThrow(() -> sseEmitterManager.sendHeartbeat());
@@ -116,7 +122,7 @@ class SseEmitterManagerTest {
   void sendHeartbeat_removes_completed_emitter() {
     // given
     UUID userId = UUID.randomUUID();
-    SseEmitter emitter = sseEmitterManager.connect(userId);
+    SseEmitter emitter = sseEmitterManager.connect(userId, null);
     emitter.complete();
 
     // when

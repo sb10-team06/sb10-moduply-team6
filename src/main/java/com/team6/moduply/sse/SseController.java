@@ -27,7 +27,7 @@ public class SseController {
   @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @Operation(summary = "SSE 연결", description = "실시간 알림을 위한 SSE 연결을 수립합니다.")
   public ResponseEntity<?> subscribe(
-      @RequestHeader(value = "Last-Event-ID", required = false) UUID lastEventId,
+      @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId,
       @AuthenticationPrincipal ModuPlyUserDetails userDetails) {
     if (userDetails == null) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

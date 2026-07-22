@@ -1,6 +1,7 @@
 package com.team6.moduply.notification.repository;
 
 import com.team6.moduply.notification.entity.Notification;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -10,5 +11,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
   Optional<Notification> findByIdAndReceiverId(UUID id, UUID receiverId);
 
-  List<Notification> findByReceiverIdAndIdAfterOrderByCreatedAtAsc(UUID receiverId, UUID lastEventId);
+  List<Notification> findByReceiverIdAndCreatedAtAfterOrCreatedAtEqualsAndIdAfterOrderByCreatedAtAscIdAsc(
+      UUID receiverId, Instant createdAt, Instant createdAtEqual, UUID lastId);
+
 }

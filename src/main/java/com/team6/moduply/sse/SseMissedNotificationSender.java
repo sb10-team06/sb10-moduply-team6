@@ -3,6 +3,7 @@ package com.team6.moduply.sse;
 import com.team6.moduply.notification.dto.NotificationDto;
 import com.team6.moduply.notification.service.NotificationService;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,13 +17,19 @@ public class SseMissedNotificationSender {
 
   private final NotificationService notificationService;
 
-  public void send(UUID userId, UUID lastEventId, SseEmitter emitter) {
+  public void send(UUID userId, String lastEventId, SseEmitter emitter) {
     if (lastEventId == null) return;
 
-    for (NotificationDto dto : notificationService.findMissedNotifications(userId, lastEventId)) {
+    String[] parts = lastEventId.split(":");
+    if (parts.length < 2) return;
+
+    Instant lastCreatedAt = Instant.parse(parts[0]);
+    UUID lastId = UUID.fromString(parts[parts.length - 1]);
+
+    for (NotificationDto dto : notificationService.findMissedNotifications(userId, lastCreatedAt, lastId)) {
       try {
         emitter.send(SseEmitter.event()
-            .id(dto.id().toString())
+            .id(dto.createdAt() + ":" + dto.id())
             .name("notifications")
             .data(dto));
         log.debug("[SSE] 유실 알림 재전송 - userId={}, notificationId={}", userId, dto.id());

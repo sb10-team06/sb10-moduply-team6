@@ -12,6 +12,7 @@ import com.team6.moduply.notification.mapper.NotificationMapper;
 import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
 import com.team6.moduply.user.enums.Role;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -177,8 +178,10 @@ public class NotificationService {
 
   ///  유실된 알림 재전송
   @Transactional(readOnly = true)
-  public List<NotificationDto> findMissedNotifications(UUID receiverId, UUID lastEventId) {
-    return notificationRepository.findByReceiverIdAndIdAfterOrderByCreatedAtAsc(receiverId, lastEventId)
+  public List<NotificationDto> findMissedNotifications(UUID receiverId, Instant lastCreatedAt, UUID lastId) {
+    return notificationRepository
+        .findByReceiverIdAndCreatedAtAfterOrCreatedAtEqualsAndIdAfterOrderByCreatedAtAscIdAsc(
+            receiverId, lastCreatedAt, lastCreatedAt, lastId)
         .stream()
         .map(notificationMapper::toDto)
         .toList();

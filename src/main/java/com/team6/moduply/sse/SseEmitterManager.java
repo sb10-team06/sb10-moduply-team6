@@ -20,7 +20,7 @@ public class SseEmitterManager {
   private final Map<UUID, SseEmitter> emitters = new ConcurrentHashMap<>();
   private final SseMissedNotificationSender missedNotificationSender;
 
-  public SseEmitter connect(UUID userId, UUID lastEventId) {
+  public SseEmitter connect(UUID userId, String lastEventId) {
     SseEmitter emitter = new SseEmitter(TIMEOUT);
 
     emitter.onCompletion(() -> {
@@ -69,7 +69,7 @@ public class SseEmitterManager {
 
       // NotificationDto인 경우 id 설정
       if (data instanceof NotificationDto dto) {
-        event.id(dto.id().toString());
+        event.id(dto.createdAt() + ":" + dto.id());
       }
 
       emitter.send(event);
