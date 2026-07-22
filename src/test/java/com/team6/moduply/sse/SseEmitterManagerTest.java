@@ -81,8 +81,7 @@ class SseEmitterManagerTest {
   void old_emitter_callback_does_not_remove_new_emitter() {
     // given
     UUID userId = UUID.randomUUID();
-    SseEmitter first = sseEmitterManager.connect(userId, null);
-    SseEmitter second = sseEmitterManager.connect(userId, null);
+    sseEmitterManager.connect(userId, null);
 
     // when - 구 emitter의 complete 호출 (onCompletion 콜백 트리거)
     first.complete();
@@ -98,7 +97,8 @@ class SseEmitterManagerTest {
     // given
     UUID userId = UUID.randomUUID();
     SseEmitter first = sseEmitterManager.connect(userId, null);
-    SseEmitter second = sseEmitterManager.connect(userId, null);
+    sseEmitterManager.connect(userId, null); // 재연결 트리거 (반환값 미사용)
+
     // when - 구 emitter 타임아웃 강제 트리거
     first.completeWithError(new RuntimeException("timeout simulation"));
 

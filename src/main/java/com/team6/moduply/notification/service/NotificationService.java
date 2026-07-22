@@ -17,12 +17,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+
+  private static final int MAX_MISSED_NOTIFICATIONS = 100; // 정책에 맞게 조정
 
   private final NotificationRepository notificationRepository;
   private final NotificationQDSLRepository notificationQDSLRepository;
@@ -176,14 +179,14 @@ public class NotificationService {
     return notificationMapper.toDto(saved);
   }
 
-  ///  유실된 알림 재전송
+  /// 유실된 알림 재전송
   @Transactional(readOnly = true)
   public List<NotificationDto> findMissedNotifications(UUID receiverId, Instant lastCreatedAt, UUID lastId) {
     return notificationRepository
-        .findByReceiverIdAndCreatedAtAfterOrCreatedAtEqualsAndIdAfterOrderByCreatedAtAscIdAsc(
-            receiverId, lastCreatedAt, lastCreatedAt, lastId)
-        .stream()
-        .map(notificationMapper::toDto)
-        .toList();
+            .findMissedNotifications(receiverId, lastCreatedAt, lastId,
+                    PageRequest.of(0, MAX_MISSED_NOTIFICATIONS))
+            .stream()
+            .map(notificationMapper::toDto)
+            .toList();
   }
 }
