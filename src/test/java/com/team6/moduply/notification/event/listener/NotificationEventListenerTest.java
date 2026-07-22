@@ -106,5 +106,6 @@ class NotificationEventListenerTest {
 
     verify(notificationService).sendRoleUpdatedNotification(
             receiverId, Role.USER, Role.ADMIN);
+    verify(redisPublisher).publish(SSE_CHANNEL_PREFIX + receiverId, dto);
   }
 }
