@@ -28,6 +28,7 @@ public class ContentSearchService {
 
   private static final String CURSOR_DELIMITER = "|";
   private static final List<String> SEARCH_FIELDS = List.of("title^5", "tags^3", "description");
+  private static final String KEYWORD_MINIMUM_SHOULD_MATCH = "2<75%";
 
   private final ElasticsearchOperations elasticsearchOperations;
 
@@ -137,6 +138,7 @@ public class ContentSearchService {
         .should(should -> should.multiMatch(multiMatch -> multiMatch
             .query(keywordLike)
             .fields(SEARCH_FIELDS)
+            .minimumShouldMatch(KEYWORD_MINIMUM_SHOULD_MATCH)
         ))
         .should(should -> should.multiMatch(multiMatch -> multiMatch
             .query(keywordLike)

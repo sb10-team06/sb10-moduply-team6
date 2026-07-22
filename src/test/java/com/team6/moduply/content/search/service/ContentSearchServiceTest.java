@@ -246,6 +246,45 @@ class ContentSearchServiceTest {
   }
 
   @Test
+  @DisplayName("검색어가 여러 단어이면 기본 검색 조건에 최소 매칭 비율을 적용한다.")
+  void search_success_with_keyword_minimum_should_match() {
+    // Given
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(elasticsearchOperations.count(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        null,
+        "눈 깜짝할 사이에",
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    NativeQuery query = queryCaptor.getValue();
+    assertThat(query.getQuery()
+        .bool()
+        .must()
+        .get(0)
+        .bool()
+        .should()
+        .get(0)
+        .multiMatch()
+        .minimumShouldMatch()
+    ).isEqualTo("2<75%");
+  }
+
+  @Test
   @DisplayName("정렬 기준에 맞지 않는 커서 값이면 예외를 던진다.")
   void search_fail_with_invalid_cursor() {
     // When & Then
