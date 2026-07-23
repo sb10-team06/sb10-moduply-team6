@@ -47,6 +47,7 @@ import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1005,6 +1006,131 @@ class ContentServiceTest {
   }
 
   @Test
+  @DisplayName("최신순 콘텐츠 목록에 다음 페이지가 있으면 생성일 커서를 반환한다.")
+  void find_all_success_with_created_at_next_cursor() {
+    // Given
+    UUID firstId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    UUID secondId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Instant createdAt = Instant.parse("2026-07-21T00:00:00Z");
+    Content first = new Content(null, null, ContentType.movie, "Inception", "description");
+    Content second = new Content(null, null, ContentType.movie, "Interstellar", "description");
+    ReflectionTestUtils.setField(first, "id", firstId);
+    ReflectionTestUtils.setField(first, "createdAt", createdAt);
+    ReflectionTestUtils.setField(second, "id", secondId);
+    ContentDto firstDto = new ContentDto(
+        firstId,
+        ContentType.movie,
+        "Inception",
+        "description",
+        DEFAULT_THUMBNAIL_URL,
+        List.of(),
+        BigDecimal.ZERO,
+        0,
+        0L
+    );
+
+    given(contentSearchService.search(
+        null,
+        "Inception",
+        List.of(),
+        null,
+        null,
+        1,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willThrow(new RuntimeException("elasticsearch unavailable"));
+    given(contentRepository.findAllByCursor(
+        null,
+        "Inception",
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(List.of(first, second));
+    given(contentRepository.countContents(null, "Inception", List.of())).willReturn(2L);
+    given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(firstDto);
+    given(watchingSessionRepository.countByContentIds(List.of(firstId))).willReturn(Map.of());
+
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        null,
+        "Inception",
+        List.of(),
+        null,
+        null,
+        1,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
+    // Then
+    assertThat(response.nextCursor()).isEqualTo(createdAt.toString());
+    assertThat(response.nextIdAfter()).isEqualTo(firstId);
+    assertThat(response.hasNext()).isTrue();
+  }
+
+  @Test
+  @DisplayName("평점순 콘텐츠 목록에 다음 페이지가 있으면 평점 커서를 반환한다.")
+  void find_all_success_with_rate_next_cursor() {
+    // Given
+    UUID firstId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    UUID secondId = UUID.fromString("4fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content first = new Content(null, null, ContentType.movie, "Inception", "description");
+    Content second = new Content(null, null, ContentType.movie, "Interstellar", "description");
+    first.updateReviewStats(new BigDecimal("4.50"), 1);
+    ReflectionTestUtils.setField(first, "id", firstId);
+    ReflectionTestUtils.setField(second, "id", secondId);
+    ContentDto firstDto = new ContentDto(
+        firstId,
+        ContentType.movie,
+        "Inception",
+        "description",
+        DEFAULT_THUMBNAIL_URL,
+        List.of(),
+        new BigDecimal("4.50"),
+        1,
+        0L
+    );
+
+    given(contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    )).willReturn(List.of(first, second));
+    given(contentRepository.countContents(null, null, List.of())).willReturn(2L);
+    given(contentMapper.toDto(first, DEFAULT_THUMBNAIL_URL, List.of())).willReturn(firstDto);
+    given(watchingSessionRepository.countByContentIds(List.of(firstId))).willReturn(Map.of());
+
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
+    // Then
+    assertThat(response.nextCursor()).isEqualTo("4.50");
+    assertThat(response.nextIdAfter()).isEqualTo(firstId);
+    assertThat(response.hasNext()).isTrue();
+  }
+
+  @Test
   @DisplayName("콘텐츠 목록이 비어 있으면 빈 목록 조회 응답을 반환한다.")
   void find_all_success_with_empty_contents() {
     // Given
@@ -1151,6 +1277,109 @@ class ContentServiceTest {
     verify(watchingSessionRepository, never()).countByContentId(any(UUID.class));
     verify(contentRepository, never()).findAllByCursor(any(), any(), anyList(), any(), any(), anyInt(), any(), any());
     verify(contentRepository, never()).countContents(any(), any(), anyList());
+  }
+
+  @Test
+  @DisplayName("Elasticsearch 검색 결과가 비어 있으면 빈 콘텐츠 목록을 반환한다.")
+  void find_all_success_with_empty_search_index_result() {
+    // Given
+    given(contentSearchService.search(
+        ContentType.movie,
+        "없는검색어",
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(new ContentSearchResult(List.of(), false, null, null, 0L));
+    given(contentRepository.findAllByIdIn(List.of())).willReturn(List.of());
+
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        ContentType.movie,
+        "없는검색어",
+        List.of(),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
+    // Then
+    assertThat(response.data()).isEmpty();
+    assertThat(response.hasNext()).isFalse();
+    assertThat(response.totalCount()).isZero();
+    verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
+    verify(watchingSessionRepository, never()).countByContentIds(anyList());
+  }
+
+  @Test
+  @DisplayName("Elasticsearch 검색 결과 중 DB에 없는 콘텐츠는 응답에서 제외한다.")
+  void find_all_success_exclude_missing_content_from_search_index_result() {
+    // Given
+    UUID missingId = UUID.fromString("2fa85f64-5717-4562-b3fc-2c963f66afa6");
+    UUID contentId = UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6");
+    Content content = new Content(
+        null,
+        null,
+        ContentType.movie,
+        "악마 변호사",
+        "잔혹한 범죄의 누명을 쓴 젊은 변호사"
+    );
+    ReflectionTestUtils.setField(content, "id", contentId);
+    ContentDto contentDto = new ContentDto(
+        contentId,
+        ContentType.movie,
+        "악마 변호사",
+        "잔혹한 범죄의 누명을 쓴 젊은 변호사",
+        DEFAULT_THUMBNAIL_URL,
+        List.of("movie"),
+        BigDecimal.ZERO,
+        0,
+        4L
+    );
+
+    given(contentSearchService.search(
+        ContentType.movie,
+        "악마",
+        List.of("movie"),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).willReturn(new ContentSearchResult(List.of(missingId, contentId), false, null, null, 2L));
+    given(contentRepository.findAllByIdIn(List.of(missingId, contentId)))
+        .willReturn(List.of(content));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(contentId)))
+        .willReturn(List.of(new TestContentTagNameProjection(contentId, "movie")));
+    given(watchingSessionRepository.countByContentIds(List.of(contentId)))
+        .willReturn(Map.of(contentId, 4L));
+    given(contentMapper.toDto(content, DEFAULT_THUMBNAIL_URL, List.of("movie")))
+        .willReturn(contentDto);
+
+    ContentFindAllRequest request = new ContentFindAllRequest(
+        ContentType.movie,
+        "악마",
+        List.of("movie"),
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // When
+    CursorResponse<ContentDto> response = contentService.findAll(request);
+
+    // Then
+    assertThat(response.data()).containsExactly(contentDto);
+    verify(contentTagRepository).findTagNamesByContentIds(List.of(contentId));
+    verify(watchingSessionRepository).countByContentIds(List.of(contentId));
   }
 
   @Test
@@ -1327,6 +1556,35 @@ class ContentServiceTest {
     verify(contentRepository, never()).findByIdWithContentImg(contentId);
     verify(contentTagRepository, never()).findTagNamesByContentId(any(UUID.class));
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 존재 검증 시 콘텐츠가 없으면 예외를 던진다.")
+  void validate_exists_fail_when_content_not_found() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    given(contentRepository.existsById(contentId)).willReturn(false);
+
+    // When & Then
+    assertThatThrownBy(() -> contentService.validateExists(contentId))
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails().get("contentId")).isEqualTo(contentId);
+        });
+  }
+
+  @Test
+  @DisplayName("콘텐츠 존재 검증 시 콘텐츠가 있으면 정상 종료한다.")
+  void validate_exists_success() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    given(contentRepository.existsById(contentId)).willReturn(true);
+
+    // When
+    contentService.validateExists(contentId);
+
+    // Then
+    verify(contentRepository).existsById(contentId);
   }
 
   @Test

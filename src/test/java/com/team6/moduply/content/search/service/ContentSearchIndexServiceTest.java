@@ -146,6 +146,26 @@ class ContentSearchIndexServiceTest {
   }
 
   @Test
+  @DisplayName("여러 콘텐츠 검색 인덱스 저장 실패 시 예외를 전파하지 않는다.")
+  void indexAll_success_when_repository_save_all_fails() {
+    // Given
+    Content content = createContent();
+    ContentSearchDocument document = ContentSearchDocument.builder()
+        .id(content.getId().toString())
+        .build();
+    given(contentSearchDocumentMapper.toDocument(content, List.of("SF"))).willReturn(document);
+    willThrow(new RuntimeException("elasticsearch unavailable"))
+        .given(contentSearchRepository)
+        .saveAll(List.of(document));
+
+    // When
+    contentSearchIndexService.indexAll(List.of(content), Map.of(content.getId(), List.of("SF")));
+
+    // Then
+    verify(contentSearchRepository).saveAll(List.of(document));
+  }
+
+  @Test
   @DisplayName("콘텐츠 검색 인덱스 저장 실패 시 예외를 전파하지 않는다.")
   void index_success_when_repository_save_fails() {
     // Given
@@ -206,6 +226,112 @@ class ContentSearchIndexServiceTest {
     // Then
     verify(indexOperations).createWithMapping();
     verify(contentSearchRepository).saveAll(List.of(movieDocument, sportDocument));
+  }
+
+  @Test
+  @DisplayName("검색 인덱스가 존재하지만 문서가 없으면 전체 재색인한다.")
+  void rebuildAllIfEmpty_success_when_existing_index_has_no_documents() {
+    // Given
+    Content content = createContent();
+    ContentSearchDocument document = ContentSearchDocument.builder()
+        .id(content.getId().toString())
+        .build();
+    PageRequest pageRequest = PageRequest.of(
+        0,
+        500,
+        Sort.by(Sort.Direction.ASC, "id")
+    );
+
+    given(contentRepository.count()).willReturn(1L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(true);
+    given(contentSearchRepository.count()).willReturn(0L);
+    given(contentRepository.findAll(pageRequest))
+        .willReturn(new PageImpl<>(List.of(content), pageRequest, 1));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(content.getId())))
+        .willReturn(List.of(new TestContentTagNameProjection(content.getId(), "movie")));
+    given(contentSearchDocumentMapper.toDocument(content, List.of("movie")))
+        .willReturn(document);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(indexOperations, never()).delete();
+    verify(contentSearchRepository).saveAll(List.of(document));
+  }
+
+  @Test
+  @DisplayName("전체 재색인 대상이 여러 페이지이면 모든 페이지를 색인한다.")
+  void rebuildAllIfEmpty_success_with_multiple_pages() {
+    // Given
+    Content first = createContent();
+    Content second = createContent();
+    ContentSearchDocument firstDocument = ContentSearchDocument.builder()
+        .id(first.getId().toString())
+        .build();
+    ContentSearchDocument secondDocument = ContentSearchDocument.builder()
+        .id(second.getId().toString())
+        .build();
+    PageRequest firstPageRequest = PageRequest.of(
+        0,
+        500,
+        Sort.by(Sort.Direction.ASC, "id")
+    );
+    PageRequest secondPageRequest = PageRequest.of(
+        1,
+        500,
+        Sort.by(Sort.Direction.ASC, "id")
+    );
+
+    given(contentRepository.count()).willReturn(501L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(false);
+    given(indexOperations.createWithMapping()).willReturn(true);
+    given(contentRepository.findAll(firstPageRequest))
+        .willReturn(new PageImpl<>(List.of(first), firstPageRequest, 501));
+    given(contentRepository.findAll(secondPageRequest))
+        .willReturn(new PageImpl<>(List.of(second), secondPageRequest, 501));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(first.getId())))
+        .willReturn(List.of(new TestContentTagNameProjection(first.getId(), "movie")));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(second.getId())))
+        .willReturn(List.of(new TestContentTagNameProjection(second.getId(), "tvSeries")));
+    given(contentSearchDocumentMapper.toDocument(first, List.of("movie")))
+        .willReturn(firstDocument);
+    given(contentSearchDocumentMapper.toDocument(second, List.of("tvSeries")))
+        .willReturn(secondDocument);
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(contentSearchRepository).saveAll(List.of(firstDocument));
+    verify(contentSearchRepository).saveAll(List.of(secondDocument));
+  }
+
+  @Test
+  @DisplayName("전체 재색인 중 페이지 콘텐츠가 비어 있으면 태그 조회 없이 빈 목록을 색인한다.")
+  void rebuildAllIfEmpty_success_with_empty_rebuild_page() {
+    // Given
+    PageRequest pageRequest = PageRequest.of(
+        0,
+        500,
+        Sort.by(Sort.Direction.ASC, "id")
+    );
+
+    given(contentRepository.count()).willReturn(1L);
+    given(elasticsearchOperations.indexOps(ContentSearchDocument.class)).willReturn(indexOperations);
+    given(indexOperations.exists()).willReturn(false);
+    given(indexOperations.createWithMapping()).willReturn(true);
+    given(contentRepository.findAll(pageRequest))
+        .willReturn(new PageImpl<>(List.of(), pageRequest, 0));
+
+    // When
+    contentSearchIndexService.rebuildAllIfEmpty();
+
+    // Then
+    verify(contentTagRepository, never()).findTagNamesByContentIds(anyList());
+    verify(contentSearchRepository).saveAll(List.of());
   }
 
   @Test
@@ -343,6 +469,22 @@ class ContentSearchIndexServiceTest {
   void delete_success() {
     // Given
     UUID contentId = UUID.randomUUID();
+
+    // When
+    contentSearchIndexService.delete(contentId);
+
+    // Then
+    verify(contentSearchRepository).deleteById(contentId.toString());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 검색 인덱스 삭제 실패 시 예외를 전파하지 않는다.")
+  void delete_success_when_repository_delete_fails() {
+    // Given
+    UUID contentId = UUID.randomUUID();
+    willThrow(new RuntimeException("elasticsearch unavailable"))
+        .given(contentSearchRepository)
+        .deleteById(contentId.toString());
 
     // When
     contentSearchIndexService.delete(contentId);
