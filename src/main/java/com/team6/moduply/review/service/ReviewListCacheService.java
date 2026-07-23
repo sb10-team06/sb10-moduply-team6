@@ -47,6 +47,7 @@ public class ReviewListCacheService {
   @Transactional(readOnly = true)
   public CursorResponse<ReviewDto> findAll(ReviewSearchRequest request) {
     List<Review> reviews = reviewQDSLRepository.findAllWithCursor(request);
+    // 목록 조회 성능을 위해 실시간 count 쿼리 대신 Content의 비정규화된 reviewCount를 사용한다.
     long totalCount = contentRepository.findById(request.contentId())
         .map(Content::getReviewCount)
         .orElse(0);
