@@ -409,6 +409,241 @@ class ContentSearchServiceTest {
   }
 
   @Test
+  @DisplayName("태그 조건이 null이면 태그 필터 없이 검색한다.")
+  void search_success_without_tag_filter_when_tags_null() {
+    // Given
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(searchHits.getTotalHits()).willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        null,
+        "악마",
+        null,
+        null,
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    assertThat(queryCaptor.getValue().getQuery().bool().filter()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("커서는 있지만 idAfter가 없으면 search_after를 전달하지 않는다.")
+  void search_success_without_search_after_when_id_after_null() {
+    // Given
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(searchHits.getTotalHits()).willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|2026-07-21T00:00:00Z",
+        null,
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    assertThat(queryCaptor.getValue().getSearchAfter()).isNull();
+  }
+
+  @Test
+  @DisplayName("평점순 다음 페이지 조회 시 score, 평점, id를 search_after로 전달한다.")
+  void search_success_with_rate_search_after() {
+    // Given
+    UUID idAfter = UUID.randomUUID();
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of());
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(searchHits.getTotalHits()).willReturn(0L);
+
+    // When
+    contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|4.5",
+        idAfter,
+        20,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
+    verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
+    assertThat(queryCaptor.getValue().getSearchAfter())
+        .containsExactly(12.5, 4.5, idAfter.toString());
+  }
+
+  @Test
+  @DisplayName("다음 페이지 커서에서 score가 숫자가 아니면 예외를 던진다.")
+  void search_fail_with_invalid_score_cursor() {
+    // When & Then
+    assertThatThrownBy(() -> contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "invalid|2026-07-21T00:00:00Z",
+        UUID.randomUUID(),
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
+    verify(elasticsearchOperations, never()).search(any(NativeQuery.class), eq(ContentSearchDocument.class));
+  }
+
+  @Test
+  @DisplayName("최신순 다음 페이지 커서에서 날짜가 유효하지 않으면 예외를 던진다.")
+  void search_fail_with_invalid_created_at_cursor() {
+    // When & Then
+    assertThatThrownBy(() -> contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|invalid-date",
+        UUID.randomUUID(),
+        20,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
+    verify(elasticsearchOperations, never()).search(any(NativeQuery.class), eq(ContentSearchDocument.class));
+  }
+
+  @Test
+  @DisplayName("평점순 다음 페이지 커서에서 평점이 숫자가 아니면 예외를 던진다.")
+  void search_fail_with_invalid_rate_cursor() {
+    // When & Then
+    assertThatThrownBy(() -> contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|invalid-rate",
+        UUID.randomUUID(),
+        20,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
+    verify(elasticsearchOperations, never()).search(any(NativeQuery.class), eq(ContentSearchDocument.class));
+  }
+
+  @Test
+  @DisplayName("인기순 다음 페이지 커서 값 개수가 맞지 않으면 예외를 던진다.")
+  void search_fail_with_invalid_popularity_cursor_size() {
+    // When & Then
+    assertThatThrownBy(() -> contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|10",
+        UUID.randomUUID(),
+        20,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
+    verify(elasticsearchOperations, never()).search(any(NativeQuery.class), eq(ContentSearchDocument.class));
+  }
+
+  @Test
+  @DisplayName("인기순 다음 페이지 커서에서 리뷰 수가 숫자가 아니면 예외를 던진다.")
+  void search_fail_with_invalid_popularity_review_count_cursor() {
+    // When & Then
+    assertThatThrownBy(() -> contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        "12.5|invalid-count|4.5|2026-07-21T00:00:00Z",
+        UUID.randomUUID(),
+        20,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    )).isInstanceOf(ContentException.class);
+    verify(elasticsearchOperations, never()).search(any(NativeQuery.class), eq(ContentSearchDocument.class));
+  }
+
+  @Test
+  @DisplayName("검색 결과 정렬값이 부족하면 다음 페이지 커서를 비워서 반환한다.")
+  void search_success_with_empty_next_cursor_when_sort_values_missing() {
+    // Given
+    UUID firstContentId = UUID.randomUUID();
+    UUID secondContentId = UUID.randomUUID();
+    SearchHit<ContentSearchDocument> firstHit = searchHit(firstContentId, new Object[]{12.5});
+    SearchHit<ContentSearchDocument> secondHit = searchHit(secondContentId, new Object[]{10.0});
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of(firstHit, secondHit));
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(searchHits.getTotalHits()).willReturn(2L);
+
+    // When
+    ContentSearchResult result = contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        null,
+        null,
+        1,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextIdAfter()).isEqualTo(firstContentId);
+  }
+
+  @Test
+  @DisplayName("인기순 검색 결과 정렬값이 부족하면 다음 페이지 커서를 비워서 반환한다.")
+  void search_success_with_empty_popularity_next_cursor_when_sort_values_missing() {
+    // Given
+    UUID firstContentId = UUID.randomUUID();
+    UUID secondContentId = UUID.randomUUID();
+    SearchHit<ContentSearchDocument> firstHit = searchHit(firstContentId, new Object[]{12.5, 10, 4.5});
+    SearchHit<ContentSearchDocument> secondHit = searchHit(secondContentId, new Object[]{10.0, 8, 4.0});
+    SearchHits<ContentSearchDocument> searchHits = org.mockito.Mockito.mock(SearchHits.class);
+    given(searchHits.getSearchHits()).willReturn(List.of(firstHit, secondHit));
+    given(elasticsearchOperations.search(any(NativeQuery.class), eq(ContentSearchDocument.class)))
+        .willReturn(searchHits);
+    given(searchHits.getTotalHits()).willReturn(2L);
+
+    // When
+    ContentSearchResult result = contentSearchService.search(
+        null,
+        "악마",
+        List.of(),
+        null,
+        null,
+        1,
+        ContentSortBy.watcherCount,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isNull();
+    assertThat(result.nextIdAfter()).isEqualTo(firstContentId);
+  }
+
+  @Test
   @DisplayName("정렬 기준에 맞지 않는 커서 값이면 예외를 던진다.")
   void search_fail_with_invalid_cursor() {
     // When & Then
@@ -423,5 +658,25 @@ class ContentSearchServiceTest {
         SortDirection.DESCENDING
     )).isInstanceOf(ContentException.class);
     verify(elasticsearchOperations, never()).search(any(NativeQuery.class), eq(ContentSearchDocument.class));
+  }
+
+  private SearchHit<ContentSearchDocument> searchHit(UUID contentId, Object[] sortValues) {
+    ContentSearchDocument document = ContentSearchDocument.builder()
+        .id(contentId.toString())
+        .build();
+
+    return new SearchHit<>(
+        "contents",
+        contentId.toString(),
+        null,
+        1.0f,
+        sortValues,
+        null,
+        null,
+        null,
+        null,
+        null,
+        document
+    );
   }
 }
