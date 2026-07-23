@@ -12,16 +12,23 @@ import com.team6.moduply.notification.mapper.NotificationMapper;
 import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
 import com.team6.moduply.user.enums.Role;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+
+  private static final int MISSED_NOTIFICATIONS_PAGE_SIZE = 100;
+  private static final int MAX_MISSED_NOTIFICATIONS = 1000; // 어뷰징(무한 오프라인) 방지용 상한
 
   private final NotificationRepository notificationRepository;
   private final NotificationQDSLRepository notificationQDSLRepository;
@@ -31,11 +38,11 @@ public class NotificationService {
   @Transactional
   public void markAsRead(UUID notificationId, UUID receiverId) {
     Notification notification = notificationRepository
-        .findByIdAndReceiverId(notificationId, receiverId)
-        .orElseThrow(() -> new NotificationException(
-            NotificationErrorCode.NOTIFICATION_NOT_FOUND,
-            Map.of("notificationId", notificationId)
-        ));
+            .findByIdAndReceiverId(notificationId, receiverId)
+            .orElseThrow(() -> new NotificationException(
+                    NotificationErrorCode.NOTIFICATION_NOT_FOUND,
+                    Map.of("notificationId", notificationId)
+            ));
 
     notification.markAsRead();
   }
@@ -44,39 +51,39 @@ public class NotificationService {
   @Transactional
   public NotificationDto sendPlaylistSubscribedNotification(UUID receiverId, String subscriberName, String playlistTitle) {
     Notification notification = Notification.builder()
-        .receiverId(receiverId)
-        .type(NotificationType.PLAYLIST_SUBSCRIBED)
-        .title(NotificationType.PLAYLIST_SUBSCRIBED.getTitle())
-        .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), subscriberName, playlistTitle))
-        .level(NotificationLevel.INFO)
-        .build();
+            .receiverId(receiverId)
+            .type(NotificationType.PLAYLIST_SUBSCRIBED)
+            .title(NotificationType.PLAYLIST_SUBSCRIBED.getTitle())
+            .content(String.format(NotificationType.PLAYLIST_SUBSCRIBED.getMessageTemplate(), subscriberName, playlistTitle))
+            .level(NotificationLevel.INFO)
+            .build();
     Notification saved = notificationRepository.save(notification);
     return notificationMapper.toDto(saved);
   }
 
   @Transactional
   public List<NotificationDto> sendContentAddedNotification(List<UUID> receiverIds,
-      String playlistTitle, String contentTitle) {
+                                                            String playlistTitle, String contentTitle) {
     List<Notification> notifications = receiverIds.stream()
-        .map(receiverId -> Notification.builder()
-            .receiverId(receiverId)
-            .type(NotificationType.CONTENT_ADDED)
-            .title(NotificationType.CONTENT_ADDED.getTitle())
-            .content(
-                String.format(NotificationType.CONTENT_ADDED.getMessageTemplate(), playlistTitle,
-                    contentTitle))
-            .level(NotificationLevel.INFO)
-            .build())
-        .toList();
+            .map(receiverId -> Notification.builder()
+                    .receiverId(receiverId)
+                    .type(NotificationType.CONTENT_ADDED)
+                    .title(NotificationType.CONTENT_ADDED.getTitle())
+                    .content(
+                            String.format(NotificationType.CONTENT_ADDED.getMessageTemplate(), playlistTitle,
+                                    contentTitle))
+                    .level(NotificationLevel.INFO)
+                    .build())
+            .toList();
     List<Notification> saved = notificationRepository.saveAll(notifications);
     return saved.stream().map(notificationMapper::toDto).toList();
   }
 
   @Transactional(readOnly = true)
   public CursorResponse<NotificationDto> findAll(NotificationSearchRequest request,
-      UUID receiverId) {
+                                                 UUID receiverId) {
     List<Notification> notifications = notificationQDSLRepository.findAllWithCursor(request,
-        receiverId);
+            receiverId);
     long totalCount = notificationQDSLRepository.countWithCondition(receiverId);
 
     boolean hasNext = notifications.size() > request.limit();
@@ -95,17 +102,17 @@ public class NotificationService {
     }
 
     List<NotificationDto> data = notifications.stream()
-        .map(notificationMapper::toDto)
-        .toList();
+            .map(notificationMapper::toDto)
+            .toList();
 
     return new CursorResponse<>(
-        data,
-        nextCursor,
-        nextIdAfter,
-        hasNext,
-        totalCount,
-        request.sortBy().name(),
-        request.sortDirection()
+            data,
+            nextCursor,
+            nextIdAfter,
+            hasNext,
+            totalCount,
+            request.sortBy().name(),
+            request.sortDirection()
     );
   }
 
@@ -113,12 +120,12 @@ public class NotificationService {
   @Transactional
   public NotificationDto sendFollowedNotification(UUID receiverId, String followerName) {
     Notification notification = Notification.builder()
-        .receiverId(receiverId)
-        .type(NotificationType.FOLLOWED)
-        .title(NotificationType.FOLLOWED.getTitle())
-        .content(String.format(NotificationType.FOLLOWED.getMessageTemplate(), followerName))
-        .level(NotificationLevel.INFO)
-        .build();
+            .receiverId(receiverId)
+            .type(NotificationType.FOLLOWED)
+            .title(NotificationType.FOLLOWED.getTitle())
+            .content(String.format(NotificationType.FOLLOWED.getMessageTemplate(), followerName))
+            .level(NotificationLevel.INFO)
+            .build();
     Notification saved = notificationRepository.save(notification);
     return notificationMapper.toDto(saved);
   }
@@ -126,52 +133,82 @@ public class NotificationService {
   @Transactional
   public NotificationDto sendDmReceivedNotification(UUID receiverId, String senderName, String content) {
     Notification notification = Notification.builder()
-        .receiverId(receiverId)
-        .type(NotificationType.DM_RECEIVED)
-        .title(String.format(NotificationType.DM_RECEIVED.getTitle(), senderName))
-        .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), content))
-        .level(NotificationLevel.INFO)
-        .build();
+            .receiverId(receiverId)
+            .type(NotificationType.DM_RECEIVED)
+            .title(String.format(NotificationType.DM_RECEIVED.getTitle(), senderName))
+            .content(String.format(NotificationType.DM_RECEIVED.getMessageTemplate(), content))
+            .level(NotificationLevel.INFO)
+            .build();
     Notification saved = notificationRepository.save(notification);
     return notificationMapper.toDto(saved);
   }
 
   @Transactional
   public List<NotificationDto> sendFollowActivityNotification(
-      List<UUID> receiverIds,
-      String actorName,
-      String activityContent
+          List<UUID> receiverIds,
+          String actorName,
+          String activityContent
   ) {
     List<Notification> notifications = receiverIds.stream()
-        .map(receiverId -> Notification.builder()
-            .receiverId(receiverId)
-            .type(NotificationType.FOLLOW_ACTIVITY)
-            .title(NotificationType.FOLLOW_ACTIVITY.getTitle())
-            .content(String.format(
-                NotificationType.FOLLOW_ACTIVITY.getMessageTemplate(),
-                actorName,
-                activityContent
-            ))
-            .level(NotificationLevel.INFO)
-            .build())
-        .toList();
+            .map(receiverId -> Notification.builder()
+                    .receiverId(receiverId)
+                    .type(NotificationType.FOLLOW_ACTIVITY)
+                    .title(NotificationType.FOLLOW_ACTIVITY.getTitle())
+                    .content(String.format(
+                            NotificationType.FOLLOW_ACTIVITY.getMessageTemplate(),
+                            actorName,
+                            activityContent
+                    ))
+                    .level(NotificationLevel.INFO)
+                    .build())
+            .toList();
     List<Notification> saved = notificationRepository.saveAll(notifications);
     return saved.stream()
-        .map(notificationMapper::toDto)
-        .toList();
+            .map(notificationMapper::toDto)
+            .toList();
   }
 
   @Transactional
   public NotificationDto sendRoleUpdatedNotification(UUID receiverId, Role oldRole, Role newRole) {
     Notification notification = Notification.builder()
-        .receiverId(receiverId)
-        .type(NotificationType.ROLE_CHANGED)
-        .title(NotificationType.ROLE_CHANGED.getTitle())
-        .content(
-            String.format(NotificationType.ROLE_CHANGED.getMessageTemplate(), oldRole, newRole))
-        .level(NotificationLevel.INFO)
-        .build();
+            .receiverId(receiverId)
+            .type(NotificationType.ROLE_CHANGED)
+            .title(NotificationType.ROLE_CHANGED.getTitle())
+            .content(
+                    String.format(NotificationType.ROLE_CHANGED.getMessageTemplate(), oldRole, newRole))
+            .level(NotificationLevel.INFO)
+            .build();
     Notification saved = notificationRepository.save(notification);
     return notificationMapper.toDto(saved);
+  }
+
+  /// 유실된 알림 재전송
+  @Transactional(readOnly = true)
+  public List<NotificationDto> findMissedNotifications(UUID receiverId, Instant lastCreatedAt, UUID lastId) {
+    List<NotificationDto> result = new ArrayList<>();
+    Instant cursorCreatedAt = lastCreatedAt;
+    UUID cursorId = lastId;
+
+    while (result.size() < MAX_MISSED_NOTIFICATIONS) {
+      Slice<Notification> slice = notificationRepository.findMissedNotifications(
+              receiverId, cursorCreatedAt, cursorId,
+              PageRequest.of(0, MISSED_NOTIFICATIONS_PAGE_SIZE));
+
+      List<Notification> content = slice.getContent();
+      if (content.isEmpty()) {
+        break;
+      }
+
+      content.forEach(n -> result.add(notificationMapper.toDto(n)));
+
+      Notification last = content.get(content.size() - 1);
+      cursorCreatedAt = last.getCreatedAt();
+      cursorId = last.getId();
+
+      if (!slice.hasNext()) {
+        break;
+      }
+    }
+    return result;
   }
 }
