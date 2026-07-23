@@ -35,7 +35,7 @@ spring:
       group-id: moduply-test-group-${random.uuid}
       auto-offset-reset: earliest
     listener:
-      auto-startup: false
+      auto-startup: true
     #  컨테이너 종료 시 커넥션 대기 시간 최솟값으로 단축
     properties:
       max.block.ms: 1000
