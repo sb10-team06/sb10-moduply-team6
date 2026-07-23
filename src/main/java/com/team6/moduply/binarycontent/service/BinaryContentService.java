@@ -69,6 +69,79 @@ public class BinaryContentService {
 
   }
 
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public UploadedUserProfile uploadUserProfile(UUID userId, MultipartFile image) throws IOException {
+    log.debug("프로필 이미지 동기 업로드 시작. userId={}, fileName={}, size={}, contentType={}",
+        userId,
+        image != null ? image.getOriginalFilename() : null,
+        image != null ? image.getSize() : null,
+        image != null ? image.getContentType() : null);
+
+    validateImage(image);
+
+    String storageKey = createUserProfileStorageKey(userId, image.getOriginalFilename());
+    binaryContentStorage.upload(storageKey, image.getBytes(), image.getContentType());
+
+    log.info("프로필 이미지 S3 동기 업로드 완료. userId={}, fileName={}, size={}, storageKey={}",
+        userId,
+        image.getOriginalFilename(),
+        image.getSize(),
+        storageKey);
+
+    return new UploadedUserProfile(
+        image.getOriginalFilename(),
+        image.getSize(),
+        image.getContentType(),
+        storageKey
+    );
+  }
+
+  public BinaryContent createUploadedUserProfile(
+      UploadedUserProfile uploaded,
+      BinaryContent oldProfileImg
+  ) {
+    BinaryContent binaryContent = BinaryContent.create(
+        uploaded.fileName(),
+        uploaded.size(),
+        uploaded.contentType(),
+        uploaded.storageKey()
+    );
+    BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
+    savedBinaryContent.success();
+
+    if (oldProfileImg != null) {
+      eventPublisher.publishEvent(new BinaryContentDeletedEvent(
+          oldProfileImg.getId(),
+          oldProfileImg.getStorageKey()
+      ));
+    }
+
+    log.info("프로필 이미지 메타데이터 저장 완료: id={}, fileName={}, size={}, storageKey={}",
+        savedBinaryContent.getId(),
+        savedBinaryContent.getFileName(),
+        savedBinaryContent.getSize(),
+        savedBinaryContent.getStorageKey());
+
+    return savedBinaryContent;
+  }
+
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public void deleteUploadedFileQuietly(String storageKey) {
+    try {
+      binaryContentStorage.delete(storageKey);
+    } catch (RuntimeException e) {
+      log.warn("업로드 파일 보상 삭제에 실패했습니다. storageKey={}", storageKey, e);
+    }
+  }
+
+  public record UploadedUserProfile(
+      String fileName,
+      Long size,
+      String contentType,
+      String storageKey
+  ) {
+  }
+
   private BinaryContent createUserProfileSync(
       MultipartFile image,
       String storageKey,

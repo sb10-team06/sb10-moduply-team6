@@ -236,6 +236,20 @@ class TmdbClientTest {
   }
 
   @Test
+  @DisplayName("TMDB 이미지 경로가 슬래시로 시작하지 않아도 이미지 URL 생성에 성공한다.")
+  void buildImageUrl_success_with_image_path_without_leading_slash() {
+    // Given
+    String imagePath = "poster.jpg";
+    String size = "w500";
+
+    // When
+    String imageUrl = tmdbClient.buildImageUrl(imagePath, size);
+
+    // Then
+    assertThat(imageUrl).isEqualTo("https://image.tmdb.org/t/p/w500/poster.jpg");
+  }
+
+  @Test
   @DisplayName("TMDB 이미지 경로가 비어 있으면 이미지 URL 생성 결과로 null을 반환한다.")
   void buildImageUrl_success_with_blank_image_path() {
     // Given
@@ -274,6 +288,29 @@ class TmdbClientTest {
         .andExpect(method(HttpMethod.GET))
         .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
         .andRespond(withServerError());
+
+    // When & Then
+    assertThatThrownBy(() -> tmdbClient.fetchDiscoverMovies(1))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
+        );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("TMDB Discover 응답 본문이 없으면 ContentException으로 변환한다.")
+  void fetchDiscoverMovies_fail_when_response_body_is_empty() {
+    // Given
+    server.expect(once(), requestTo(
+            "https://api.themoviedb.org/3/discover/movie?language=ko-KR&page=1"
+                + "&include_adult=false&include_video=false&sort_by=primary_release_date.desc"
+                + "&region=KR&certification_country=KR&certification.lte=15"
+                + "&vote_count.gte=10"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-token"))
+        .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
 
     // When & Then
     assertThatThrownBy(() -> tmdbClient.fetchDiscoverMovies(1))
