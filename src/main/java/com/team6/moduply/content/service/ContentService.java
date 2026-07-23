@@ -25,6 +25,9 @@ import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.ContentTagRepository.ContentTagNameProjection;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.search.service.ContentSearchIndexService;
+import com.team6.moduply.content.search.service.ContentSearchService;
+import com.team6.moduply.content.search.service.ContentSearchService.ContentSearchResult;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository.ReviewStats;
 import com.team6.moduply.watching.repository.WatchingSessionRepository;
@@ -45,6 +48,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -63,6 +67,8 @@ public class ContentService {
   private final ContentDetailCacheService contentDetailCacheService;
   private final ReviewQDSLRepository reviewQDSLRepository;
   private final WatchingSessionRepository watchingSessionRepository;
+  private final ContentSearchIndexService contentSearchIndexService;
+  private final ContentSearchService contentSearchService;
 
   @PreAuthorize("hasRole('ADMIN')")
   @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true)
@@ -96,6 +102,9 @@ public class ContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
+
+    contentSearchIndexService.index(savedContent, tagNames);
+
     ContentDto response = withCurrentWatcherCount(
         contentMapper.toDto(savedContent, thumbnailUrl, tagNames),
         savedContent.getId()
@@ -132,6 +141,7 @@ public class ContentService {
     }
 
     List<String> tagNames = updateTagsIfPresent(content, request.tags());
+    contentSearchIndexService.index(content, tagNames);
 
     ContentDto response = toDto(content, tagNames);
 
@@ -161,6 +171,7 @@ public class ContentService {
     }
 
     contentRepository.delete(content);
+    contentSearchIndexService.delete(contentId);
 
     if (contentImg != null) {
       binaryContentService.delete(contentImg.getId());
@@ -169,7 +180,6 @@ public class ContentService {
     log.debug("콘텐츠 삭제 처리 완료: contentId={}", contentId);
   }
 
-  @Transactional(readOnly = true)
   public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
     List<String> normalizedTagsIn = normalizeTags(request.tagsIn());
 
@@ -184,6 +194,18 @@ public class ContentService {
         request.sortBy(),
         request.sortDirection()
     );
+
+    if (StringUtils.hasText(request.keywordLike())) {
+      try {
+        return findAllBySearchIndex(request, normalizedTagsIn);
+      } catch (Exception e) {
+        // ES 인덱스가 비어 있거나 장애가 나도 기본 검색은 동작하도록 기존 DB 검색으로 보조 처리한다.
+        log.warn("Elasticsearch 콘텐츠 검색 실패. QueryDSL 검색으로 대체합니다. keyword={}",
+            request.keywordLike(), e);
+        ContentFindAllRequest fallbackRequest = resetCursor(request);
+        return findAllByDatabase(fallbackRequest, normalizedTagsIn, request.keywordLike());
+      }
+    }
 
     /// 최신순(createdAt) 정렬이라면 contentListCacheService.findCreatedAtPage 호출
     if (request.sortBy() == ContentSortBy.createdAt) {
@@ -203,9 +225,17 @@ public class ContentService {
       return response;
     }
 
+    return findAllByDatabase(request, normalizedTagsIn, null);
+  }
+
+  private CursorResponse<ContentDto> findAllByDatabase(
+      ContentFindAllRequest request,
+      List<String> normalizedTagsIn,
+      String keywordLike
+  ) {
     List<Content> contents = contentRepository.findAllByCursor(
         request.typeEqual(),
-        request.keywordLike(),
+        keywordLike,
         normalizedTagsIn,
         request.cursor(),
         request.idAfter(),
@@ -232,7 +262,7 @@ public class ContentService {
         ? pageContents.size()
         : contentRepository.countContents(
             request.typeEqual(),
-            request.keywordLike(),
+            keywordLike,
             normalizedTagsIn
         );
 
@@ -249,6 +279,59 @@ public class ContentService {
     log.debug("콘텐츠 목록 조회 처리 완료: count={}, hasNext={}", data.size(), hasNext);
 
     return response;
+  }
+
+  private CursorResponse<ContentDto> findAllBySearchIndex(
+      ContentFindAllRequest request,
+      List<String> normalizedTagsIn
+  ) {
+    ContentSearchResult searchResult = contentSearchService.search(
+        request.typeEqual(),
+        request.keywordLike(),
+        normalizedTagsIn,
+        request.cursor(),
+        request.idAfter(),
+        request.limit(),
+        request.sortBy(),
+        request.sortDirection()
+    );
+
+    List<Content> pageContents = sortBySearchResultOrder(
+        contentRepository.findAllByIdIn(searchResult.contentIds()),
+        searchResult.contentIds()
+    );
+    Map<UUID, List<String>> tagNamesByContentId = getTagNamesGroupedByContentId(pageContents);
+    Map<UUID, Long> watcherCountsByContentId = getWatcherCountsByContentId(pageContents);
+    List<ContentDto> data = pageContents.stream()
+        .map(content -> toDto(
+            content,
+            tagNamesByContentId.getOrDefault(content.getId(), List.of()),
+            watcherCountsByContentId.getOrDefault(content.getId(), 0L)
+        ))
+        .toList();
+
+    return new CursorResponse<>(
+        data,
+        searchResult.hasNext() ? searchResult.nextCursor() : null,
+        searchResult.hasNext() ? searchResult.nextIdAfter() : null,
+        searchResult.hasNext(),
+        searchResult.totalCount(),
+        request.sortBy().name(),
+        request.sortDirection()
+    );
+  }
+
+  private ContentFindAllRequest resetCursor(ContentFindAllRequest request) {
+    return new ContentFindAllRequest(
+        request.typeEqual(),
+        request.keywordLike(),
+        request.tagsIn(),
+        null,
+        null,
+        request.limit(),
+        request.sortBy(),
+        request.sortDirection()
+    );
   }
 
   @Transactional(readOnly = true)
@@ -283,6 +366,11 @@ public class ContentService {
     content.updateReviewStats(
         BigDecimal.valueOf(stats.averageRating()).setScale(2, RoundingMode.HALF_UP),
         Math.toIntExact(stats.reviewCount())
+    );
+
+    contentSearchIndexService.index(
+        content,
+        contentTagRepository.findTagNamesByContentId(contentId)
     );
   }
 
@@ -406,6 +494,16 @@ public class ContentService {
             ContentTagNameProjection::getContentId,
             Collectors.mapping(ContentTagNameProjection::getTagName, Collectors.toList())
         ));
+  }
+
+  private List<Content> sortBySearchResultOrder(List<Content> contents, List<UUID> orderedIds) {
+    Map<UUID, Content> contentById = contents.stream()
+        .collect(Collectors.toMap(Content::getId, Function.identity()));
+
+    return orderedIds.stream()
+        .map(contentById::get)
+        .filter(content -> content != null)
+        .toList();
   }
 
   private ContentDto toDto(Content content, List<String> tagNames) {

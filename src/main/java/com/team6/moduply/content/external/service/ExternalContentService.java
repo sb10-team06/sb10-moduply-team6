@@ -16,6 +16,7 @@ import com.team6.moduply.content.external.tmdb.dto.TmdbTvResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.search.service.ContentSearchIndexService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -44,6 +45,7 @@ public class ExternalContentService {
   private final ExternalImageClient externalImageClient;
   private final BinaryContentService binaryContentService;
   private final TransactionTemplate transactionTemplate;
+  private final ContentSearchIndexService contentSearchIndexService;
 
   public ExternalContentImportResult importTmdbMovies(List<TmdbMovieResponse> responses) {
     List<ExternalContentItem> items = emptyIfNull(responses).stream()
@@ -130,7 +132,8 @@ public class ExternalContentService {
         .toList();
 
     List<Content> savedContents = contentRepository.saveAll(contents);
-    saveContentTags(savedContents, itemByExternalApiId);
+    Map<UUID, List<String>> tagNamesByContentId = saveContentTags(savedContents, itemByExternalApiId);
+    contentSearchIndexService.indexAll(savedContents, tagNamesByContentId);
 
     return savedContents;
   }
@@ -183,16 +186,23 @@ public class ExternalContentService {
     return new ExternalImageSaveResult(imageSavedCount, imageFailedCount);
   }
 
-  private void saveContentTags(
+  private Map<UUID, List<String>> saveContentTags(
       List<Content> contents,
       Map<String, ExternalContentItem> itemByExternalApiId
   ) {
     Map<String, Tag> tagByName = getOrCreateTagsByName(itemByExternalApiId.values());
+    Map<UUID, List<String>> tagNamesByContentId = contents.stream()
+        .collect(Collectors.toMap(
+            Content::getId,
+            content -> normalizeTags(itemByExternalApiId.get(content.getExternalApiId()).tags()),
+            (first, second) -> first,
+            LinkedHashMap::new
+        ));
 
     List<ContentTag> contentTags = contents.stream()
         .flatMap(content -> {
           ExternalContentItem item = itemByExternalApiId.get(content.getExternalApiId());
-          return normalizeTags(item.tags()).stream()
+          return tagNamesByContentId.getOrDefault(content.getId(), List.of()).stream()
               .map(tagByName::get)
               .map(tag -> new ContentTag(content, tag));
         })
@@ -201,6 +211,8 @@ public class ExternalContentService {
     if (!contentTags.isEmpty()) {
       contentTagRepository.saveAll(contentTags);
     }
+
+    return tagNamesByContentId;
   }
 
   private Map<String, Tag> getOrCreateTagsByName(Collection<ExternalContentItem> items) {

@@ -7,11 +7,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.binarycontent.service.BinaryContentService.UploadedUserProfile;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -36,6 +38,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,6 +52,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -71,8 +78,25 @@ public class UserServiceTest {
   @Mock
   private ApplicationEventPublisher applicationEventPublisher;
 
+  @Mock
+  private TransactionTemplate transactionTemplate;
+
   @InjectMocks
   private UserService userService;
+
+  @BeforeEach
+  void setUp() {
+    lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
+        .thenAnswer(invocation -> {
+          TransactionCallback<?> callback = invocation.getArgument(0);
+          return callback.doInTransaction(null);
+        });
+    lenient().doAnswer(invocation -> {
+      Consumer<TransactionStatus> callback = invocation.getArgument(0);
+      callback.accept(null);
+      return null;
+    }).when(transactionTemplate).executeWithoutResult(any());
+  }
 
   @Test
   @DisplayName("비밀번호를 인코딩하여 회원가입 성공")
@@ -361,7 +385,7 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(binaryContentService, never())
-        .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
+        .uploadUserProfile(any(UUID.class), any(MultipartFile.class));
     verify(userMapper).toDto(user, null);
   }
 
@@ -398,7 +422,7 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(binaryContentService, never())
-        .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
+        .uploadUserProfile(any(UUID.class), any(MultipartFile.class));
     verify(binaryContentService).generateUrl(existingProfileImg);
     verify(userMapper).toDto(user, existingProfileImageUrl);
   }
@@ -422,12 +446,20 @@ public class UserServiceTest {
         profileImg.getContentType(),
         "users/" + userId + "/profile.png"
     );
+    UploadedUserProfile uploadedProfile = new UploadedUserProfile(
+        "profile.png",
+        profileImg.getSize(),
+        profileImg.getContentType(),
+        "users/" + userId + "/profile.png"
+    );
     String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
     UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
         profileImageUrl, Role.USER, false);
 
+    given(userRepository.existsById(userId)).willReturn(true);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.createUserProfile(any(UUID.class), any(MultipartFile.class), any()))
+    given(binaryContentService.uploadUserProfile(userId, profileImg)).willReturn(uploadedProfile);
+    given(binaryContentService.createUploadedUserProfile(uploadedProfile, null))
         .willReturn(newProfileImg);
     given(binaryContentService.generateUrl(newProfileImg)).willReturn(profileImageUrl);
     given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
@@ -440,8 +472,10 @@ public class UserServiceTest {
     assertThat(response.getProfileImageUrl()).isEqualTo(profileImageUrl);
     assertThat(user.getProfileImg()).isEqualTo(newProfileImg);
 
+    verify(userRepository).existsById(userId);
     verify(userRepository).findById(userId);
-    verify(binaryContentService).createUserProfile(userId, profileImg, null);
+    verify(binaryContentService).uploadUserProfile(userId, profileImg);
+    verify(binaryContentService).createUploadedUserProfile(uploadedProfile, null);
     verify(binaryContentService).generateUrl(newProfileImg);
     verify(userMapper).toDto(user, profileImageUrl);
   }
@@ -473,12 +507,20 @@ public class UserServiceTest {
         profileImg.getContentType(),
         "users/" + userId + "/profile.png"
     );
+    UploadedUserProfile uploadedProfile = new UploadedUserProfile(
+        "profile.png",
+        profileImg.getSize(),
+        profileImg.getContentType(),
+        "users/" + userId + "/profile.png"
+    );
     String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
     UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
         profileImageUrl, Role.USER, false);
 
+    given(userRepository.existsById(userId)).willReturn(true);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.createUserProfile(userId, profileImg, oldProfileImg))
+    given(binaryContentService.uploadUserProfile(userId, profileImg)).willReturn(uploadedProfile);
+    given(binaryContentService.createUploadedUserProfile(uploadedProfile, oldProfileImg))
         .willReturn(newProfileImg);
     given(binaryContentService.generateUrl(newProfileImg)).willReturn(profileImageUrl);
     given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
@@ -491,8 +533,10 @@ public class UserServiceTest {
     assertThat(response.getProfileImageUrl()).isEqualTo(profileImageUrl);
     assertThat(user.getProfileImg()).isEqualTo(newProfileImg);
 
+    verify(userRepository).existsById(userId);
     verify(userRepository).findById(userId);
-    verify(binaryContentService).createUserProfile(userId, profileImg, oldProfileImg);
+    verify(binaryContentService).uploadUserProfile(userId, profileImg);
+    verify(binaryContentService).createUploadedUserProfile(uploadedProfile, oldProfileImg);
     verify(binaryContentService, never()).generateUrl(oldProfileImg);
     verify(binaryContentService).generateUrl(newProfileImg);
     verify(userMapper).toDto(user, profileImageUrl);
@@ -512,8 +556,8 @@ public class UserServiceTest {
         "image".getBytes()
     );
 
-    given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.createUserProfile(any(UUID.class), any(MultipartFile.class), any()))
+    given(userRepository.existsById(userId)).willReturn(true);
+    given(binaryContentService.uploadUserProfile(any(UUID.class), any(MultipartFile.class)))
         .willThrow(new IOException("upload failed"));
 
     // When & Then
@@ -524,8 +568,9 @@ public class UserServiceTest {
           assertThat(exception.getDetails().get("reason")).isEqualTo("프로필 이미지 업로드에 실패했습니다.");
         });
 
-    verify(userRepository).findById(userId);
-    verify(binaryContentService).createUserProfile(userId, profileImg, null);
+    verify(userRepository).existsById(userId);
+    verify(userRepository, never()).findById(userId);
+    verify(binaryContentService).uploadUserProfile(userId, profileImg);
     verify(binaryContentService, never()).generateUrl(any(BinaryContent.class));
     verify(userMapper, never()).toDto(any(User.class), any());
   }
@@ -548,7 +593,7 @@ public class UserServiceTest {
 
     verify(userRepository).findById(userId);
     verify(binaryContentService, never())
-        .createUserProfile(any(UUID.class), any(MultipartFile.class), any());
+        .uploadUserProfile(any(UUID.class), any(MultipartFile.class));
     verify(userMapper, never()).toDto(any(User.class), any());
   }
 
