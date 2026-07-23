@@ -25,8 +25,10 @@ import com.team6.moduply.content.external.dto.ExternalContentImportResult;
 import com.team6.moduply.content.external.dto.ExternalImageFile;
 import com.team6.moduply.content.external.image.ExternalImageClient;
 import com.team6.moduply.content.external.mapper.ExternalContentMapper;
+import com.team6.moduply.content.external.sportsdb.dto.SportsDbEventResponse;
 import com.team6.moduply.content.external.tmdb.TmdbProperties;
 import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
+import com.team6.moduply.content.external.tmdb.dto.TmdbTvResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
@@ -224,6 +226,120 @@ class ExternalContentServiceTest {
     ArgumentCaptor<List<ContentTag>> contentTagCaptor = ArgumentCaptor.forClass(List.class);
     verify(contentTagRepository).saveAll(contentTagCaptor.capture());
     assertThat(contentTagCaptor.getValue()).hasSize(6);
+  }
+
+  @Test
+  @DisplayName("TMDB TV 시리즈 수집 시 새 콘텐츠를 저장하고 검색 인덱스에 반영한다.")
+  void importTmdbTvSeries_success_with_new_external_contents() {
+    // Given
+    TmdbTvResponse tvSeries = new TmdbTvResponse(
+        1399L,
+        "Game of Thrones",
+        "Seven noble families fight for control.",
+        null,
+        null,
+        "2011-04-17"
+    );
+    Tag tmdbTag = new Tag("TMDB");
+    Tag tvSeriesTag = new Tag("tvSeries");
+
+    given(contentRepository.findAllByExternalApiIdIn(anyCollection()))
+        .willReturn(List.of());
+    given(contentRepository.saveAll(anyList()))
+        .willAnswer(invocation -> {
+          @SuppressWarnings("unchecked")
+          List<Content> contents = invocation.getArgument(0);
+          contents.forEach(content -> ReflectionTestUtils.setField(content, "id", UUID.randomUUID()));
+          return contents;
+        });
+    given(tagRepository.findAllByTagNameIn(anyCollection()))
+        .willReturn(List.of())
+        .willReturn(List.of(tmdbTag, tvSeriesTag));
+
+    // When
+    ExternalContentImportResult result = externalContentService.importTmdbTvSeries(List.of(tvSeries));
+
+    // Then
+    assertThat(result.requestedCount()).isEqualTo(1);
+    assertThat(result.savedCount()).isEqualTo(1);
+    assertThat(result.skippedCount()).isZero();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Content>> contentCaptor = ArgumentCaptor.forClass(List.class);
+    verify(contentRepository).saveAll(contentCaptor.capture());
+    Content savedContent = contentCaptor.getValue().get(0);
+    assertThat(savedContent.getExternalApiId()).isEqualTo("tmdb:tv:1399");
+    assertThat(savedContent.getType()).isEqualTo(ContentType.tvSeries);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<UUID, List<String>>> indexedTagsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(contentSearchIndexService).indexAll(anyList(), indexedTagsCaptor.capture());
+    assertThat(indexedTagsCaptor.getValue())
+        .containsEntry(savedContent.getId(), List.of("TMDB", "tvSeries"));
+  }
+
+  @Test
+  @DisplayName("Sports DB 경기 수집 시 태그를 정규화하여 새 콘텐츠를 저장한다.")
+  void importSportsEvents_success_with_normalized_tags() {
+    // Given
+    SportsDbEventResponse event = new SportsDbEventResponse(
+        "441613",
+        "Arsenal vs Chelsea",
+        "Premier League match.",
+        null,
+        "Soccer",
+        "English Premier League",
+        "2026-07-01"
+    );
+    Tag sportsDbTag = new Tag("SportsDB");
+    Tag soccerTag = new Tag("Soccer");
+    Tag leagueTag = new Tag("English Premier League");
+
+    given(contentRepository.findAllByExternalApiIdIn(anyCollection()))
+        .willReturn(List.of());
+    given(contentRepository.saveAll(anyList()))
+        .willAnswer(invocation -> {
+          @SuppressWarnings("unchecked")
+          List<Content> contents = invocation.getArgument(0);
+          contents.forEach(content -> ReflectionTestUtils.setField(content, "id", UUID.randomUUID()));
+          return contents;
+        });
+    given(tagRepository.findAllByTagNameIn(anyCollection()))
+        .willReturn(List.of())
+        .willReturn(List.of(sportsDbTag, soccerTag, leagueTag));
+
+    // When
+    ExternalContentImportResult result = externalContentService.importSportsEvents(List.of(event));
+
+    // Then
+    assertThat(result.requestedCount()).isEqualTo(1);
+    assertThat(result.savedCount()).isEqualTo(1);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Content>> contentCaptor = ArgumentCaptor.forClass(List.class);
+    verify(contentRepository).saveAll(contentCaptor.capture());
+    Content savedContent = contentCaptor.getValue().get(0);
+    assertThat(savedContent.getExternalApiId()).isEqualTo("sportsdb:event:441613");
+    assertThat(savedContent.getType()).isEqualTo(ContentType.sport);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<UUID, List<String>>> indexedTagsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(contentSearchIndexService).indexAll(anyList(), indexedTagsCaptor.capture());
+    assertThat(indexedTagsCaptor.getValue())
+        .containsEntry(savedContent.getId(), List.of("SportsDB", "Soccer", "English Premier League"));
+  }
+
+  @Test
+  @DisplayName("외부 콘텐츠 응답이 null이면 저장 작업을 수행하지 않는다.")
+  void importTmdbMovies_success_with_null_response() {
+    // When
+    ExternalContentImportResult result = externalContentService.importTmdbMovies(null);
+
+    // Then
+    assertThat(result.requestedCount()).isZero();
+    assertThat(result.savedCount()).isZero();
+    assertThat(result.skippedCount()).isZero();
+    verify(contentRepository, never()).findAllByExternalApiIdIn(anyCollection());
   }
 
   @Test
