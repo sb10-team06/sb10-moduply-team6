@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -54,6 +55,7 @@ public class ContentSearchIndexService {
     runAfterCommit(() -> deleteDocument(contentId));
   }
 
+  @Transactional(readOnly = true)
   public void rebuildAllIfEmpty() {
     long contentCount = contentRepository.count();
     IndexStatus indexStatus = getIndexStatus();

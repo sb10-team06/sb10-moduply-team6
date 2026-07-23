@@ -180,7 +180,6 @@ public class ContentService {
     log.debug("콘텐츠 삭제 처리 완료: contentId={}", contentId);
   }
 
-  @Transactional(readOnly = true)
   public CursorResponse<ContentDto> findAll(ContentFindAllRequest request) {
     List<String> normalizedTagsIn = normalizeTags(request.tagsIn());
 
