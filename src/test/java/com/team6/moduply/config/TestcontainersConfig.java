@@ -4,10 +4,9 @@ import java.time.Duration;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @TestConfiguration(proxyBeanMethods = false)
@@ -22,9 +21,14 @@ public class TestcontainersConfig {
       .withExposedPorts(6379)
       .withStartupTimeout(Duration.ofSeconds(120));
 
+  private static final KafkaContainer kafka = new KafkaContainer(
+      DockerImageName.parse("confluentinc/cp-kafka:7.5.0"))
+      .withStartupTimeout(Duration.ofSeconds(120));
+
   static {
     postgres.start();
     redis.start();
+    kafka.start();
   }
 
   @Bean
@@ -43,5 +47,11 @@ public class TestcontainersConfig {
   @ServiceConnection(name = "redis")
   public GenericContainer<?> redisContainer() {
     return redis;
+  }
+
+  @Bean
+  @ServiceConnection
+  public KafkaContainer kafkaContainer() {
+    return kafka;
   }
 }

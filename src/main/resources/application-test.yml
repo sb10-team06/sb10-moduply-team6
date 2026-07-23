@@ -29,6 +29,23 @@ spring:
           writetimeout: 5000
           starttls:
             enable: false
+  kafka:
+    consumer:
+      #   테스트마다 무작위 Group ID를 부여하여 메시지 뺏김 현상 방지
+      group-id: moduply-test-group-${random.uuid}
+      auto-offset-reset: earliest
+    listener:
+      auto-startup: false
+    #  컨테이너 종료 시 커넥션 대기 시간 최솟값으로 단축
+    properties:
+      max.block.ms: 1000
+      reconnect.backoff.ms: 1000
+      reconnect.backoff.max.ms: 2000
+    # Lettuce(Redis)가 도커 닫힌 후 재연결 일으키지 않도록 방지
+    data:
+      redis:
+        lettuce:
+          shutdown-timeout: 100ms
 
 logging:
   level:
