@@ -145,6 +145,11 @@ CREATE TABLE reviews (
 );
 
 -- 플레이리스트 콘텐츠 테이블
+CREATE INDEX idx_reviews_content_created_at_id
+    ON reviews (content_id, created_at DESC, id ASC);
+CREATE INDEX idx_reviews_content_rating_created_at_id
+    ON reviews (content_id, rating DESC, created_at DESC, id ASC);
+
 CREATE TABLE playlist_contents (
     id              UUID             PRIMARY KEY,
     playlist_id     UUID             NOT NULL,

@@ -34,6 +34,7 @@ public class CacheConfig {
   public static final String PLAYLIST_DETAIL = "playlistDetail";
   public static final String FOLLOW_COUNT = "followCount";
   public static final String CONTENT_RANKING = "contentRanking";
+  public static final String REVIEW_LIST = "reviewList";
 
   @Bean
   public CacheManager cacheManager(
@@ -54,7 +55,8 @@ public class CacheConfig {
         PROFILE_IMAGE_URL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         PLAYLIST_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         FOLLOW_COUNT, defaultConfig.entryTtl(Duration.ofSeconds(30)),       //  Follow 수는 자주 변하므로 30초
-        CONTENT_RANKING, defaultConfig.entryTtl(Duration.ofMinutes(2))      //  Ranking도 자주 바뀌지만 실시간일 필요는 없다: 2분
+        CONTENT_RANKING, defaultConfig.entryTtl(Duration.ofMinutes(2)) ,    //  Ranking도 자주 바뀌지만 실시간일 필요는 없다: 2분
+        REVIEW_LIST, defaultConfig.entryTtl(Duration.ofSeconds(30))
     );
 
     ///  Redis CacheManager 만든다.

@@ -18,6 +18,7 @@ import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
+import com.team6.moduply.review.service.ReviewListCacheService;
 import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,6 +80,19 @@ class ReviewServiceTest {
 
   @Mock
   private ContentService contentService;
+
+  @BeforeEach
+  void setUp() {
+    ReviewListCacheService reviewListCacheService = new ReviewListCacheService(
+        contentRepository,
+        reviewQDSLRepository,
+        userRepository,
+        userMapper,
+        reviewMapper,
+        binaryContentService
+    );
+    ReflectionTestUtils.setField(reviewService, "reviewListCacheService", reviewListCacheService);
+  }
 
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(
@@ -356,7 +371,6 @@ class ReviewServiceTest {
     ReviewDto dto2 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "두번째", 3.5);
 
     given(reviewQDSLRepository.findAllWithCursor(request)).willReturn(List.of(review1, review2));
-    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class)))
         .willReturn(dto1, dto2);
     given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
@@ -397,7 +411,6 @@ class ReviewServiceTest {
 
     given(reviewQDSLRepository.findAllWithCursor(request))
         .willReturn(new ArrayList<>(List.of(review1, review2)));
-    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
     given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
@@ -438,7 +451,6 @@ class ReviewServiceTest {
 
     given(reviewQDSLRepository.findAllWithCursor(request))
         .willReturn(new ArrayList<>(List.of(review1, review2)));
-    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
     given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
