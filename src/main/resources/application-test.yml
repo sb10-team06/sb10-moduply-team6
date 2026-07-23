@@ -41,11 +41,11 @@ spring:
       max.block.ms: 1000
       reconnect.backoff.ms: 1000
       reconnect.backoff.max.ms: 2000
-    # Lettuce(Redis)가 도커 닫힌 후 재연결 일으키지 않도록 방지
-    data:
-      redis:
-        lettuce:
-          shutdown-timeout: 100ms
+  # Lettuce(Redis)가 도커 닫힌 후 재연결 일으키지 않도록 방지
+  data:
+    redis:
+      lettuce:
+        shutdown-timeout: 100ms
 
 logging:
   level:
