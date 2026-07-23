@@ -75,7 +75,7 @@ public class ContentListCacheService {
     /// id, title, description등 잘 변하지 않는 데이터 저장
     return new ContentListCachePageDto(
         data,
-        hasNext ? extractCursor(lastContent, sortBy) : null,
+        hasNext ? lastContent.getCreatedAt().toString() : null,
         hasNext ? lastContent.getId() : null,
         hasNext,
         totalCount,
@@ -114,13 +114,5 @@ public class ContentListCacheService {
             ContentTagNameProjection::getContentId,
             Collectors.mapping(ContentTagNameProjection::getTagName, Collectors.toList())
         ));
-  }
-
-  private String extractCursor(Content content, ContentSortBy sortBy) {
-    return switch (sortBy) {
-      case createdAt -> content.getCreatedAt().toString();
-      case watcherCount -> String.valueOf(content.getWatcherCount());
-      case rate -> content.getAverageRating().toPlainString();
-    };
   }
 }
