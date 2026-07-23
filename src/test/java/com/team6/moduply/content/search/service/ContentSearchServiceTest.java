@@ -173,7 +173,7 @@ class ContentSearchServiceTest {
     ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
     verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
     assertThat(queryCaptor.getValue().getSearchAfter())
-        .containsExactly(12.5f, "2026-07-21T00:00:00Z", idAfter.toString());
+        .containsExactly(12.5, "2026-07-21T00:00:00Z", idAfter.toString());
   }
 
   @Test
@@ -203,7 +203,7 @@ class ContentSearchServiceTest {
     ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
     verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
     assertThat(queryCaptor.getValue().getSearchAfter())
-        .containsExactly(12.5f, 1784592000000L, idAfter.toString());
+        .containsExactly(12.5, 1784592000000L, idAfter.toString());
   }
 
   @Test
@@ -304,7 +304,7 @@ class ContentSearchServiceTest {
     ArgumentCaptor<NativeQuery> queryCaptor = ArgumentCaptor.forClass(NativeQuery.class);
     verify(elasticsearchOperations).search(queryCaptor.capture(), eq(ContentSearchDocument.class));
     assertThat(queryCaptor.getValue().getSearchAfter())
-        .containsExactly(12.5f, 10L, 4.5, "2026-07-21T00:00:00Z", idAfter.toString());
+        .containsExactly(12.5, 10L, 4.5, "2026-07-21T00:00:00Z", idAfter.toString());
   }
 
   @Test

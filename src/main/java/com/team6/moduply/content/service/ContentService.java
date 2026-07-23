@@ -199,7 +199,7 @@ public class ContentService {
     if (StringUtils.hasText(request.keywordLike())) {
       try {
         return findAllBySearchIndex(request, normalizedTagsIn);
-      } catch (RuntimeException e) {
+      } catch (Exception e) {
         // ES 인덱스가 비어 있거나 장애가 나도 기본 검색은 동작하도록 기존 DB 검색으로 보조 처리한다.
         log.warn("Elasticsearch 콘텐츠 검색 실패. QueryDSL 검색으로 대체합니다. keyword={}",
             request.keywordLike(), e);

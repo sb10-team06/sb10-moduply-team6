@@ -258,9 +258,9 @@ public class ContentSearchService {
     );
   }
 
-  private float parseScoreCursor(String cursor) {
+  private double parseScoreCursor(String cursor) {
     try {
-      return Float.parseFloat(cursor);
+      return Double.parseDouble(cursor);
     } catch (NumberFormatException e) {
       throw new ContentException(
           ContentErrorCode.INVALID_CURSOR,

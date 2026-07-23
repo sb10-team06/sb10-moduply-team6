@@ -98,8 +98,8 @@ public class ContentSearchIndexService {
     try {
       contentSearchRepository.save(contentSearchDocumentMapper.toDocument(content, tagNames));
       log.debug("콘텐츠 검색 인덱스 저장 완료. contentId={}", content.getId());
-    } catch (RuntimeException e) {
-      log.warn("콘텐츠 검색 인덱스 저장 실패. contentId={}", content.getId(), e);
+    } catch (Exception e) {
+      log.error("콘텐츠 검색 인덱스 저장 실패. contentId={}", content.getId(), e);
     }
   }
 
@@ -107,8 +107,8 @@ public class ContentSearchIndexService {
     try {
       contentSearchRepository.saveAll(toDocuments(contents, tagNamesByContentId));
       log.debug("콘텐츠 검색 인덱스 일괄 저장 완료. contentCount={}", contents.size());
-    } catch (RuntimeException e) {
-      log.warn("콘텐츠 검색 인덱스 일괄 저장 실패. contentCount={}", contents.size(), e);
+    } catch (Exception e) {
+      log.error("콘텐츠 검색 인덱스 일괄 저장 실패. contentCount={}", contents.size(), e);
     }
   }
 
@@ -147,8 +147,8 @@ public class ContentSearchIndexService {
     try {
       contentSearchRepository.deleteById(contentId.toString());
       log.debug("콘텐츠 검색 인덱스 삭제 완료. contentId={}", contentId);
-    } catch (RuntimeException e) {
-      log.warn("콘텐츠 검색 인덱스 삭제 실패. contentId={}", contentId, e);
+    } catch (Exception e) {
+      log.error("콘텐츠 검색 인덱스 삭제 실패. contentId={}", contentId, e);
     }
   }
 

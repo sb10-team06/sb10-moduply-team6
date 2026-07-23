@@ -20,9 +20,9 @@ public class ContentSearchIndexStartupRunner {
   public void rebuildIfEmpty() {
     try {
       contentSearchIndexService.rebuildAllIfEmpty();
-    } catch (RuntimeException e) {
+    } catch (Exception e) {
       // 검색 인덱스는 DB 원본 데이터를 보조하는 저장소이므로, 시작 실패로 애플리케이션을 중단하지 않는다.
-      log.warn("콘텐츠 검색 인덱스 자동 재색인 실패", e);
+      log.error("콘텐츠 검색 인덱스 자동 재색인 실패", e);
     }
   }
 }
