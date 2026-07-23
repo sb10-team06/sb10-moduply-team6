@@ -6,7 +6,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
@@ -38,12 +42,11 @@ public class ReviewGenerator {
       limit ?
       """;
 
-  private static final String COUNT_GENERATED_REVIEWS_SQL = """
-      select count(*)
+  private static final String SELECT_EXISTING_REVIEW_AUTHOR_IDS_SQL = """
+      select r.author_id
       from reviews r
-      join contents c on c.id = r.content_id
       join users u on u.id = r.author_id
-      where c.external_api_id like ?
+      where r.content_id = ?
         and u.email like ?
       """;
 
@@ -82,15 +85,16 @@ public class ReviewGenerator {
 
     validateProperties();
 
-    long existingCount = countGeneratedReviews();
-    if (properties.isSkipIfExists() && existingCount > 0) {
-      log.info("[ReviewGenerator] generated reviews already exist. count={}", existingCount);
-      return;
-    }
-
     List<UUID> contentIds = loadContentIds();
     List<UUID> authorIds = loadAuthorIds();
     long expectedReviewCount = (long) contentIds.size() * properties.getReviewsPerContent();
+    Map<UUID, Set<UUID>> existingAuthorIdsByContentId = loadExistingAuthorIdsByContentId(contentIds);
+
+    if (properties.isSkipIfExists()
+        && isCompleteGeneratedReviews(contentIds, authorIds, existingAuthorIdsByContentId)) {
+      log.info("[ReviewGenerator] generated reviews already complete. count={}", expectedReviewCount);
+      return;
+    }
 
     log.info(
         "[ReviewGenerator] start generation. hotContentSize={}, reviewsPerContent={}, totalReviews={}, chunkSize={}",
@@ -103,10 +107,18 @@ public class ReviewGenerator {
 
     List<ReviewSeed> chunk = new ArrayList<>(properties.getChunkSize());
     long createdReviewCount = 0;
+    long missingReviewCount = 0;
 
     for (UUID contentId : contentIds) {
+      Set<UUID> existingAuthorIds = existingAuthorIdsByContentId.getOrDefault(contentId, Set.of());
       for (int authorIndex = 0; authorIndex < properties.getReviewsPerContent(); authorIndex += 1) {
-        chunk.add(createReviewSeed(contentId, authorIds.get(authorIndex), authorIndex));
+        UUID authorId = authorIds.get(authorIndex);
+        if (existingAuthorIds.contains(authorId)) {
+          continue;
+        }
+
+        missingReviewCount += 1;
+        chunk.add(createReviewSeed(contentId, authorId, authorIndex));
 
         if (chunk.size() >= properties.getChunkSize()) {
           createdReviewCount += insertChunk(chunk);
@@ -121,8 +133,9 @@ public class ReviewGenerator {
 
     refreshContentReviewStats(contentIds);
 
-    log.info("[ReviewGenerator] completed. insertedReviews={}, requestedReviews={}, contentIds={}",
-        createdReviewCount, expectedReviewCount, joinIds(contentIds));
+    log.info(
+        "[ReviewGenerator] completed. insertedReviews={}, missingReviews={}, expectedReviews={}, contentIds={}",
+        createdReviewCount, missingReviewCount, expectedReviewCount, joinIds(contentIds));
   }
 
   private void validateProperties() {
@@ -137,14 +150,32 @@ public class ReviewGenerator {
     }
   }
 
-  private long countGeneratedReviews() {
-    Long count = jdbcTemplate.queryForObject(
-        COUNT_GENERATED_REVIEWS_SQL,
-        Long.class,
-        properties.getContentExternalApiIdLike(),
-        properties.getUserEmailLike()
-    );
-    return count == null ? 0 : count;
+  private Map<UUID, Set<UUID>> loadExistingAuthorIdsByContentId(List<UUID> contentIds) {
+    Map<UUID, Set<UUID>> result = new HashMap<>();
+    for (UUID contentId : contentIds) {
+      List<UUID> authorIds = jdbcTemplate.query(
+          SELECT_EXISTING_REVIEW_AUTHOR_IDS_SQL,
+          (rs, rowNum) -> rs.getObject("author_id", UUID.class),
+          contentId,
+          properties.getUserEmailLike()
+      );
+      result.put(contentId, new HashSet<>(authorIds));
+    }
+    return result;
+  }
+
+  private boolean isCompleteGeneratedReviews(
+      List<UUID> contentIds,
+      List<UUID> authorIds,
+      Map<UUID, Set<UUID>> existingAuthorIdsByContentId
+  ) {
+    for (UUID contentId : contentIds) {
+      Set<UUID> existingAuthorIds = existingAuthorIdsByContentId.get(contentId);
+      if (existingAuthorIds == null || !existingAuthorIds.containsAll(authorIds)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private List<UUID> loadContentIds() {
