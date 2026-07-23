@@ -19,6 +19,6 @@ public record WatchingSessionChangedEvent(
 
   @Override
   public String getPartitionKey() {
-    return this.watchingSession.getId().toString();
+    return this.watchingSession.getContentId().toString();
   }
 }
