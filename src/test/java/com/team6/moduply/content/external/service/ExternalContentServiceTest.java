@@ -30,7 +30,9 @@ import com.team6.moduply.content.external.tmdb.dto.TmdbMovieResponse;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
+import com.team6.moduply.content.search.service.ContentSearchIndexService;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -64,6 +66,9 @@ class ExternalContentServiceTest {
   @Mock
   private TransactionTemplate transactionTemplate;
 
+  @Mock
+  private ContentSearchIndexService contentSearchIndexService;
+
   private ExternalContentService externalContentService;
 
   @BeforeEach
@@ -80,7 +85,8 @@ class ExternalContentServiceTest {
         new ExternalContentMapper(createTmdbProperties()),
         externalImageClient,
         binaryContentService,
-        transactionTemplate
+        transactionTemplate,
+        contentSearchIndexService
     );
   }
 
@@ -117,7 +123,12 @@ class ExternalContentServiceTest {
     given(contentRepository.findAllByExternalApiIdIn(anyCollection()))
         .willReturn(List.of(existingContent));
     given(contentRepository.saveAll(anyList()))
-        .willAnswer(invocation -> invocation.getArgument(0));
+        .willAnswer(invocation -> {
+          @SuppressWarnings("unchecked")
+          List<Content> contents = invocation.getArgument(0);
+          contents.forEach(content -> ReflectionTestUtils.setField(content, "id", UUID.randomUUID()));
+          return contents;
+        });
     given(tagRepository.findAllByTagNameIn(anyCollection()))
         .willReturn(List.of())
         .willReturn(List.of(tmdbTag, movieTag));
@@ -147,6 +158,18 @@ class ExternalContentServiceTest {
     ArgumentCaptor<List<ContentTag>> contentTagCaptor = ArgumentCaptor.forClass(List.class);
     verify(contentTagRepository).saveAll(contentTagCaptor.capture());
     assertThat(contentTagCaptor.getValue()).hasSize(2);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<Content>> indexedContentsCaptor = ArgumentCaptor.forClass(List.class);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<UUID, List<String>>> indexedTagsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(contentSearchIndexService).indexAll(
+        indexedContentsCaptor.capture(),
+        indexedTagsCaptor.capture()
+    );
+    assertThat(indexedContentsCaptor.getValue()).containsExactlyElementsOf(savedContents);
+    assertThat(indexedTagsCaptor.getValue())
+        .containsEntry(savedContents.get(0).getId(), List.of("TMDB", "movie"));
   }
 
   @Test
@@ -218,6 +241,7 @@ class ExternalContentServiceTest {
     verify(contentRepository, never()).findAllByExternalApiIdIn(anyCollection());
     verify(contentRepository, never()).saveAll(anyList());
     verify(contentTagRepository, never()).saveAll(anyList());
+    verify(contentSearchIndexService, never()).indexAll(anyList(), any());
   }
 
   @Test
