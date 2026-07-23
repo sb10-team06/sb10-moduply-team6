@@ -148,6 +148,90 @@ class ContentListCacheServiceTest {
   }
 
   @Test
+  @DisplayName("인기순 목록 조회 시 시청자 수를 다음 커서로 사용한다.")
+  void find_created_at_page_success_with_watcher_count_cursor() {
+    // Given
+    UUID firstId = UUID.randomUUID();
+    UUID secondId = UUID.randomUUID();
+    UUID thirdId = UUID.randomUUID();
+    Content first = createContent(firstId, null, "Low", "낮은 시청자 수", BigDecimal.ZERO, 0, 10L);
+    Content second = createContent(secondId, null, "Middle", "중간 시청자 수", BigDecimal.ZERO, 0, 20L);
+    Content third = createContent(thirdId, null, "High", "높은 시청자 수", BigDecimal.ZERO, 0, 30L);
+
+    given(contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        3,
+        ContentSortBy.watcherCount,
+        SortDirection.ASCENDING
+    )).willReturn(List.of(first, second, third));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(firstId, secondId))).willReturn(List.of());
+    given(contentRepository.countContents(null, null, List.of())).willReturn(3L);
+
+    // When
+    ContentListCachePageDto result = contentListCacheService.findCreatedAtPage(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.watcherCount,
+        SortDirection.ASCENDING
+    );
+
+    // Then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo("20");
+    assertThat(result.nextIdAfter()).isEqualTo(secondId);
+  }
+
+  @Test
+  @DisplayName("평점순 목록 조회 시 평점을 다음 커서로 사용한다.")
+  void find_created_at_page_success_with_rate_cursor() {
+    // Given
+    UUID firstId = UUID.randomUUID();
+    UUID secondId = UUID.randomUUID();
+    UUID thirdId = UUID.randomUUID();
+    Content first = createContent(firstId, null, "High", "높은 평점", new BigDecimal("4.50"), 1);
+    Content second = createContent(secondId, null, "Middle", "중간 평점", new BigDecimal("3.50"), 1);
+    Content third = createContent(thirdId, null, "Low", "낮은 평점", new BigDecimal("2.50"), 1);
+
+    given(contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        3,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    )).willReturn(List.of(first, second, third));
+    given(contentTagRepository.findTagNamesByContentIds(List.of(firstId, secondId))).willReturn(List.of());
+    given(contentRepository.countContents(null, null, List.of())).willReturn(3L);
+
+    // When
+    ContentListCachePageDto result = contentListCacheService.findCreatedAtPage(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result.hasNext()).isTrue();
+    assertThat(result.nextCursor()).isEqualTo("3.50");
+    assertThat(result.nextIdAfter()).isEqualTo(secondId);
+  }
+
+  @Test
   @DisplayName("조회 결과가 비어 있으면 태그 조회 없이 빈 페이지를 반환한다.")
   void find_created_at_page_success_with_empty_contents() {
     // Given
@@ -189,6 +273,18 @@ class ContentListCacheServiceTest {
       BigDecimal averageRating,
       int reviewCount
   ) {
+    return createContent(contentId, contentImg, title, description, averageRating, reviewCount, 0L);
+  }
+
+  private Content createContent(
+      UUID contentId,
+      BinaryContent contentImg,
+      String title,
+      String description,
+      BigDecimal averageRating,
+      int reviewCount,
+      long watcherCount
+  ) {
     Content content = new Content(
         contentImg,
         null,
@@ -199,6 +295,7 @@ class ContentListCacheServiceTest {
     ReflectionTestUtils.setField(content, "id", contentId);
     ReflectionTestUtils.setField(content, "averageRating", averageRating);
     ReflectionTestUtils.setField(content, "reviewCount", reviewCount);
+    ReflectionTestUtils.setField(content, "watcherCount", watcherCount);
     ReflectionTestUtils.setField(content, "createdAt", Instant.now());
     ReflectionTestUtils.setField(content, "updatedAt", Instant.now());
 

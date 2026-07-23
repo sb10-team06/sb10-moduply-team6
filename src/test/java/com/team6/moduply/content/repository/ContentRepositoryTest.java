@@ -264,26 +264,37 @@ class ContentRepositoryTest extends RepositoryTestSupport {
   @DisplayName("콘텐츠 목록을 최신순 내림차순 커서 이후로 조회한다.")
   void find_all_by_cursor_success_with_created_at_descending_cursor() {
     // Given
-    Content first = contentRepository.save(createContent(
+    contentRepository.save(createContent(
         ContentType.movie,
         "First Movie",
         "먼저 등록된 영화",
         100L
     ));
-    Content second = contentRepository.save(createContent(
+    contentRepository.save(createContent(
         ContentType.movie,
         "Second Movie",
         "나중에 등록된 영화",
         50L
     ));
+    List<Content> firstPage = contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+    Content cursorContent = firstPage.get(0);
 
     // When
     List<Content> result = contentRepository.findAllByCursor(
         null,
         null,
         List.of(),
-        second.getCreatedAt().toString(),
-        second.getId(),
+        cursorContent.getCreatedAt().toString(),
+        cursorContent.getId(),
         10,
         ContentSortBy.createdAt,
         SortDirection.DESCENDING
@@ -292,7 +303,7 @@ class ContentRepositoryTest extends RepositoryTestSupport {
     // Then
     assertThat(result)
         .extracting(Content::getId)
-        .containsExactly(first.getId());
+        .containsExactly(firstPage.get(1).getId());
   }
 
   @Test
