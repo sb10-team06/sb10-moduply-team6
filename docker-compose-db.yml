@@ -32,7 +32,7 @@ services:
 
   # Kafka
   broker:
-    image: apache/kafka:latest
+    image: confluentinc/cp-kafka:7.5.3
     hostname: broker
     container_name: broker
     networks:
@@ -58,7 +58,7 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
   # Kafka GUI 모니터링 툴 (Kafdrop)
   kafdrop:
-    image: obsidiandynamics/kafdrop:latest
+    image: obsidiandynamics/kafdrop:4.0.0
     container_name: kafdrop
     ports:
       - "9000:9000" # http://localhost:9000 으로 브라우저 접속
