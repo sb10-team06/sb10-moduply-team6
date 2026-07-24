@@ -44,6 +44,18 @@ const API_DEFINITIONS = [
     endpoint: 'GET /api/conversations',
     targetP95: 500,
   },
+  {
+    tagValue: 'user-profile-update',
+    title: '프로필 수정 API',
+    endpoint: 'PATCH /api/users/{userId}',
+    targetP95: 2000,
+  },
+  {
+    tagValue: 'review-list-default',
+    title: '리뷰 목록조회 API',
+    endpoint: 'GET /api/reviews',
+    targetP95: 1000,
+  },
 ];
 
 const SCENARIO_TITLES = {
