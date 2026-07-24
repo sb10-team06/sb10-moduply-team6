@@ -20,7 +20,6 @@ import com.team6.moduply.review.exception.ReviewException;
 import com.team6.moduply.review.mapper.ReviewMapper;
 import com.team6.moduply.review.repository.ReviewRepository;
 import com.team6.moduply.review.repository.qdsl.ReviewQDSLRepository;
-import com.team6.moduply.review.service.ReviewListCacheService;
 import com.team6.moduply.review.service.ReviewService;
 import com.team6.moduply.user.dto.UserDto;
 import com.team6.moduply.user.entity.User;
@@ -34,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,19 +81,6 @@ class ReviewServiceTest {
 
   @Mock
   private ContentService contentService;
-
-  @BeforeEach
-  void setUp() {
-    ReviewListCacheService reviewListCacheService = new ReviewListCacheService(
-        contentRepository,
-        reviewQDSLRepository,
-        userRepository,
-        userMapper,
-        reviewMapper,
-        binaryContentService
-    );
-    ReflectionTestUtils.setField(reviewService, "reviewListCacheService", reviewListCacheService);
-  }
 
   private ModuPlyUserDetails createUserDetails(UUID userId) {
     UserDto userDto = new UserDto(
