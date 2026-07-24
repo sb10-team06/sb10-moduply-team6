@@ -14,6 +14,7 @@ public class UserTestDataProperties {
   private int followeeSize = 1000;
   private int conversationSize = 0;
   private int profileUpdateSize = 0;
+  private int reviewSize = 0;
   private int chunkSize = 500;
   private boolean skipIfExists = true;
   private String password = "k6-password";
@@ -56,6 +57,14 @@ public class UserTestDataProperties {
 
   public void setProfileUpdateSize(int profileUpdateSize) {
     this.profileUpdateSize = profileUpdateSize;
+  }
+
+  public int getReviewSize() {
+    return reviewSize;
+  }
+
+  public void setReviewSize(int reviewSize) {
+    this.reviewSize = reviewSize;
   }
 
   public int getChunkSize() {
