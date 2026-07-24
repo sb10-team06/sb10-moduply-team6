@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Map;
@@ -79,6 +80,8 @@ public class CacheConfig {
                     .allowIfSubType(ArrayList.class)
                     .allowIfSubType(UUID.class)
                     .allowIfSubType(LocalDateTime.class)
+                    // DTO의 createdAt/updatedAt에 쓰이는 Instant 타입 캐시 역직렬화를 허용한다.
+                    .allowIfSubType(Instant.class)
                     .allowIfSubType(BigDecimal.class)
                     .build();
 
