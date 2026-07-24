@@ -32,6 +32,8 @@ public class UserGenerator extends AbstractGenerator<User> {
   public static final String FOLLOWER_EMAIL_PREFIX = "k6-follower-";
   public static final String FOLLOWEE_EMAIL_PREFIX = "k6-followee-";
   public static final String CONVERSATION_EMAIL_PREFIX = "k6-conversation-";
+  public static final String PROFILE_UPDATE_EMAIL_PREFIX = "k6-user-";
+  public static final String REVIEW_EMAIL_PREFIX = "k6-review-";
   public static final String EMAIL_DOMAIN = "@moduply.test";
 
   private static final String INSERT_USER_SQL = """
@@ -67,16 +69,20 @@ public class UserGenerator extends AbstractGenerator<User> {
 
     encodedPassword = passwordEncoder.encode(properties.getPassword());
     log.info(
-        "[UserGenerator] start generation. followerSize={}, followeeSize={}, conversationSize={}, chunkSize={}",
+        "[UserGenerator] start generation. followerSize={}, followeeSize={}, conversationSize={}, profileUpdateSize={}, reviewSize={}, chunkSize={}",
         properties.getFollowerSize(),
         properties.getFolloweeSize(),
         properties.getConversationSize(),
+        properties.getProfileUpdateSize(),
+        properties.getReviewSize(),
         properties.getChunkSize()
     );
 
     generateGroup(FOLLOWER_EMAIL_PREFIX, "k6 follower", properties.getFollowerSize());
     generateGroup(FOLLOWEE_EMAIL_PREFIX, "k6 followee", properties.getFolloweeSize());
     generateGroup(CONVERSATION_EMAIL_PREFIX, "k6 conversation", properties.getConversationSize());
+    generateGroup(PROFILE_UPDATE_EMAIL_PREFIX, "k6 user", properties.getProfileUpdateSize());
+    generateGroup(REVIEW_EMAIL_PREFIX, "k6 review", properties.getReviewSize());
   }
 
   @Override

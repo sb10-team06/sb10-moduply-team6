@@ -37,6 +37,10 @@ spring:
           max-idle: ${REDIS_POOL_MAX_IDLE:64}
           min-idle: ${REDIS_POOL_MIN_IDLE:16}
           max-wait: ${REDIS_POOL_MAX_WAIT:2s}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    connection-timeout: 3s
+    socket-timeout: 10s
   mail:
     host: smtp.gmail.com
     port: 587
@@ -76,6 +80,16 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: moduply-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 logging:
   level:
@@ -89,6 +103,8 @@ moduply:
   async:
     binary-content:
       enabled: ${MODUPLY_BINARY_CONTENT_ASYNC_ENABLED:true}
+    event:
+      type: ${MODUPLY_EVENT_TYPE:kafka} #kafka, spring
   storage:
     type: ${BINARY_CONTENT_STORAGE_TYPE:s3}
     s3:
@@ -154,6 +170,15 @@ moduply:
         initial-tmdb-page-end: ${CONTENT_IMPORT_BATCH_INITIAL_TMDB_PAGE_END:10}
         initial-sports-db-day-offset-start: ${CONTENT_IMPORT_BATCH_INITIAL_SPORTS_DB_DAY_OFFSET_START:-3}
         initial-sports-db-day-offset-end: ${CONTENT_IMPORT_BATCH_INITIAL_SPORTS_DB_DAY_OFFSET_END:7}
+  kafka:
+    default:
+      partitions: ${KAFKA_DEFAULT_PARTITIONS:3}
+      replicas: ${KAFKA_DEFAULT_REPLICAS:1}
+      concurrency: ${KAFKA_DEFAULT_CONCURRENCY:3}
+    topic:
+      watching-session:
+        partitions: ${KAFKA_WATCHING_SESSION_PARTITIONS:3}
+        replicas: ${KAFKA_WATCHING_SESSION_REPLICAS:1}
 jwt:
   key: ${JWT_SECRET_KEY}
   access-token-expiration-minutes: 30
