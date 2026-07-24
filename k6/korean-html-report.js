@@ -10,6 +10,64 @@ function taggedMetric(metricName, tagName, tagValue) {
   return `${metricName}{${tagName}:${tagValue}}`;
 }
 
+const API_DEFINITIONS = [
+  { tagValue: 'setup-login', title: '로그인 API', endpoint: 'POST /api/auth/sign-in', targetP95: 1000 },
+  { tagValue: 'content-list', title: '콘텐츠 목록 API', endpoint: 'GET /api/contents', targetP95: 1000 },
+  { tagValue: 'content-detail', title: '콘텐츠 상세 API', endpoint: 'GET /api/contents/{contentId}', targetP95: 700 },
+  { tagValue: 'review-list', title: '리뷰 목록 API', endpoint: 'GET /api/reviews', targetP95: 1000 },
+  { tagValue: 'conversation-list', title: '대화 목록 API', endpoint: 'GET /api/conversations', targetP95: 800 },
+  {
+    tagValue: 'direct-message-list',
+    title: '최근 DM 목록 API',
+    endpoint: 'GET /api/conversations/{conversationId}/direct-messages',
+    targetP95: 1000,
+  },
+  { tagValue: 'notification-list', title: '알림 목록 API', endpoint: 'GET /api/notifications', targetP95: 800 },
+  { tagValue: 'profile-read', title: '프로필 조회 API', endpoint: '프로필 조회', targetP95: 1000 },
+  { tagValue: 'follow-status', title: '팔로우 여부 조회 API', endpoint: '팔로우 여부 조회', targetP95: 1000 },
+  { tagValue: 'follow-create', title: '팔로우 생성 API', endpoint: 'POST /api/follows', targetP95: 1000 },
+  {
+    tagValue: 'content-list-default',
+    title: '콘텐츠 기본 목록조회 API',
+    endpoint: 'GET /api/contents',
+    targetP95: 1000,
+  },
+  {
+    tagValue: 'content-find-default',
+    title: '콘텐츠 단건 조회 API',
+    endpoint: 'GET /api/contents/{contentId}',
+    targetP95: 500,
+  },
+  {
+    tagValue: 'conversation-list-default',
+    title: '대화방 기본 목록조회 API',
+    endpoint: 'GET /api/conversations',
+    targetP95: 500,
+  },
+  {
+    tagValue: 'user-profile-update',
+    title: '프로필 수정 API',
+    endpoint: 'PATCH /api/users/{userId}',
+    targetP95: 2000,
+  },
+  {
+    tagValue: 'review-list-default',
+    title: '리뷰 목록조회 API',
+    endpoint: 'GET /api/reviews',
+    targetP95: 1000,
+  },
+];
+
+const SCENARIO_TITLES = {
+  'user-content-browse': '콘텐츠 탐색 사용자 시나리오',
+  'user-conversation-inbox': '대화함 확인 사용자 시나리오',
+  'content-list-default': '콘텐츠 기본 목록 조회',
+  'content-find-default': '콘텐츠 단건 조회',
+  'conversation-list-default': '대화방 기본 목록 조회',
+  'follow-create': '팔로우 생성',
+  'content-create': '콘텐츠 생성',
+};
+
 function formatNumber(number, digits = 2) {
   if (!Number.isFinite(number)) {
     return '-';
@@ -179,16 +237,16 @@ function taggedApiSections(data, transactionCount, transactionTps) {
   const duplicateCount = hasMetric(data, 'follow_already_exists')
     ? value(data, 'follow_already_exists', 'count')
     : undefined;
-  const sections = [
-    taggedApiSection(data, 'profile-read', '프로필 조회 API'),
-    taggedApiSection(data, 'follow-status', '팔로우 여부 조회 API'),
-    taggedApiSection(data, 'follow-create', '팔로우 생성 API', transactionCount, transactionTps, duplicateCount),
-    taggedApiSection(data, 'content-list-default', '콘텐츠 기본 목록조회 API'),
-    taggedApiSection(data, 'content-find-default', '콘텐츠 단건 조회 API'),
-    taggedApiSection(data, 'conversation-list-default', '대화방 기본 목록조회 API'),
-    taggedApiSection(data, 'user-profile-update', '프로필 수정 API'),
-    taggedApiSection(data, 'review-list-default', '리뷰 목록조회 API'),
-  ].join('');
+  const sections = API_DEFINITIONS.map((api) =>
+    taggedApiSection(
+      data,
+      api.tagValue,
+      api.title,
+      api.tagValue === 'follow-create' ? transactionCount : 0,
+      api.tagValue === 'follow-create' ? transactionTps : 0,
+      api.tagValue === 'follow-create' ? duplicateCount : undefined
+    )
+  ).join('');
 
   if (sections) {
     return sections;
@@ -204,7 +262,78 @@ function taggedApiSections(data, transactionCount, transactionTps) {
   `;
 }
 
+function apiMetricRows(data) {
+  return API_DEFINITIONS
+    .filter((api) => hasMetric(data, taggedMetric('http_req_duration', 'api', api.tagValue)))
+    .map((api) => ({
+      ...api,
+      metrics: metricSet(data, { tagName: 'api', tagValue: api.tagValue }),
+    }));
+}
+
+function apiResult(api) {
+  return api.metrics.failedRate < 0.01 && api.metrics.durationP95 < api.targetP95
+    ? '통과'
+    : '확인 필요';
+}
+
+function apiComparisonTable(data) {
+  const rows = apiMetricRows(data);
+  if (rows.length === 0) {
+    return '';
+  }
+
+  const body = rows.map((api) => {
+    const result = apiResult(api);
+    const resultCss = result === '통과' ? 'pass-text' : 'fail-text';
+    return `
+      <tr>
+        <td>
+          <strong>${api.title}</strong>
+          <div class="endpoint">${api.endpoint}</div>
+        </td>
+        <td class="number">${formatNumber(api.metrics.requestCount, 0)}</td>
+        <td class="number">${formatRate(api.metrics.failedRate)}</td>
+        <td class="number">${formatMs(api.metrics.durationAvg)}</td>
+        <td class="number">${formatMs(api.metrics.durationP90)}</td>
+        <td class="number emphasize">${formatMs(api.metrics.durationP95)}</td>
+        <td class="number">${formatMs(api.metrics.durationP99)}</td>
+        <td class="number">${formatMs(api.metrics.durationMax)}</td>
+        <td class="number">&lt; ${formatNumber(api.targetP95, 0)} ms</td>
+        <td class="${resultCss}">${result}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <section class="panel api-comparison">
+      <h2>API별 응답시간 비교</h2>
+      <p class="muted">p95 목표는 각 시나리오 스크립트에 설정된 API별 기준입니다.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>API</th>
+              <th>요청 수</th>
+              <th>실패율</th>
+              <th>평균</th>
+              <th>p90</th>
+              <th>p95</th>
+              <th>p99</th>
+              <th>최대</th>
+              <th>p95 목표</th>
+              <th>결과</th>
+            </tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 export function createKoreanHtmlReport(data, scenarioName) {
+  const scenarioTitle = SCENARIO_TITLES[scenarioName] || scenarioName;
   const overall = metricSet(data);
   const requestCount = overall.requestCount;
   const iterationCount = value(data, 'iterations', 'count');
@@ -239,7 +368,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${scenarioName} k6 부하 테스트 리포트</title>
+  <title>${scenarioTitle} k6 부하 테스트 리포트</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -346,6 +475,30 @@ export function createKoreanHtmlReport(data, scenarioName) {
       border-collapse: collapse;
       font-size: 14px;
     }
+    .table-wrap { overflow-x: auto; }
+    .api-comparison { margin-top: 20px; }
+    .api-comparison table { min-width: 1080px; }
+    .api-comparison th { white-space: nowrap; }
+    .api-comparison td { vertical-align: middle; }
+    .api-comparison .number {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .api-comparison .emphasize {
+      background: #fff7ed;
+      color: #9a3412;
+      font-weight: 700;
+    }
+    .endpoint {
+      margin-top: 3px;
+      color: #667085;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .pass-text { color: #16825d; font-weight: 700; white-space: nowrap; }
+    .fail-text { color: #c2410c; font-weight: 700; white-space: nowrap; }
     th, td {
       padding: 10px 8px;
       border-bottom: 1px solid #e4e9ef;
@@ -365,7 +518,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
   <main>
     <section class="header">
       <div>
-        <h1>${scenarioName} k6 부하 테스트 리포트</h1>
+        <h1>${scenarioTitle} k6 부하 테스트 리포트</h1>
         <div class="muted">생성 시각: ${reportTime}</div>
       </div>
       <div class="badge ${statusCss}">${status}</div>
@@ -411,16 +564,72 @@ export function createKoreanHtmlReport(data, scenarioName) {
       </table>
     </section>
 
+    ${apiComparisonTable(data)}
+
     ${taggedApiSections(data, transactionCount, transactionTps)}
   </main>
 </body>
 </html>`;
 }
 
+export function createKoreanMarkdownReport(data, scenarioName) {
+  const scenarioTitle = SCENARIO_TITLES[scenarioName] || scenarioName;
+  const overall = metricSet(data);
+  const iterationCount = value(data, 'iterations', 'count');
+  const iterationRate = value(data, 'iterations', 'rate');
+  const checksRate = value(data, 'checks', 'rate');
+  const reportTime = new Date().toLocaleString('ko-KR');
+  const apiRows = apiMetricRows(data);
+
+  const comparisonRows = apiRows.length > 0
+    ? apiRows.map((api) =>
+      `| ${api.title}<br>\`${api.endpoint}\` | ${formatNumber(api.metrics.requestCount, 0)} | ${formatRate(api.metrics.failedRate)} | ${formatMs(api.metrics.durationAvg)} | ${formatMs(api.metrics.durationP90)} | **${formatMs(api.metrics.durationP95)}** | ${formatMs(api.metrics.durationP99)} | ${formatMs(api.metrics.durationMax)} | < ${formatNumber(api.targetP95, 0)} ms | ${apiResult(api)} |`
+    ).join('\n')
+    : '| 측정된 API 태그가 없습니다. | - | - | - | - | - | - | - | - | 확인 필요 |';
+
+  return `# ${scenarioTitle} k6 부하 테스트 결과
+
+- 생성 시각: ${reportTime}
+- 전체 판정: **${statusText(overall.failedRate)}**
+
+## 전체 결과
+
+| 항목 | 값 |
+|---|---:|
+| 전체 요청 수 | ${formatNumber(overall.requestCount, 0)} |
+| 초당 요청 수 | ${formatNumber(overall.requestRate, 2)} |
+| 전체 실패율 | ${formatRate(overall.failedRate)} |
+| 평균 응답시간 | ${formatMs(overall.durationAvg)} |
+| p90 응답시간 | ${formatMs(overall.durationP90)} |
+| p95 응답시간 | ${formatMs(overall.durationP95)} |
+| p99 응답시간 | ${formatMs(overall.durationP99)} |
+| 최대 응답시간 | ${formatMs(overall.durationMax)} |
+| 반복 수 | ${formatNumber(iterationCount, 0)} |
+| 초당 반복 수 | ${formatNumber(iterationRate, 2)} |
+| 체크 성공률 | ${formatRate(checksRate)} |
+
+## API별 응답시간 비교
+
+| API | 요청 수 | 실패율 | 평균 | p90 | p95 | p99 | 최대 | p95 목표 | 결과 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+${comparisonRows}
+
+> p95 목표는 각 시나리오 스크립트에 설정된 API별 기준입니다.
+`;
+}
+
 export function koreanSummary(data, scenarioName) {
   const reportPath = __ENV.K6_KO_HTML_REPORT || `/scripts/reports/${scenarioName}.html`;
+  const markdownPath = __ENV.K6_KO_MARKDOWN_REPORT
+    || (reportPath.toLowerCase().endsWith('.html')
+      ? reportPath.slice(0, -5) + '.md'
+      : `/scripts/reports/${scenarioName}.md`);
+
   return {
     [reportPath]: createKoreanHtmlReport(data, scenarioName),
-    stdout: `\n한국어 HTML 리포트 생성: ${reportPath}\n`,
+    [markdownPath]: createKoreanMarkdownReport(data, scenarioName),
+    stdout:
+      `\n한국어 HTML 리포트 생성: ${reportPath}` +
+      `\n한국어 Markdown 요약 생성: ${markdownPath}\n`,
   };
 }
