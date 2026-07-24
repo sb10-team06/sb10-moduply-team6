@@ -3,6 +3,7 @@ package com.team6.moduply.review.entity;
 import com.team6.moduply.common.baseentity.BaseUpdatableEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
@@ -14,7 +15,11 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
     name = "reviews",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"content_id", "author_id"})
+    uniqueConstraints = @UniqueConstraint(columnNames = {"content_id", "author_id"}),
+    indexes = {
+        @Index(name = "idx_reviews_content_created_at_id", columnList = "content_id, created_at DESC, id ASC"),
+        @Index(name = "idx_reviews_content_rating_created_at_id", columnList = "content_id, rating DESC, created_at DESC, id ASC")
+    }
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
