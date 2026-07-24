@@ -196,8 +196,10 @@ function login(email, password) {
   });
 
   if (!loginOk) {
+    const errorIdentifier =
+      response.status === 200 ? 'INVALID_LOGIN_RESPONSE' : 'LOGIN_HTTP_ERROR';
     fail(
-      `로그인에 실패했습니다. email=${email}, status=${response.status}, body=${response.body}`
+      `로그인에 실패했습니다. status=${response.status}, errorId=${errorIdentifier}`
     );
   }
 
