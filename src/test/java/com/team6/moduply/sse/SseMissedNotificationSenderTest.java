@@ -84,13 +84,14 @@ class SseMissedNotificationSenderTest {
         notificationId, createdAt, userId, "제목", "내용", NotificationLevel.INFO);
 
     given(notificationService.findMissedNotifications(eq(userId), any(), any()))
-        .willReturn(List.of(dto));
+        .willReturn(List.of(dto, dto));
 
     SseEmitter emitter = mock(SseEmitter.class);
     doThrow(new IOException("전송 실패")).when(emitter).send(any(SseEmitter.SseEventBuilder.class));
 
     missedNotificationSender.send(userId, lastEventId, emitter);
 
+    verify(emitter, times(1)).send(any(SseEmitter.SseEventBuilder.class));
     verify(emitter).completeWithError(any());
   }
 }
