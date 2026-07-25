@@ -82,6 +82,11 @@ public class CacheConfig {
                     .allowIfSubType(LocalDateTime.class)
                     // DTO의 createdAt/updatedAt에 쓰이는 Instant 타입 캐시 역직렬화를 허용한다.
                     .allowIfSubType(Instant.class)
+                    // Redis default typing은 Long/Integer/Double/Boolean 같은 wrapper 타입 정보도 저장한다.
+                    .allowIfSubType(Long.class)
+                    .allowIfSubType(Integer.class)
+                    .allowIfSubType(Double.class)
+                    .allowIfSubType(Boolean.class)
                     .allowIfSubType(BigDecimal.class)
                     .build();
 
