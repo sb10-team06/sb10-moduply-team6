@@ -11,6 +11,7 @@ import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
+import com.team6.moduply.content.service.ContentImageUploadService;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,9 @@ class BinaryContentStorageEventListenerTest {
   @Mock
   private BinaryContentRepository binaryContentRepository;
 
+  @Mock
+  private ContentImageUploadService contentImageUploadService;
+
   @InjectMocks
   private BinaryContentStorageEventListener listener;
 
@@ -54,17 +58,65 @@ class BinaryContentStorageEventListenerTest {
         oldStorageKey
     );
     given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+    String imageUrl = "https://bucket.s3.ap-northeast-2.amazonaws.com/image.png";
+    given(binaryContentStorage.upload(
+        "contents/content-id/thumbnail/image.png",
+        bytes,
+        "image/png"
+    )).willReturn(imageUrl);
 
     // when
     listener.handleBinaryContentStorage(event);
 
     // then
     verify(binaryContentStorage).upload("contents/content-id/thumbnail/image.png", bytes, "image/png");
-    verify(binaryContentService).updatesStatusSuccessAndPublishDeleteEvent(
+    verify(contentImageUploadService).complete(
+        event.getContentId(),
         binaryContentId,
+        imageUrl,
         oldBinaryContentId,
         oldStorageKey
     );
+    verify(contentImageUploadService).evictCaches(event.getContentId(), binaryContentId);
+    verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
+  }
+
+  @Test
+  @DisplayName("콘텐츠 이미지 캐시 제거에 실패해도 업로드한 객체와 SUCCESS 상태를 유지한다.")
+  void handleBinaryContentStorage_success_when_cache_evict_fails() {
+    UUID binaryContentId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    byte[] bytes = "image-bytes".getBytes();
+    BinaryContent binaryContent = createBinaryContent(binaryContentId);
+    BinaryContentCreatedEvent event = new BinaryContentCreatedEvent(
+        binaryContentId,
+        bytes,
+        null,
+        contentId,
+        null,
+        null
+    );
+    String imageUrl = "https://bucket/image.png";
+    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
+    given(binaryContentStorage.upload(
+        "contents/content-id/thumbnail/image.png",
+        bytes,
+        "image/png"
+    )).willReturn(imageUrl);
+    willThrow(new RuntimeException("redis unavailable"))
+        .given(contentImageUploadService)
+        .evictCaches(contentId, binaryContentId);
+
+    listener.handleBinaryContentStorage(event);
+
+    verify(contentImageUploadService).complete(
+        contentId,
+        binaryContentId,
+        imageUrl,
+        null,
+        null
+    );
+    verify(binaryContentStorage, never()).delete(binaryContent.getStorageKey());
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
   }
 
@@ -94,11 +146,6 @@ class BinaryContentStorageEventListenerTest {
     // then
     verify(binaryContentStorage).delete("contents/content-id/thumbnail/image.png");
     verify(binaryContentService).updatesStatusFail(binaryContentId);
-    verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
-        eq(binaryContentId),
-        eq(null),
-        eq(null)
-    );
   }
 
   @Test
@@ -180,8 +227,8 @@ class BinaryContentStorageEventListenerTest {
     );
     given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
     willThrow(new RuntimeException("status update failed"))
-        .given(binaryContentService)
-        .updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, null, null);
+        .given(contentImageUploadService)
+        .complete(event.getContentId(), binaryContentId, null, null, null);
 
     // when
     listener.handleBinaryContentStorage(event);
@@ -213,11 +260,6 @@ class BinaryContentStorageEventListenerTest {
     // then
     verifyNoInteractions(binaryContentStorage);
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
-    verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
-        eq(binaryContentId),
-        eq(null),
-        eq(null)
-    );
   }
 
   @Test
@@ -242,11 +284,6 @@ class BinaryContentStorageEventListenerTest {
     // then
     verifyNoInteractions(binaryContentStorage);
     verify(binaryContentService).updatesStatusFail(binaryContentId);
-    verify(binaryContentService, never()).updatesStatusSuccessAndPublishDeleteEvent(
-        eq(binaryContentId),
-        eq(null),
-        eq(null)
-    );
   }
 
   @Test
@@ -291,6 +328,22 @@ class BinaryContentStorageEventListenerTest {
     verify(binaryContentStorage).delete(storageKey);
     verify(binaryContentService).updatesStatusDeleted(binaryContentId);
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
+  }
+
+  @Test
+  @DisplayName("이미지 URL 캐시 제거에 실패해도 저장소 객체를 삭제한다.")
+  void handleBinaryContentDelete_success_when_cache_evict_fails() {
+    UUID binaryContentId = UUID.randomUUID();
+    String storageKey = "contents/content-id/thumbnail/image.png";
+    BinaryContentDeletedEvent event = new BinaryContentDeletedEvent(binaryContentId, storageKey);
+    willThrow(new RuntimeException("redis unavailable"))
+        .given(binaryContentService)
+        .evictUrl(binaryContentId);
+
+    listener.handleBinaryContentDelete(event);
+
+    verify(binaryContentStorage).delete(storageKey);
+    verify(binaryContentService).updatesStatusDeleted(binaryContentId);
   }
 
   @Test

@@ -65,7 +65,8 @@ class ContentDetailCacheServiceTest {
     List<String> tagNames = List.of("SF", "액션");
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(binaryContentService.generateUrl(contentImg)).willReturn("https://example.com/thumbnail.jpg");
+    given(binaryContentService.findUrl(contentImg, content.getThumbnailUrl()))
+        .willReturn("https://example.com/thumbnail.jpg");
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(tagNames);
 
     // When
@@ -81,7 +82,7 @@ class ContentDetailCacheServiceTest {
     assertThat(result.averageRating()).isEqualByComparingTo(BigDecimal.valueOf(4.5));
     assertThat(result.reviewCount()).isEqualTo(10);
     verify(contentRepository).findByIdWithContentImg(contentId);
-    verify(binaryContentService).generateUrl(contentImg);
+    verify(binaryContentService).findUrl(contentImg, content.getThumbnailUrl());
     verify(contentTagRepository).findTagNamesByContentId(contentId);
   }
 

@@ -53,7 +53,8 @@ class ModuPlyUserDetailsServiceTest {
     String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(email);
 
     given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(redisUtil.getData(redisKey)).willReturn("encoded-temp-password");
 
@@ -65,7 +66,7 @@ class ModuPlyUserDetailsServiceTest {
     assertThat(userDetails.getPassword()).isEqualTo("encoded-temp-password");
 
     verify(userRepository).findByEmail(email);
-    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
     verify(redisUtil).getData(redisKey);
   }
@@ -80,7 +81,8 @@ class ModuPlyUserDetailsServiceTest {
     String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(email);
 
     given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(redisUtil.getData(redisKey)).willReturn(null);
 
@@ -92,7 +94,7 @@ class ModuPlyUserDetailsServiceTest {
     assertThat(userDetails.getPassword()).isEqualTo("encoded-db-password");
 
     verify(userRepository).findByEmail(email);
-    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
     verify(redisUtil).getData(redisKey);
   }

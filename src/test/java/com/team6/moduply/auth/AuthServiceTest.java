@@ -216,7 +216,8 @@ class AuthServiceTest {
     );
     List<SimpleGrantedAuthority> mockAuthorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
@@ -234,7 +235,7 @@ class AuthServiceTest {
         .containsExactly("ROLE_USER");
 
     verify(userRepository).findById(userId);
-    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
     verify(roleHierarchy).getReachableGrantedAuthorities(anyCollection());
   }
@@ -273,7 +274,8 @@ class AuthServiceTest {
     );
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(lockedUserDto);
 
     // When & Then
@@ -283,7 +285,7 @@ class AuthServiceTest {
         );
 
     verify(userRepository).findById(userId);
-    verify(binaryContentService).generateUrl(user.getProfileImg());
+    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
   }
 
@@ -365,7 +367,8 @@ class AuthServiceTest {
     given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
@@ -416,7 +419,8 @@ class AuthServiceTest {
     given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);
@@ -466,7 +470,8 @@ class AuthServiceTest {
     given(redisUtil.getData(RedisKeyPolicy.USER_TOKEN_VERSION.generateKey(email))).willReturn("0");
     given(jwtTokenProvider.getUserId(refreshToken)).willReturn(userId);
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(roleHierarchy.getReachableGrantedAuthorities(anyCollection()))
         .willReturn((Collection) mockAuthorities);

@@ -394,8 +394,10 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(currentUser.getProfileImg(), currentUser.getProfileImageUrl()))
+        .willReturn(null);
+    given(binaryContentService.findUrl(withUser.getProfileImg(), withUser.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))
@@ -425,7 +427,7 @@ class ConversationServiceTest {
     assertThat(result.totalCount()).isEqualTo(2L);
     assertThat(result.sortBy()).isEqualTo(DirectMessageSortBy.createdAt.name());
     assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
-    verify(binaryContentService, times(2)).generateUrl(null);
+    verify(binaryContentService, times(2)).findUrl(null, null);
     verify(userMapper).toSummaryDto(currentUser, null);
     verify(userMapper).toSummaryDto(withUser, null);
   }
@@ -464,8 +466,10 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(currentUser.getProfileImg(), currentUser.getProfileImageUrl()))
+        .willReturn(null);
+    given(binaryContentService.findUrl(withUser.getProfileImg(), withUser.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))
@@ -529,8 +533,10 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(currentUser.getProfileImg(), currentUser.getProfileImageUrl()))
+        .willReturn(null);
+    given(binaryContentService.findUrl(withUser.getProfileImg(), withUser.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))

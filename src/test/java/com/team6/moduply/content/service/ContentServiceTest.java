@@ -125,7 +125,7 @@ class ContentServiceTest {
         ContentType.movie,
         "Inception",
         "꿈과 현실을 넘나드는 SF 영화",
-        "https://example.com/thumbnail.jpg",
+        "/placeholder-movie.png",
         List.of("SF", "액션"),
         BigDecimal.ZERO,
         0,
@@ -136,8 +136,7 @@ class ContentServiceTest {
         .willAnswer(invocation -> invocation.getArgument(0));
     given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
         .willReturn(contentImg);
-    given(binaryContentService.generateUrl(contentImg))
-        .willReturn("https://example.com/thumbnail.jpg");
+    given(binaryContentService.findUrl(null, null)).willReturn(null);
     given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
         .willReturn(List.of(existingTag), List.of(existingTag, newTag));
     given(tagRepository.insertIgnore(any(UUID.class), eq("액션"))).willReturn(1);
@@ -161,21 +160,21 @@ class ContentServiceTest {
     ArgumentCaptor<Content> contentCaptor = ArgumentCaptor.forClass(Content.class);
     verify(contentRepository).save(contentCaptor.capture());
     Content savedContent = contentCaptor.getValue();
-    assertThat(savedContent.getContentImg()).isEqualTo(contentImg);
+    assertThat(savedContent.getContentImg()).isNull();
     assertThat(savedContent.getExternalApiId()).isNull();
     assertThat(savedContent.getType()).isEqualTo(request.type());
     assertThat(savedContent.getTitle()).isEqualTo(request.title());
     assertThat(savedContent.getDescription()).isEqualTo(request.description());
 
     verify(binaryContentService).createContentImage(savedContent.getId(), thumbnail, null);
-    verify(binaryContentService).generateUrl(contentImg);
+    verify(binaryContentService).findUrl(null, null);
     verify(contentTagRepository).saveAll(argThat(contentTags -> {
       assertThat(contentTags).hasSize(2);
       return true;
     }));
     verify(contentMapper).toDto(
         savedContent,
-        "https://example.com/thumbnail.jpg",
+        "/placeholder-movie.png",
         List.of("SF", "액션")
     );
     verify(tagRepository, times(2)).findAllByTagNameIn(List.of("SF", "액션"));
@@ -222,7 +221,7 @@ class ContentServiceTest {
         .willAnswer(invocation -> invocation.getArgument(0));
     given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
         .willReturn(contentImg);
-    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
+    given(binaryContentService.findUrl(null, null)).willReturn(null);
     given(tagRepository.findAllByTagNameIn(List.of("SF", "액션")))
         .willReturn(List.of(sf, action));
     given(contentTagRepository.saveAll(anyList()))
@@ -236,7 +235,7 @@ class ContentServiceTest {
     // Then
     assertThat(response).isEqualTo(expected);
     verify(binaryContentService).createContentImage(any(), eq(thumbnail), isNull());
-    verify(binaryContentService).generateUrl(contentImg);
+    verify(binaryContentService).findUrl(null, null);
     verify(tagRepository).findAllByTagNameIn(List.of("SF", "액션"));
     verify(tagRepository, never()).insertIgnore(any(UUID.class), any(String.class));
     verify(contentTagRepository).saveAll(anyList());
@@ -281,7 +280,7 @@ class ContentServiceTest {
         .willAnswer(invocation -> invocation.getArgument(0));
     given(binaryContentService.createContentImage(any(), eq(thumbnail), isNull()))
         .willReturn(contentImg);
-    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
+    given(binaryContentService.findUrl(null, null)).willReturn(null);
     given(tagRepository.findAllByTagNameIn(List.of("sport")))
         .willReturn(List.of(), List.of(sportTag));
     given(contentMapper.toDto(any(Content.class), any(), anyList()))
@@ -296,7 +295,7 @@ class ContentServiceTest {
     // Then
     assertThat(response).isEqualTo(expected);
     verify(binaryContentService).createContentImage(any(), eq(thumbnail), isNull());
-    verify(binaryContentService).generateUrl(contentImg);
+    verify(binaryContentService).findUrl(null, null);
     verify(tagRepository, times(2)).findAllByTagNameIn(List.of("sport"));
     verify(tagRepository).insertIgnore(any(UUID.class), eq("sport"));
     verify(contentTagRepository).saveAll(argThat(contentTags -> {
@@ -385,7 +384,7 @@ class ContentServiceTest {
         ContentType.movie,
         "Updated Title",
         "Updated Description",
-        "https://example.com/new-thumbnail.png",
+        "/placeholder-movie.png",
         List.of("SF", "액션"),
         BigDecimal.ZERO,
         0,
@@ -400,11 +399,10 @@ class ContentServiceTest {
     given(tagRepository.insertIgnore(any(UUID.class), eq("액션"))).willReturn(1);
     given(contentTagRepository.saveAll(anyList()))
         .willAnswer(invocation -> invocation.getArgument(0));
-    given(binaryContentService.generateUrl(newContentImg))
-        .willReturn("https://example.com/new-thumbnail.png");
+    given(binaryContentService.findUrl(oldContentImg, null)).willReturn(null);
     given(contentMapper.toDto(
         content,
-        "https://example.com/new-thumbnail.png",
+        "/placeholder-movie.png",
         List.of("SF", "액션")
     )).willReturn(expected);
 
@@ -415,7 +413,7 @@ class ContentServiceTest {
     assertThat(response).isEqualTo(expected);
     assertThat(content.getTitle()).isEqualTo("Updated Title");
     assertThat(content.getDescription()).isEqualTo("Updated Description");
-    assertThat(content.getContentImg()).isEqualTo(newContentImg);
+    assertThat(content.getContentImg()).isEqualTo(oldContentImg);
     verify(contentRepository).findByIdWithContentImg(contentId);
     verify(binaryContentService).createContentImage(contentId, thumbnail, oldContentImg);
     verify(contentTagRepository).deleteAllByContentId(contentId);
@@ -425,10 +423,10 @@ class ContentServiceTest {
     }));
     verify(tagRepository, times(2)).findAllByTagNameIn(List.of("SF", "액션"));
     verify(tagRepository).insertIgnore(any(UUID.class), eq("액션"));
-    verify(binaryContentService).generateUrl(newContentImg);
+    verify(binaryContentService).findUrl(oldContentImg, null);
     verify(contentMapper).toDto(
         content,
-        "https://example.com/new-thumbnail.png",
+        "/placeholder-movie.png",
         List.of("SF", "액션")
     );
   }
@@ -472,8 +470,9 @@ class ContentServiceTest {
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
-    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
-    given(contentMapper.toDto(content, null, existingTagNames)).willReturn(expected);
+    given(binaryContentService.findUrl(contentImg, null)).willReturn(null);
+    given(contentMapper.toDto(content, "/placeholder-movie.png", existingTagNames))
+        .willReturn(expected);
 
     // When
     ContentDto response = contentService.update(contentId, request, null);
@@ -487,7 +486,7 @@ class ContentServiceTest {
     verify(contentTagRepository, never()).deleteAllByContentId(any(UUID.class));
     verify(contentTagRepository, never()).saveAll(anyList());
     verify(binaryContentService, never()).createContentImage(any(), any(), any());
-    verify(binaryContentService).generateUrl(contentImg);
+    verify(binaryContentService).findUrl(contentImg, null);
   }
 
   @Test
@@ -535,8 +534,9 @@ class ContentServiceTest {
 
     given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(existingTagNames);
-    given(binaryContentService.generateUrl(contentImg)).willReturn(null);
-    given(contentMapper.toDto(content, null, existingTagNames)).willReturn(expected);
+    given(binaryContentService.findUrl(contentImg, null)).willReturn(null);
+    given(contentMapper.toDto(content, "/placeholder-movie.png", existingTagNames))
+        .willReturn(expected);
 
     // When
     ContentDto response = contentService.update(contentId, request, emptyThumbnail);
@@ -547,7 +547,7 @@ class ContentServiceTest {
     assertThat(content.getDescription()).isEqualTo("Old Description");
     assertThat(content.getContentImg()).isEqualTo(contentImg);
     verify(binaryContentService, never()).createContentImage(any(), any(), any());
-    verify(binaryContentService).generateUrl(contentImg);
+    verify(binaryContentService).findUrl(contentImg, null);
     verify(contentTagRepository).findTagNamesByContentId(contentId);
   }
 
@@ -1091,7 +1091,7 @@ class ContentServiceTest {
     verify(contentDetailCacheService).find(contentId);
     verify(contentRepository, never()).findByIdWithContentImg(contentId);
     verify(contentTagRepository, never()).findTagNamesByContentId(contentId);
-    verify(binaryContentService, never()).generateUrl(any(BinaryContent.class));
+    verify(binaryContentService, never()).findUrl(any(BinaryContent.class), any());
     verify(contentMapper, never()).toDto(any(Content.class), any(), anyList());
   }
 

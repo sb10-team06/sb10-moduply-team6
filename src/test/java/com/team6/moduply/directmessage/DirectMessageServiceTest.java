@@ -102,8 +102,10 @@ class DirectMessageServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(currentUser.getProfileImg(), currentUser.getProfileImageUrl()))
+        .willReturn(null);
+    given(binaryContentService.findUrl(withUser.getProfileImg(), withUser.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.save(any(DirectMessage.class)))
@@ -180,8 +182,10 @@ class DirectMessageServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
+    given(binaryContentService.findUrl(currentUser.getProfileImg(), currentUser.getProfileImageUrl()))
+        .willReturn(null);
+    given(binaryContentService.findUrl(withUser.getProfileImg(), withUser.getProfileImageUrl()))
+        .willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.save(any(DirectMessage.class))).willReturn(savedDirectMessage);

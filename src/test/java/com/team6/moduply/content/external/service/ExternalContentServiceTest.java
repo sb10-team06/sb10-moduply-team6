@@ -301,7 +301,7 @@ class ExternalContentServiceTest {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Content>> contentCaptor = ArgumentCaptor.forClass(List.class);
     verify(contentRepository, times(2)).saveAll(contentCaptor.capture());
-    assertThat(contentCaptor.getAllValues().get(1).get(0).getContentImg()).isEqualTo(contentImg);
+    assertThat(contentCaptor.getAllValues().get(1).get(0).getContentImg()).isNull();
   }
 
   @Test
