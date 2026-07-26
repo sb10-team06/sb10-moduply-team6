@@ -116,8 +116,10 @@ class BinaryContentStorageEventListenerTest {
         null,
         null
     );
+    verify(contentImageUploadService).evictCaches(contentId, binaryContentId);
     verify(binaryContentStorage, never()).delete(binaryContent.getStorageKey());
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
+    verify(binaryContentService).evictUrl(binaryContentId);
   }
 
   @Test
