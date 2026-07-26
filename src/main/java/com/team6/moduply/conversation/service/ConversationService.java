@@ -151,7 +151,10 @@ public class ConversationService {
         currentUser.getCreatedAt(),
         currentUser.getEmail(),
         currentUser.getName(),
-        binaryContentService.generateUrl(currentUser.getProfileImg()),
+        binaryContentService.findUrl(
+            currentUser.getProfileImg(),
+            currentUser.getProfileImageUrl()
+        ),
         currentUser.getRole(),
         currentUser.isBlocked()
     );
@@ -399,7 +402,10 @@ public class ConversationService {
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {
-    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
+    return userMapper.toSummaryDto(
+        user,
+        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())
+    );
   }
 
   private UserSummaryDto toUserSummaryDto(UserDto user) {

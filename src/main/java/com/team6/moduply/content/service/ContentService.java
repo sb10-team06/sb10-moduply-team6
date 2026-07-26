@@ -81,9 +81,8 @@ public class ContentService {
         request.description()
     );
     Content savedContent = contentRepository.save(content);
-    BinaryContent contentImg = createContentImage(savedContent, thumbnail);
-    savedContent.updateContentImg(contentImg);
-    String thumbnailUrl = binaryContentService.generateUrl(contentImg);
+    createContentImage(savedContent, thumbnail);
+    String thumbnailUrl = resolveThumbnailUrl(savedContent);
 
     List<String> tagNames = normalizeTagsOrDefault(request.tags(), request.type());
 
@@ -127,8 +126,7 @@ public class ContentService {
     );
 
     if (thumbnail != null && !thumbnail.isEmpty()) {
-      BinaryContent contentImg = createContentImage(content, thumbnail);
-      content.updateContentImg(contentImg);
+      createContentImage(content, thumbnail);
     }
 
     List<String> tagNames = updateTagsIfPresent(content, request.tags());
@@ -156,7 +154,7 @@ public class ContentService {
     contentTagRepository.deleteAllByContentId(contentId);
 
     if (contentImg != null) {
-      content.updateContentImg(null);
+      content.updateContentImage(null, null);
       contentRepository.flush();
     }
 
@@ -429,11 +427,15 @@ public class ContentService {
   }
 
   private ContentDto toDto(Content content, List<String> tagNames, long watcherCount) {
-    String thumbnailUrl = content.getContentImg() == null
-        ? DEFAULT_THUMBNAIL_URL
-        : binaryContentService.generateUrl(content.getContentImg());
+    String thumbnailUrl = resolveThumbnailUrl(content);
     ContentDto contentDto = contentMapper.toDto(content, thumbnailUrl, tagNames);
     return withWatcherCount(contentDto, watcherCount);
+  }
+
+  private String resolveThumbnailUrl(Content content) {
+    String thumbnailUrl =
+        binaryContentService.findUrl(content.getContentImg(), content.getThumbnailUrl());
+    return thumbnailUrl != null ? thumbnailUrl : DEFAULT_THUMBNAIL_URL;
   }
 
   private ContentDto withCurrentWatcherCount(ContentDto contentDto, UUID contentId) {

@@ -34,7 +34,8 @@ public class ModuPlyUserDetailsService implements UserDetailsService {
                 "email" , username
             )));
         // TODO: 로그인 인증 과정과 응답용 프로필 URL 생성 책임이 섞여 있으므로 추후 분리 리팩토링 필요
-        String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+        String profileImageUrl =
+            binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
         UserDto userDto = userMapper.toDto(user, profileImageUrl);
 
         String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(username);

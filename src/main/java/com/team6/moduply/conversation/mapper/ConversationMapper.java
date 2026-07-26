@@ -66,7 +66,10 @@ public abstract class ConversationMapper {
   }
 
   protected UserSummaryDto toUserSummaryDto(User user) {
-    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
+    return userMapper.toSummaryDto(
+        user,
+        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())
+    );
   }
 
   private User resolveReceiver(UUID senderId, User currentUser, User withUser) {

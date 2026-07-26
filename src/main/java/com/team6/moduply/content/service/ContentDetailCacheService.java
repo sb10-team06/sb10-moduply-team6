@@ -39,9 +39,10 @@ public class ContentDetailCacheService {
           );
         });
 
-    String thumbnailUrl = content.getContentImg() == null
-        ? DEFAULT_THUMBNAIL_URL
-        : binaryContentService.generateUrl(content.getContentImg());
+    String storedThumbnailUrl =
+        binaryContentService.findUrl(content.getContentImg(), content.getThumbnailUrl());
+    String thumbnailUrl =
+        storedThumbnailUrl != null ? storedThumbnailUrl : DEFAULT_THUMBNAIL_URL;
 
     return new ContentDetailCacheDto(
         content.getId(),

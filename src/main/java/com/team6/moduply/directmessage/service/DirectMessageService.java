@@ -136,7 +136,10 @@ public class DirectMessageService {
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {
-    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
+    return userMapper.toSummaryDto(
+        user,
+        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())
+    );
   }
 
   private void validateParticipant(Conversation conversation, UUID userId) {

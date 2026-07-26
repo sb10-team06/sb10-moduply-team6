@@ -13,6 +13,7 @@ moduply:
       total-size: ${MODUPLY_TEST_DATA_CONTENT_TOTAL_SIZE:10000}
       chunk-size: ${MODUPLY_TEST_DATA_CONTENT_CHUNK_SIZE:1000}
       skip-if-exists: ${MODUPLY_TEST_DATA_CONTENT_SKIP_IF_EXISTS:true}
+      image-base-url: ${MODUPLY_TEST_DATA_CONTENT_IMAGE_BASE_URL:https://moduply-test.s3.ap-northeast-2.amazonaws.com}
     conversation:
       enabled: ${MODUPLY_TEST_DATA_CONVERSATION_ENABLED:false}
       user-size: ${MODUPLY_TEST_DATA_CONVERSATION_USER_SIZE:10000}

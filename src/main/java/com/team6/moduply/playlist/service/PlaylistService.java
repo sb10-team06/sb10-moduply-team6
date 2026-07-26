@@ -123,7 +123,7 @@ public class PlaylistService {
         .map(user -> new PlaylistDto.OwnerDto(
             user.getId(),
             user.getName(),
-            binaryContentService.generateUrl(user.getProfileImg())))
+            binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())))
         .orElse(null);
 
     long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
@@ -146,7 +146,7 @@ public class PlaylistService {
               c.getType(),
               c.getTitle(),
               c.getDescription(),
-              binaryContentService.generateUrl(c.getContentImg()),
+              binaryContentService.findUrl(c.getContentImg(), c.getThumbnailUrl()),
               List.of(),
               c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
               c.getReviewCount());
@@ -222,7 +222,7 @@ public class PlaylistService {
           User owner = ownerMap.get(playlist.getOwnerId());
           PlaylistDto.OwnerDto ownerDto = owner != null
               ? new PlaylistDto.OwnerDto(owner.getId(), owner.getName(),
-              binaryContentService.generateUrl(owner.getProfileImg()))
+              binaryContentService.findUrl(owner.getProfileImg(), owner.getProfileImageUrl()))
               : null;
 
           long subscriberCount = subscriberCountMap.getOrDefault(playlist.getId(), 0L);
@@ -235,7 +235,7 @@ public class PlaylistService {
                 if (c == null) return null;
                 return new PlaylistDto.ContentSummaryDto(
                     c.getId(), c.getType(), c.getTitle(), c.getDescription(),
-                    binaryContentService.generateUrl(c.getContentImg()),
+                    binaryContentService.findUrl(c.getContentImg(), c.getThumbnailUrl()),
                     List.of(),
                     c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
                     c.getReviewCount());

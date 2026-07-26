@@ -6,8 +6,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,5 +20,10 @@ public interface ContentRepository extends JpaRepository<Content, UUID>, Content
   @EntityGraph(attributePaths = "contentImg")
   @Query("select c from Content c where c.id = :id")
   Optional<Content> findByIdWithContentImg(@Param("id") UUID id);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @EntityGraph(attributePaths = "contentImg")
+  @Query("select c from Content c where c.id = :id")
+  Optional<Content> findByIdWithContentImgForUpdate(@Param("id") UUID id);
 
 }

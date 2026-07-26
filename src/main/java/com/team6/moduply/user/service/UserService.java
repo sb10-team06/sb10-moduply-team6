@@ -1,7 +1,9 @@
 package com.team6.moduply.user.service;
 
+import com.team6.moduply.binarycontent.dto.BinaryContentUploadResult;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.util.RedisUtil;
@@ -25,6 +27,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -95,7 +98,7 @@ public class UserService {
     if(hasNext){
       users = users.subList(0, request.getLimit());
     }
-    List<UserDto> data = users.stream().map(userMapper::toDto).toList();
+    List<UserDto> data = users.stream().map(this::toDto).toList();
 
     String nextCursor = null;
     UUID nextIdAfter = null;
@@ -166,6 +169,7 @@ public class UserService {
   }
 
   @Transactional
+  @CacheEvict(cacheNames = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
   public UserDto updateUser(UUID userId, UserUpdateRequest request, MultipartFile profileImg) {
     User user = userRepository.findById(userId)
@@ -180,9 +184,13 @@ public class UserService {
     if (profileImg != null) {
       BinaryContent oldImg = user.getProfileImg();
       try {
-        BinaryContent newImg = binaryContentService.createUserProfile(userId, profileImg, oldImg);
-        user.updateProfileImg(newImg);
-        String profileImageUrl = binaryContentService.generateUrl(newImg);
+        BinaryContentUploadResult uploadResult =
+            binaryContentService.createUserProfile(userId, profileImg, oldImg);
+        user.updateProfileImage(uploadResult.binaryContent(), uploadResult.url());
+        String profileImageUrl = binaryContentService.findUrl(
+            uploadResult.binaryContent(),
+            uploadResult.url()
+        );
         return userMapper.toDto(user, profileImageUrl);
 
       } catch (IOException e) {
@@ -193,7 +201,8 @@ public class UserService {
       }
     }
 
-    String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+    String profileImageUrl =
+        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
     return userMapper.toDto(user, profileImageUrl);
   }
 
@@ -236,7 +245,8 @@ public class UserService {
   }
 
   private UserDto toDto(User user) {
-    String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+    String profileImageUrl =
+        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
     return userMapper.toDto(user, profileImageUrl);
   }
 

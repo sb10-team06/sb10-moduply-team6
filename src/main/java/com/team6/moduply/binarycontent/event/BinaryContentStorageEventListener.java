@@ -7,6 +7,7 @@ import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
 import com.team6.moduply.common.config.AsyncConfig;
+import com.team6.moduply.content.service.ContentImageUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -25,6 +26,7 @@ public class BinaryContentStorageEventListener {
     private final BinaryContentStorage binaryContentStorage;
     private final BinaryContentService binaryContentService;
     private final BinaryContentRepository binaryContentRepository;
+    private final ContentImageUploadService contentImageUploadService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async(AsyncConfig.BINARY_CONTENT_TASK_EXECUTOR)
@@ -52,14 +54,26 @@ public class BinaryContentStorageEventListener {
 
         try {
             /// 실제 파일 저장소 업로드
-            binaryContentStorage.upload(
+            String imageUrl = binaryContentStorage.upload(
                     binaryContent.getStorageKey(),
                     event.getBytes(),
                     binaryContent.getContentType()
             );
-            /// binaryContent 상태 SUCCESS로 업데이트
-            /// updatesStatusSuccess가 REQUIRES_NEW라서 바로 SUCCESS로 COMMIT
-            binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, event.getOldBinaryContentId(), event.getOldStorageKey());
+            contentImageUploadService.complete(
+                    event.getContentId(),
+                    binaryContentId,
+                    imageUrl,
+                    event.getOldBinaryContentId(),
+                    event.getOldStorageKey()
+            );
+            try {
+                contentImageUploadService.evictCaches(event.getContentId(), binaryContentId);
+            } catch (Exception cacheException) {
+                log.warn("콘텐츠 이미지 캐시 제거에 실패했습니다. contentId={}, binaryContentId={}",
+                        event.getContentId(),
+                        binaryContentId,
+                        cacheException);
+            }
 
         } catch (Exception e) {
             log.error("BinaryContent 업로드 실패. binaryContentId={}", binaryContentId, e);
@@ -95,6 +109,13 @@ public class BinaryContentStorageEventListener {
     public void handleBinaryContentDelete(BinaryContentDeletedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
         String storageKey = event.getStorageKey();
+        try {
+            binaryContentService.evictUrl(binaryContentId);
+        } catch (Exception cacheException) {
+            log.warn("이미지 URL 캐시 제거에 실패했습니다. binaryContentId={}",
+                    binaryContentId,
+                    cacheException);
+        }
 
         try {
             binaryContentStorage.delete(event.getStorageKey());

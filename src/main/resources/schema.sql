@@ -21,6 +21,7 @@ CREATE TABLE binary_contents (
 CREATE TABLE contents (
     id              UUID             PRIMARY KEY,
     content_img_id  UUID,
+    thumbnail_url   TEXT,
     external_api_id VARCHAR(100),
     type            VARCHAR(30)      NOT NULL,
     title           VARCHAR(255)     NOT NULL,
@@ -47,6 +48,7 @@ CREATE INDEX CONCURRENTLY idx_contents_created_at_id ON contents (created_at DES
 CREATE TABLE users (
     id              UUID             PRIMARY KEY,
     profile_img_id  UUID,
+    profile_image_url TEXT,
     email           VARCHAR(100)     NOT NULL,
     password        VARCHAR(255),
     name            VARCHAR(50)      NOT NULL,

@@ -1,5 +1,6 @@
 package com.team6.moduply.binarycontent.service;
 
+import com.team6.moduply.binarycontent.dto.BinaryContentUploadResult;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
 import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -52,7 +54,11 @@ public class BinaryContentService {
   // TODO 사용자 A가 이미지 100번 변경시 이미지 100개 DB저장되는 구조 수정필요
   /// user프로필 이미지 변경
   @Transactional
-  public BinaryContent createUserProfile(UUID userId, MultipartFile image, BinaryContent oldProfileImg) throws IOException {
+  public BinaryContentUploadResult createUserProfile(
+      UUID userId,
+      MultipartFile image,
+      BinaryContent oldProfileImg
+  ) throws IOException {
     log.debug("프로필 이미지 생성 시작. userId={}, fileName={}, size={}, contentType={}",
         userId,
         image != null ? image.getOriginalFilename() : null,
@@ -69,7 +75,7 @@ public class BinaryContentService {
 
   }
 
-  private BinaryContent createUserProfileSync(
+  private BinaryContentUploadResult createUserProfileSync(
       MultipartFile image,
       String storageKey,
       BinaryContent oldProfileImg
@@ -82,7 +88,7 @@ public class BinaryContentService {
     );
     BinaryContent savedBinaryContent = binaryContentRepository.save(binaryContent);
 
-    binaryContentStorage.upload(
+    String imageUrl = binaryContentStorage.upload(
         savedBinaryContent.getStorageKey(),
         image.getBytes(),
         savedBinaryContent.getContentType()
@@ -103,7 +109,7 @@ public class BinaryContentService {
         savedBinaryContent.getSize(),
         savedBinaryContent.getStorageKey());
 
-    return savedBinaryContent;
+    return new BinaryContentUploadResult(savedBinaryContent, imageUrl);
   }
 
   /// 콘텐츠 생성시 썸네일 등록
@@ -212,32 +218,6 @@ public class BinaryContentService {
             binaryContent.getStorageKey());
   }
 
-  /// 기존 이미지가 있는경우: updatesStatusSuccess -> delete 이벤트 발해
-  /// 기존 이미지가 없는경우: updatesStatusSuccess만
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void updatesStatusSuccessAndPublishDeleteEvent(
-          UUID binaryContentId,
-          UUID oldBinaryContentId,
-          String oldStorageKey
-  ) {
-    BinaryContent binaryContent = binaryContentRepository.findById(binaryContentId)
-            .orElseThrow(() -> new BinaryContentException(
-                    BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND,
-                    Map.of("binaryContentId", binaryContentId)
-            ));
-
-    binaryContent.success();
-
-    if (oldBinaryContentId != null) {
-      eventPublisher.publishEvent(
-              new BinaryContentDeletedEvent(
-                      oldBinaryContentId,
-                      oldStorageKey
-              )
-      );
-    }
-  }
-
   /// binaryContent FAIL상태로 업데이트
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void updatesStatusFail(UUID binaryContentId) {
@@ -344,23 +324,25 @@ public class BinaryContentService {
     );
   }
 
-  /// S3PresignedUrl 생성 메서드.
-  /// userService에서 호출 or contentService에서 호출
+  /// DB에 저장된 이미지 URL을 BinaryContent ID 기준으로 캐시한다.
   @Transactional(readOnly = true)
   @Cacheable(
-      cacheNames = CacheConfig.PROFILE_IMAGE_URL,
+      cacheNames = CacheConfig.IMAGE_URL,
       key = "#binaryContent.id",
-      condition = "#binaryContent != null"
+      condition = "#binaryContent != null && #storedUrl != null",
+      unless = "#result == null"
   )
-  public String generateUrl(BinaryContent binaryContent) {
-    if (binaryContent == null) {
-      return null;
-    }
+  public String findUrl(BinaryContent binaryContent, String storedUrl) {
+    return storedUrl;
+  }
 
-    return binaryContentStorage.generateUrl(
-            binaryContent.getStorageKey(),
-            binaryContent.getContentType()
-    );
+  @CacheEvict(
+      cacheNames = CacheConfig.IMAGE_URL,
+      key = "#binaryContentId",
+      condition = "#binaryContentId != null"
+  )
+  public void evictUrl(UUID binaryContentId) {
+    log.debug("이미지 URL 캐시를 제거합니다. binaryContentId={}", binaryContentId);
   }
 
   private String getExtension(String fileName) {

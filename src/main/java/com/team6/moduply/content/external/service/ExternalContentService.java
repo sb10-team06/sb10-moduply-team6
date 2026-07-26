@@ -152,14 +152,13 @@ public class ExternalContentService {
 
       try {
         ExternalImageFile imageFile = externalImageClient.download(item.thumbnailUrl());
-        BinaryContent contentImg = binaryContentService.createContentImage(
+        binaryContentService.createContentImage(
             content.getId(),
             imageFile.fileName(),
             imageFile.bytes(),
             imageFile.contentType(),
             null
         );
-        content.updateContentImg(contentImg);
         contentsWithImages.add(content);
         imageSavedCount++;
       } catch (RuntimeException e) {

@@ -35,6 +35,9 @@ public class Content extends BaseUpdatableEntity {
   @JoinColumn(name = "content_img_id")
   private BinaryContent contentImg;
 
+  @Column(name = "thumbnail_url", columnDefinition = "TEXT")
+  private String thumbnailUrl;
+
   @Column(name = "external_api_id", length = 100)
   private String externalApiId;
 
@@ -71,8 +74,14 @@ public class Content extends BaseUpdatableEntity {
     this.description = description;
   }
 
+  @Deprecated
   public void updateContentImg(BinaryContent contentImg) {
+    updateContentImage(contentImg, null);
+  }
+
+  public void updateContentImage(BinaryContent contentImg, String thumbnailUrl) {
     this.contentImg = contentImg;
+    this.thumbnailUrl = thumbnailUrl;
   }
 
   public void updateReviewStats(BigDecimal averageRating, int reviewCount) {

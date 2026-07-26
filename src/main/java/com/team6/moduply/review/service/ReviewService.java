@@ -65,7 +65,7 @@ public class ReviewService {
     return new ReviewDto.AuthorDto(
         authorId,
         author.getName(),
-        binaryContentService.generateUrl(author.getProfileImg())
+        binaryContentService.findUrl(author.getProfileImg(), author.getProfileImageUrl())
     );
   }
 
@@ -184,7 +184,10 @@ public class ReviewService {
         .stream()
         .collect(Collectors.toMap(
             User::getId,
-            user -> userMapper.toDto(user, binaryContentService.generateUrl(user.getProfileImg()))
+            user -> userMapper.toDto(
+                user,
+                binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())
+            )
         ));
 
     List<ReviewDto> data = reviews.stream()
