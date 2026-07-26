@@ -114,6 +114,28 @@ class SportsDbClientTest {
   }
 
   @Test
+  @DisplayName("The Sports DB 일별 경기 목록 조회 시 날짜만으로 조회할 수 있다.")
+  void fetchEventsByDay_success_with_date_only() {
+    // Given
+    String json = """
+        {
+          "events": []
+        }
+        """;
+    server.expect(once(), requestTo(
+            "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=2026-07-01"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+    // When
+    SportsDbEventListResponse response = sportsDbClient.fetchEventsByDay(LocalDate.of(2026, 7, 1));
+
+    // Then
+    assertThat(response.events()).isEmpty();
+    server.verify();
+  }
+
+  @Test
   @DisplayName("The Sports DB API 키가 없으면 경기 목록 조회에 실패한다.")
   void fetchNextLeagueEvents_fail_when_api_key_is_blank() {
     // Given
@@ -164,6 +186,25 @@ class SportsDbClientTest {
         assertThat(exception.getErrorCode())
             .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
     );
+
+    server.verify();
+  }
+
+  @Test
+  @DisplayName("The Sports DB 응답 본문이 없으면 ContentException으로 변환한다.")
+  void fetchEventsByDay_fail_when_response_body_is_empty() {
+    // Given
+    server.expect(once(), requestTo(
+            "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=2026-07-01"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess("", MediaType.APPLICATION_JSON));
+
+    // When & Then
+    assertThatThrownBy(() -> sportsDbClient.fetchEventsByDay(LocalDate.of(2026, 7, 1)))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_INVALID_RESPONSE)
+        );
 
     server.verify();
   }

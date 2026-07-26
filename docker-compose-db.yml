@@ -30,6 +30,45 @@ services:
     networks:
       - backend
 
+  # Kafka
+  broker:
+    image: confluentinc/cp-kafka:7.5.3
+    hostname: broker
+    container_name: broker
+    networks:
+      - backend
+    ports:
+      - "9092:9092"   # 로컬에서 스프링 돌릴 때 접속할 포트
+      - "29092:29092" # 도커 내부 네트워크 전용 포트
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
+      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+  # Kafka GUI 모니터링 툴 (Kafdrop)
+  kafdrop:
+    image: obsidiandynamics/kafdrop:4.0.0
+    container_name: kafdrop
+    ports:
+      - "9000:9000" # http://localhost:9000 으로 브라우저 접속
+    environment:
+      KAFKA_BROKERCONNECT: "broker:29092" # 도커 내부망으로 브로커에 연결
+    depends_on:
+      - broker
+    networks:
+      - backend
+
 # 볼륨 설정
 volumes:
   postgres-data:

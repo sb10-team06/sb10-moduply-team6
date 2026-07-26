@@ -34,6 +34,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,6 +48,7 @@ public class UserService {
   private final BinaryContentService binaryContentService;
   private final RedisUtil redisUtil;
   private final ApplicationEventPublisher applicationEventPublisher;
+  private final TransactionTemplate transactionTemplate;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -172,13 +174,47 @@ public class UserService {
   @CacheEvict(cacheNames = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
   public UserDto updateUser(UUID userId, UserUpdateRequest request, MultipartFile profileImg) {
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
-            "userId", userId
-        )));
 
-    if (StringUtils.hasText(request.getName())) {
-      user.updateName(request.getName());
+    /// 이미지 없으면(이름만 수정): 하나의 트랜잭션
+    if (profileImg == null) {
+      return transactionTemplate.execute(status -> {
+        // DB에서 User 조회
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+                "userId", userId
+            )));
+        // 이름 변경
+        if (StringUtils.hasText(request.getName())) {
+          user.updateName(request.getName());
+        }
+        // 현재 프로필 URL 생성
+        String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
+        // DTO 반환
+        return userMapper.toDto(user, profileImageUrl);
+      });
+    }
+    /// 이미지 있는경우
+    /// (1) 트랜잭션 1: 사용자 존재 확인
+    transactionTemplate.executeWithoutResult(status -> {
+      // USER 존재 확인.
+      if (!userRepository.existsById(userId)) {
+        throw new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+            "userId", userId
+        ));
+      }
+    });
+
+    /// (2)트랜잭션 밖: S3 업로드.
+    UploadedUserProfile uploadedProfile;
+    try {
+      // S3 업로드
+      uploadedProfile = binaryContentService.uploadUserProfile(userId, profileImg);
+    } catch (IOException e) {
+      throw new UserException(
+          UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION,
+          Map.of("reason", "프로필 이미지 업로드에 실패했습니다."),
+          e
+      );
     }
 
     if (profileImg != null) {
@@ -192,13 +228,11 @@ public class UserService {
             uploadResult.url()
         );
         return userMapper.toDto(user, profileImageUrl);
-
-      } catch (IOException e) {
-        throw new UserException(
-            UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION,
-            Map.of("reason", "프로필 이미지 업로드에 실패했습니다.")
-        );
-      }
+      });
+    } catch (RuntimeException e) {
+      // 실패시 S3 삭제
+      binaryContentService.deleteUploadedFileQuietly(uploadedProfile.storageKey());
+      throw e;
     }
 
     String profileImageUrl =
