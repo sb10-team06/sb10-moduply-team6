@@ -17,7 +17,6 @@ import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.repository.ContentTagRepository;
 import com.team6.moduply.content.repository.TagRepository;
 import com.team6.moduply.content.search.service.ContentSearchIndexService;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -144,7 +143,6 @@ public class ExternalContentService {
   ) {
     int imageSavedCount = 0;
     int imageFailedCount = 0;
-    List<Content> contentsWithImages = new ArrayList<>();
 
     for (Content content : contents) {
       ExternalContentItem item = itemByExternalApiId.get(content.getExternalApiId());
@@ -162,7 +160,6 @@ public class ExternalContentService {
             imageFile.contentType(),
             null
         );
-        contentsWithImages.add(content);
         imageSavedCount++;
       } catch (RuntimeException e) {
         imageFailedCount++;
@@ -173,13 +170,6 @@ public class ExternalContentService {
             e
         );
       }
-    }
-
-    if (!contentsWithImages.isEmpty()) {
-      transactionTemplate.execute(status -> {
-        contentRepository.saveAll(contentsWithImages);
-        return null;
-      });
     }
 
     return new ExternalImageSaveResult(imageSavedCount, imageFailedCount);

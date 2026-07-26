@@ -383,7 +383,7 @@ class ExternalContentServiceTest {
   }
 
   @Test
-  @DisplayName("외부 콘텐츠 이미지 저장에 성공하면 콘텐츠에 BinaryContent를 연결한다.")
+  @DisplayName("외부 콘텐츠 이미지 저장을 요청한 뒤 detached 콘텐츠를 다시 저장하지 않는다.")
   void importTmdbMovies_success_with_external_thumbnail_image() {
     // Given
     TmdbMovieResponse movie = new TmdbMovieResponse(
@@ -440,8 +440,8 @@ class ExternalContentServiceTest {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<Content>> contentCaptor = ArgumentCaptor.forClass(List.class);
-    verify(contentRepository, times(2)).saveAll(contentCaptor.capture());
-    assertThat(contentCaptor.getAllValues().get(1).get(0).getContentImg()).isNull();
+    verify(contentRepository).saveAll(contentCaptor.capture());
+    assertThat(contentCaptor.getValue().get(0).getContentImg()).isNull();
   }
 
   @Test
