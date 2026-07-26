@@ -54,6 +54,25 @@ class ExternalImageClientTest {
   }
 
   @Test
+  @DisplayName("외부 이미지 응답에 타입과 본문이 없으면 기본값을 반환한다.")
+  void download_success_with_empty_body_and_missing_content_type() {
+    // Given
+    String imageUrl = "https://www.thesportsdb.com/";
+    server.expect(once(), requestTo(imageUrl))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withSuccess());
+
+    // When
+    ExternalImageFile result = externalImageClient.download(imageUrl);
+
+    // Then
+    assertThat(result.fileName()).isEqualTo("external-thumbnail");
+    assertThat(result.contentType()).isEqualTo(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+    assertThat(result.bytes()).isEmpty();
+    server.verify();
+  }
+
+  @Test
   @DisplayName("The Sports DB 이미지 URL 다운로드에 성공한다.")
   void download_success_with_sports_db_image_url() {
     // Given
@@ -78,6 +97,17 @@ class ExternalImageClientTest {
   void download_fail_when_image_url_is_blank() {
     // When & Then
     assertThatThrownBy(() -> externalImageClient.download(" "))
+        .isInstanceOfSatisfying(ContentException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)
+        );
+  }
+
+  @Test
+  @DisplayName("외부 이미지 URL이 null이면 다운로드에 실패한다.")
+  void download_fail_when_image_url_is_null() {
+    // When & Then
+    assertThatThrownBy(() -> externalImageClient.download(null))
         .isInstanceOfSatisfying(ContentException.class, exception ->
             assertThat(exception.getErrorCode())
                 .isEqualTo(ContentErrorCode.EXTERNAL_CONTENT_IMAGE_DOWNLOAD_FAILED)

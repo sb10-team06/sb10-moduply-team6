@@ -261,6 +261,145 @@ class ContentRepositoryTest extends RepositoryTestSupport {
   }
 
   @Test
+  @DisplayName("콘텐츠 목록을 최신순 내림차순 커서 이후로 조회한다.")
+  void find_all_by_cursor_success_with_created_at_descending_cursor() {
+    // Given
+    contentRepository.save(createContent(
+        ContentType.movie,
+        "First Movie",
+        "먼저 등록된 영화",
+        100L
+    ));
+    contentRepository.save(createContent(
+        ContentType.movie,
+        "Second Movie",
+        "나중에 등록된 영화",
+        50L
+    ));
+    List<Content> firstPage = contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        null,
+        null,
+        2,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+    Content cursorContent = firstPage.get(0);
+
+    // When
+    List<Content> result = contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        cursorContent.getCreatedAt().toString(),
+        cursorContent.getId(),
+        10,
+        ContentSortBy.createdAt,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(firstPage.get(1).getId());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 목록을 인기순 오름차순 커서 이후로 조회한다.")
+  void find_all_by_cursor_success_with_watcher_count_ascending_cursor() {
+    // Given
+    Content first = contentRepository.save(createContent(
+        ContentType.movie,
+        "Low Watcher Movie",
+        "시청자 수가 적은 영화",
+        10L
+    ));
+    Content second = contentRepository.save(createContent(
+        ContentType.movie,
+        "High Watcher Movie",
+        "시청자 수가 많은 영화",
+        20L
+    ));
+
+    // When
+    List<Content> result = contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        String.valueOf(first.getWatcherCount()),
+        first.getId(),
+        10,
+        ContentSortBy.watcherCount,
+        SortDirection.ASCENDING
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(second.getId());
+  }
+
+  @Test
+  @DisplayName("콘텐츠 목록을 평점순 내림차순 커서 이후로 조회한다.")
+  void find_all_by_cursor_success_with_rate_descending_cursor() {
+    // Given
+    Content highRated = contentRepository.save(createContent(
+        ContentType.movie,
+        "High Rated Movie",
+        "평점이 높은 영화",
+        100L,
+        BigDecimal.valueOf(4.50)
+    ));
+    Content lowRated = contentRepository.save(createContent(
+        ContentType.movie,
+        "Low Rated Movie",
+        "평점이 낮은 영화",
+        50L,
+        BigDecimal.valueOf(3.20)
+    ));
+
+    // When
+    List<Content> result = contentRepository.findAllByCursor(
+        null,
+        null,
+        List.of(),
+        highRated.getAverageRating().toString(),
+        highRated.getId(),
+        10,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    );
+
+    // Then
+    assertThat(result)
+        .extracting(Content::getId)
+        .containsExactly(lowRated.getId());
+  }
+
+  @Test
+  @DisplayName("평점 커서 형식이 올바르지 않으면 콘텐츠 목록 조회에 실패한다.")
+  void find_all_by_cursor_fail_when_rate_cursor_invalid() {
+    // Given
+    UUID idAfter = UUID.randomUUID();
+
+    // When & Then
+    assertThatThrownBy(() -> contentRepository.findAllByCursor(
+        null,
+        null,
+        null,
+        "invalid-rate",
+        idAfter,
+        10,
+        ContentSortBy.rate,
+        SortDirection.DESCENDING
+    )).isInstanceOfSatisfying(ContentException.class, exception ->
+        assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.INVALID_CURSOR)
+    );
+  }
+
+  @Test
   @DisplayName("동일한 정렬값이면 ID 보조 커서로 다음 목록을 조회한다.")
   void find_all_by_cursor_success_with_id_after_when_sort_values_are_same() {
     // Given

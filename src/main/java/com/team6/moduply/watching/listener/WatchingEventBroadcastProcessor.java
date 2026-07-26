@@ -1,6 +1,5 @@
 package com.team6.moduply.watching.listener;
 
-import com.team6.moduply.common.config.AsyncConfig;
 import com.team6.moduply.common.redis.RedisPublisher;
 import com.team6.moduply.content.dto.ContentSummary;
 import com.team6.moduply.content.exception.ContentException;
@@ -12,21 +11,17 @@ import com.team6.moduply.watching.util.mapper.WatchingSessionMapper;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WatchingEventBroadcastListener {
+public class WatchingEventBroadcastProcessor {
 
   private final ContentService contentService;
   private final WatchingSessionMapper watchingSessionMapper;
   private final RedisPublisher redisPublisher;
 
-  @Async(AsyncConfig.WATCHING_EVENT_TASK_EXECUTOR)
-  @EventListener
   public void on(WatchingSessionChangedEvent event) {
 
     ContentSummary content;
@@ -52,5 +47,4 @@ public class WatchingEventBroadcastListener {
     redisPublisher.publish(destination, message);
     log.info("시청 세션 변경 메세지 전송 완료: contentId={}", contentId);
   }
-
 }

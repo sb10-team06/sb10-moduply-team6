@@ -4,6 +4,8 @@ import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
+import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.enums.ContentType;
 import com.team6.moduply.content.repository.ContentRepository;
 import com.team6.moduply.content.service.ContentService;
 import com.team6.moduply.notification.event.FollowActivityEvent;
@@ -25,6 +27,7 @@ import com.team6.moduply.user.enums.Role;
 import com.team6.moduply.user.exception.UserException;
 import com.team6.moduply.user.mapper.UserMapper;
 import com.team6.moduply.user.repository.UserRepository;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,6 +88,18 @@ class ReviewServiceTest {
         "테스트", null, Role.USER, false
     );
     return new ModuPlyUserDetails(userDto, "password");
+  }
+
+  private Content createContentWithReviewCount(int reviewCount) {
+    Content content = new Content(
+        null,
+        "test-external-id",
+        ContentType.movie,
+        "테스트 콘텐츠",
+        "테스트 설명"
+    );
+    content.updateReviewStats(BigDecimal.ZERO, reviewCount);
+    return content;
   }
 
   @Test
@@ -354,9 +369,11 @@ class ReviewServiceTest {
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
     ReviewDto dto1 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "첫번째", 4.0);
     ReviewDto dto2 = new ReviewDto(UUID.randomUUID(), contentId, authorDto, "두번째", 3.5);
+    int reviewCount = 15;
 
     given(reviewQDSLRepository.findAllWithCursor(request)).willReturn(List.of(review1, review2));
-    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(contentRepository.findById(contentId))
+        .willReturn(Optional.of(createContentWithReviewCount(reviewCount)));
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class)))
         .willReturn(dto1, dto2);
     given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
@@ -367,6 +384,7 @@ class ReviewServiceTest {
     // then
     assertThat(result.data()).hasSize(2);
     assertThat(result.hasNext()).isFalse();
+    assertThat(result.totalCount()).isEqualTo(reviewCount);
     assertThat(result.nextCursor()).isNull();
     assertThat(result.nextIdAfter()).isNull();
   }
@@ -394,10 +412,12 @@ class ReviewServiceTest {
 
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
     ReviewDto dto1 = new ReviewDto(review1Id, contentId, authorDto, "첫번째", 4.0);
+    int reviewCount = 27;
 
     given(reviewQDSLRepository.findAllWithCursor(request))
         .willReturn(new ArrayList<>(List.of(review1, review2)));
-    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(contentRepository.findById(contentId))
+        .willReturn(Optional.of(createContentWithReviewCount(reviewCount)));
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
     given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
@@ -407,6 +427,7 @@ class ReviewServiceTest {
     // then
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
+    assertThat(result.totalCount()).isEqualTo(reviewCount);
     assertThat(result.nextCursor()).isEqualTo(review1CreatedAt.toString());
     assertThat(result.nextIdAfter()).isEqualTo(review1Id);
   }
@@ -435,10 +456,12 @@ class ReviewServiceTest {
 
     ReviewDto.AuthorDto authorDto = new ReviewDto.AuthorDto(authorId, null, null);
     ReviewDto dto1 = new ReviewDto(review1Id, contentId, authorDto, "첫번째", 4.0);
+    int reviewCount = 31;
 
     given(reviewQDSLRepository.findAllWithCursor(request))
         .willReturn(new ArrayList<>(List.of(review1, review2)));
-    given(reviewQDSLRepository.countWithCondition(request)).willReturn(2L);
+    given(contentRepository.findById(contentId))
+        .willReturn(Optional.of(createContentWithReviewCount(reviewCount)));
     given(reviewMapper.toDto(any(Review.class), any(ReviewDto.AuthorDto.class))).willReturn(dto1);
     given(userRepository.findAllByIdWithProfileImg(any())).willReturn(List.of());
 
@@ -448,6 +471,7 @@ class ReviewServiceTest {
     // then
     assertThat(result.data()).hasSize(1);
     assertThat(result.hasNext()).isTrue();
+    assertThat(result.totalCount()).isEqualTo(reviewCount);
     assertThat(result.nextCursor()).isEqualTo(review1.getRating() + ":" + review1CreatedAt.toString());
     assertThat(result.nextIdAfter()).isEqualTo(review1Id);
   }

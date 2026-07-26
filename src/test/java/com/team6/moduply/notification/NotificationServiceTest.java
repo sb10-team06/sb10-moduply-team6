@@ -15,6 +15,7 @@ import com.team6.moduply.notification.repository.NotificationRepository;
 import com.team6.moduply.notification.repository.qdsl.NotificationQDSLRepository;
 import com.team6.moduply.notification.service.NotificationService;
 import com.team6.moduply.user.enums.Role;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -26,11 +27,14 @@ import org.mockito.InjectMocks;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -361,5 +365,34 @@ class NotificationServiceTest {
     // then
     assertThat(result).hasSize(1);
     verify(notificationRepository).saveAll(any());
+  }
+
+  @Test
+  @DisplayName("lastCreatedAt, lastId 이후 유실된 알림 목록을 반환한다.")
+  void findMissedNotifications_success() {
+    // given
+    UUID receiverId = UUID.randomUUID();
+    Instant lastCreatedAt = Instant.now().minusSeconds(60);
+    UUID lastId = UUID.randomUUID();
+
+    Notification notification = Notification.builder()
+        .receiverId(receiverId)
+        .type(NotificationType.PLAYLIST_SUBSCRIBED)
+        .title("제목").content("내용").level(NotificationLevel.INFO).build();
+
+    NotificationDto dto = new NotificationDto(
+        UUID.randomUUID(), Instant.now(), receiverId, "제목", "내용", NotificationLevel.INFO);
+
+    Slice<Notification> slice = new SliceImpl<>(List.of(notification));
+    given(notificationRepository.findMissedNotifications(
+        eq(receiverId), eq(lastCreatedAt), eq(lastId), any())).willReturn(slice);
+    given(notificationMapper.toDto(any())).willReturn(dto);
+
+    // when
+    List<NotificationDto> result = notificationService.findMissedNotifications(
+        receiverId, lastCreatedAt, lastId);
+
+    // then
+    assertThat(result).hasSize(1);
   }
 }

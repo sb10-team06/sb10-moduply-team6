@@ -345,12 +345,16 @@ export function createKoreanHtmlReport(data, scenarioName) {
     || value(data, 'follow_created', 'count')
     || value(data, 'content_list_ok', 'count')
     || value(data, 'content_find_ok', 'count')
-    || value(data, 'conversation_list_ok', 'count');
+    || value(data, 'conversation_list_ok', 'count')
+    || value(data, 'profile_updated', 'count')
+    || value(data, 'review_list_ok', 'count');
   const transactionTps = value(data, 'content_created', 'rate')
     || value(data, 'follow_created', 'rate')
     || value(data, 'content_list_ok', 'rate')
     || value(data, 'content_find_ok', 'rate')
-    || value(data, 'conversation_list_ok', 'rate');
+    || value(data, 'conversation_list_ok', 'rate')
+    || value(data, 'profile_updated', 'rate')
+    || value(data, 'review_list_ok', 'rate');
   const duplicateCount = hasMetric(data, 'follow_already_exists')
     ? value(data, 'follow_already_exists', 'count')
     : undefined;

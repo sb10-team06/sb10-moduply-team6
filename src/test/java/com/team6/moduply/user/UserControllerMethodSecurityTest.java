@@ -2,6 +2,7 @@ package com.team6.moduply.user;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -28,6 +29,8 @@ import com.team6.moduply.user.repository.UserRepository;
 import com.team6.moduply.user.service.UserService;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +42,9 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -77,6 +83,23 @@ class UserControllerMethodSecurityTest {
 
   @MockitoBean
   private RedisUtil redisUtil;
+
+  @MockitoBean
+  private TransactionTemplate transactionTemplate;
+
+  @BeforeEach
+  void setUp() {
+    lenient().when(transactionTemplate.execute(any(TransactionCallback.class)))
+        .thenAnswer(invocation -> {
+          TransactionCallback<?> callback = invocation.getArgument(0);
+          return callback.doInTransaction(null);
+        });
+    lenient().doAnswer(invocation -> {
+      Consumer<TransactionStatus> callback = invocation.getArgument(0);
+      callback.accept(null);
+      return null;
+    }).when(transactionTemplate).executeWithoutResult(any());
+  }
 
   @Test
   @DisplayName("ADMIN 권한으로 사용자 권한 수정 요청 시 204를 반환한다")
