@@ -7,6 +7,8 @@ import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.content.entity.Content;
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.repository.ContentRepository;
 import java.util.Map;
 import java.util.UUID;
@@ -40,14 +42,20 @@ public class ContentImageUploadService {
             Map.of("binaryContentId", binaryContentId)
         ));
     Content content = contentRepository.findByIdWithContentImgForUpdate(contentId)
-        .orElseThrow(() -> new IllegalStateException("이미지 URL을 저장할 콘텐츠가 없습니다."));
+        .orElseThrow(() -> new ContentException(
+            ContentErrorCode.CONTENT_NOT_FOUND,
+            Map.of("contentId", contentId)
+        ));
 
     BinaryContent currentImage = content.getContentImg();
     boolean currentImageMatches = oldBinaryContentId == null
         ? currentImage == null
         : currentImage != null && currentImage.getId().equals(oldBinaryContentId);
     if (!currentImageMatches) {
-      throw new IllegalStateException("콘텐츠 이미지가 업로드 시작 시점과 다릅니다.");
+      throw new ContentException(
+          ContentErrorCode.CONTENT_IMAGE_UPDATE_CONFLICT,
+          Map.of("contentId", contentId)
+      );
     }
 
     content.updateContentImage(binaryContent, thumbnailUrl);

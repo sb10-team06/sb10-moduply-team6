@@ -12,6 +12,8 @@ import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
+import com.team6.moduply.content.exception.ContentErrorCode;
+import com.team6.moduply.content.exception.ContentException;
 import com.team6.moduply.content.repository.ContentRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -87,11 +89,41 @@ class ContentImageUploadServiceTest {
         null,
         null
     ))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("콘텐츠 이미지가 업로드 시작 시점과 다릅니다.");
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode())
+              .isEqualTo(ContentErrorCode.CONTENT_IMAGE_UPDATE_CONFLICT);
+          assertThat(exception.getDetails()).containsEntry("contentId", contentId);
+        });
 
     assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
     assertThat(content.getThumbnailUrl()).isNull();
+    verify(eventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  @DisplayName("이미지 업로드 완료 대상 콘텐츠가 없으면 콘텐츠 없음 예외가 발생한다.")
+  void complete_fail_when_content_not_found() {
+    UUID contentId = UUID.randomUUID();
+    UUID binaryContentId = UUID.randomUUID();
+    BinaryContent binaryContent = createBinaryContent(binaryContentId);
+    given(binaryContentRepository.findById(binaryContentId))
+        .willReturn(Optional.of(binaryContent));
+    given(contentRepository.findByIdWithContentImgForUpdate(contentId))
+        .willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.complete(
+        contentId,
+        binaryContentId,
+        "https://bucket/thumbnail.png",
+        null,
+        null
+    ))
+        .isInstanceOfSatisfying(ContentException.class, exception -> {
+          assertThat(exception.getErrorCode()).isEqualTo(ContentErrorCode.CONTENT_NOT_FOUND);
+          assertThat(exception.getDetails()).containsEntry("contentId", contentId);
+        });
+
+    assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.PROCESSING);
     verify(eventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
   }
 
