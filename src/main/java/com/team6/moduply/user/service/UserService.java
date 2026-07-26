@@ -1,8 +1,8 @@
 package com.team6.moduply.user.service;
 
-import com.team6.moduply.binarycontent.dto.BinaryContentUploadResult;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.service.BinaryContentService;
+import com.team6.moduply.binarycontent.service.BinaryContentService.UploadedUserProfile;
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.pagination.CursorResponse;
@@ -34,6 +34,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,6 +48,7 @@ public class UserService {
   private final BinaryContentService binaryContentService;
   private final RedisUtil redisUtil;
   private final ApplicationEventPublisher applicationEventPublisher;
+  private final TransactionTemplate transactionTemplate;
 
   @Transactional
   public UserDto createUser(UserCreateRequest request){
@@ -168,42 +170,68 @@ public class UserService {
     log.debug("사용자 권한 변경 처리 완료. userId={}, newRole={}", response.getId(), response.getRole());
   }
 
-  @Transactional
   @CacheEvict(cacheNames = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   @PreAuthorize("#userId.equals(authentication.principal.userDto.id)")
   public UserDto updateUser(UUID userId, UserUpdateRequest request, MultipartFile profileImg) {
-    User user = userRepository.findById(userId)
-        .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
-            "userId", userId
-        )));
+    if (profileImg == null) {
+      return transactionTemplate.execute(status -> {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+                "userId", userId
+            )));
 
-    if (StringUtils.hasText(request.getName())) {
-      user.updateName(request.getName());
-    }
+        if (StringUtils.hasText(request.getName())) {
+          user.updateName(request.getName());
+        }
 
-    if (profileImg != null) {
-      BinaryContent oldImg = user.getProfileImg();
-      try {
-        BinaryContentUploadResult uploadResult =
-            binaryContentService.createUserProfile(userId, profileImg, oldImg);
-        user.updateProfileImage(uploadResult.binaryContent(), uploadResult.url());
-        String profileImageUrl = binaryContentService.findUrl(
-            uploadResult.binaryContent(),
-            uploadResult.url()
-        );
+        String profileImageUrl =
+            binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
         return userMapper.toDto(user, profileImageUrl);
-
-      } catch (IOException e) {
-        throw new UserException(
-            UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION,
-            Map.of("reason", "프로필 이미지 업로드에 실패했습니다.")
-        );
-      }
+      });
     }
 
-    String profileImageUrl =
-        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
-    return userMapper.toDto(user, profileImageUrl);
+    transactionTemplate.executeWithoutResult(status -> {
+      if (!userRepository.existsById(userId)) {
+        throw new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+            "userId", userId
+        ));
+      }
+    });
+
+    UploadedUserProfile uploadedProfile;
+    try {
+      uploadedProfile = binaryContentService.uploadUserProfile(userId, profileImg);
+    } catch (IOException e) {
+      throw new UserException(
+          UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION,
+          Map.of("reason", "프로필 이미지 업로드에 실패했습니다."),
+          e
+      );
+    }
+
+    try {
+      return transactionTemplate.execute(status -> {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND_EXCEPTION, Map.of(
+                "userId", userId
+            )));
+
+        if (StringUtils.hasText(request.getName())) {
+          user.updateName(request.getName());
+        }
+
+        BinaryContent oldImg = user.getProfileImg();
+        BinaryContent newImg =
+            binaryContentService.createUploadedUserProfile(uploadedProfile, oldImg);
+        user.updateProfileImage(newImg, uploadedProfile.url());
+
+        String profileImageUrl = binaryContentService.findUrl(newImg, uploadedProfile.url());
+        return userMapper.toDto(user, profileImageUrl);
+      });
+    } catch (RuntimeException e) {
+      binaryContentService.deleteUploadedFileQuietly(uploadedProfile.storageKey());
+      throw e;
+    }
   }
 
   @Transactional
