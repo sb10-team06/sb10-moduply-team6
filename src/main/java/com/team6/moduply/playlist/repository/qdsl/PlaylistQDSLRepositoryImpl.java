@@ -1,6 +1,8 @@
 package com.team6.moduply.playlist.repository.qdsl;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -24,6 +26,13 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
 
   @Override
   public List<Playlist> findAllWithCursor(PlaylistSearchRequest request) {
+    QPlaylistSubscription subscription = QPlaylistSubscription.playlistSubscription;
+
+    NumberExpression<Long> subscriberCount = Expressions.numberTemplate(Long.class,
+        "({0})", JPAExpressions.select(subscription.count())
+            .from(subscription)
+            .where(subscription.playlist.id.eq(playlist.id)));
+
     var query = queryFactory.selectFrom(playlist)
         .where(
             keywordLikeCondition(request.keywordLike()),
@@ -32,13 +41,17 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
             subscriberIdCondition(request.subscriberIdEqual())
         )
         .orderBy(
-            request.sortBy() == PlaylistSortBy.createdAt
+            request.sortBy() == PlaylistSortBy.subscriberCount
                 ? (request.sortDirection() == SortDirection.ASCENDING
-                ? playlist.createdAt.asc()
-                : playlist.createdAt.desc())
-                : (request.sortDirection() == SortDirection.ASCENDING
-                    ? playlist.updatedAt.asc()
-                    : playlist.updatedAt.desc()),
+                ? subscriberCount.asc()
+                : subscriberCount.desc())
+                : request.sortBy() == PlaylistSortBy.createdAt
+                    ? (request.sortDirection() == SortDirection.ASCENDING
+                    ? playlist.createdAt.asc()
+                    : playlist.createdAt.desc())
+                    : (request.sortDirection() == SortDirection.ASCENDING
+                        ? playlist.updatedAt.asc()
+                        : playlist.updatedAt.desc()),
             playlist.id.asc()
         )
         .limit(request.limit() + 1);
