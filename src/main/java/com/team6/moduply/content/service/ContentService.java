@@ -56,8 +56,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class ContentService {
 
-  private static final String DEFAULT_THUMBNAIL_URL = "/placeholder-movie.png";
-
   private final ContentRepository contentRepository;
   private final TagRepository tagRepository;
   private final ContentTagRepository contentTagRepository;
@@ -531,9 +529,7 @@ public class ContentService {
   }
 
   private String resolveThumbnailUrl(Content content) {
-    String thumbnailUrl =
-        binaryContentService.findUrl(content.getContentImg(), content.getThumbnailUrl());
-    return thumbnailUrl != null ? thumbnailUrl : DEFAULT_THUMBNAIL_URL;
+    return ContentImageUrlResolver.resolve(content);
   }
 
   private ContentDto withCurrentWatcherCount(ContentDto contentDto, UUID contentId) {

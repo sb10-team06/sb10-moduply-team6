@@ -71,10 +71,9 @@ public class ContentImageUploadService {
   @Caching(evict = {
       @CacheEvict(cacheNames = CacheConfig.CONTENT_LIST, allEntries = true),
       @CacheEvict(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId"),
-      @CacheEvict(cacheNames = CacheConfig.PLAYLIST_DETAIL, allEntries = true),
-      @CacheEvict(cacheNames = CacheConfig.IMAGE_URL, key = "#binaryContentId")
+      @CacheEvict(cacheNames = CacheConfig.PLAYLIST_DETAIL, allEntries = true)
   })
-  public void evictCaches(UUID contentId, UUID binaryContentId) {
+  public void evictCaches(UUID contentId) {
     // 캐시 annotation 적용을 위한 진입점이다.
   }
 }

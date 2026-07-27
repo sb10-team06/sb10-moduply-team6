@@ -1,6 +1,7 @@
 package com.team6.moduply.playlist.service;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
+import static com.team6.moduply.content.service.ContentImageUrlResolver.resolve;
+
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.entity.Content;
@@ -55,7 +56,6 @@ public class PlaylistService {
   private final PlaylistSubscriptionRepository playlistSubscriptionRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final UserRepository userRepository;
-  private final BinaryContentService binaryContentService;
 
   @Transactional
   public PlaylistDto create(PlaylistCreateRequest request, UUID ownerId) {
@@ -123,7 +123,7 @@ public class PlaylistService {
         .map(user -> new PlaylistDto.OwnerDto(
             user.getId(),
             user.getName(),
-            binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())))
+            user.getProfileImageUrl()))
         .orElse(null);
 
     long subscriberCount = playlistSubscriptionRepository.countByPlaylist(playlist);
@@ -146,7 +146,7 @@ public class PlaylistService {
               c.getType(),
               c.getTitle(),
               c.getDescription(),
-              binaryContentService.findUrl(c.getContentImg(), c.getThumbnailUrl()),
+              resolve(c),
               List.of(),
               c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
               c.getReviewCount());
@@ -222,7 +222,7 @@ public class PlaylistService {
           User owner = ownerMap.get(playlist.getOwnerId());
           PlaylistDto.OwnerDto ownerDto = owner != null
               ? new PlaylistDto.OwnerDto(owner.getId(), owner.getName(),
-              binaryContentService.findUrl(owner.getProfileImg(), owner.getProfileImageUrl()))
+              owner.getProfileImageUrl())
               : null;
 
           long subscriberCount = subscriberCountMap.getOrDefault(playlist.getId(), 0L);
@@ -235,7 +235,7 @@ public class PlaylistService {
                 if (c == null) return null;
                 return new PlaylistDto.ContentSummaryDto(
                     c.getId(), c.getType(), c.getTitle(), c.getDescription(),
-                    binaryContentService.findUrl(c.getContentImg(), c.getThumbnailUrl()),
+                    resolve(c),
                     List.of(),
                     c.getAverageRating() != null ? c.getAverageRating().doubleValue() : null,
                     c.getReviewCount());

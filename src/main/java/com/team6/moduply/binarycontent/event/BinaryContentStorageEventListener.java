@@ -67,19 +67,12 @@ public class BinaryContentStorageEventListener {
                     event.getOldStorageKey()
             );
             try {
-                contentImageUploadService.evictCaches(event.getContentId(), binaryContentId);
+                contentImageUploadService.evictCaches(event.getContentId());
             } catch (Exception cacheException) {
                 log.warn("콘텐츠 이미지 캐시 제거에 실패했습니다. contentId={}, binaryContentId={}",
                         event.getContentId(),
                         binaryContentId,
                         cacheException);
-                try {
-                    binaryContentService.evictUrl(binaryContentId);
-                } catch (Exception urlCacheException) {
-                    log.warn("이미지 URL 캐시 제거에 실패했습니다. binaryContentId={}",
-                            binaryContentId,
-                            urlCacheException);
-                }
             }
 
         } catch (Exception e) {
@@ -116,14 +109,6 @@ public class BinaryContentStorageEventListener {
     public void handleBinaryContentDelete(BinaryContentDeletedEvent event) {
         UUID binaryContentId = event.getBinaryContentId();
         String storageKey = event.getStorageKey();
-        try {
-            binaryContentService.evictUrl(binaryContentId);
-        } catch (Exception cacheException) {
-            log.warn("이미지 URL 캐시 제거에 실패했습니다. binaryContentId={}",
-                    binaryContentId,
-                    cacheException);
-        }
-
         try {
             binaryContentStorage.delete(event.getStorageKey());
         } catch (Exception e) {

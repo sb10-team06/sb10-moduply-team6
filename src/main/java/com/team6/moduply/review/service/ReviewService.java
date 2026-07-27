@@ -1,7 +1,6 @@
 package com.team6.moduply.review.service;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.content.entity.Content;
@@ -48,7 +47,6 @@ public class ReviewService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final ApplicationEventPublisher eventPublisher;
-  private final BinaryContentService binaryContentService;
   private final ContentService contentService;
 
   private void validateAuthor(Review review, UUID authorId, UUID reviewId) {
@@ -69,7 +67,7 @@ public class ReviewService {
     return new ReviewDto.AuthorDto(
         authorId,
         author.getName(),
-        binaryContentService.findUrl(author.getProfileImg(), author.getProfileImageUrl())
+        author.getProfileImageUrl()
     );
   }
 
@@ -212,7 +210,7 @@ public class ReviewService {
             User::getId,
             user -> userMapper.toDto(
                 user,
-                binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())
+                user.getProfileImageUrl()
             )
         ));
 

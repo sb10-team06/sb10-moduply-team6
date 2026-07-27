@@ -9,7 +9,6 @@ import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
 import com.team6.moduply.auth.util.RefreshTokenRedisUtil;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.common.util.TempPasswordUtil;
@@ -46,7 +45,6 @@ public class AuthService {
   private final UserMapper userMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final TempPasswordUtil tempPasswordUtil;
-  private final BinaryContentService binaryContentService;
   private final RoleHierarchy roleHierarchy;
   private final RefreshTokenRedisUtil refreshTokenRedisUtil;
   private final JwtTokenProvider jwtTokenProvider;
@@ -212,10 +210,7 @@ public class AuthService {
   }
 
   private UserDto toDto(User user) {
-    // TODO: 인증 객체 생성과 응답용 프로필 URL 생성 책임이 섞여 있으므로 추후 분리 리팩토링 필요
-    String profileImageUrl =
-        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
-    return userMapper.toDto(user, profileImageUrl);
+    return userMapper.toDto(user, user.getProfileImageUrl());
   }
 
   // redis에 원문으로 access token을 저장하지 않기 위해 해싱 진행

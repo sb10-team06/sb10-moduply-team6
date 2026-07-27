@@ -1,6 +1,5 @@
 package com.team6.moduply.content.service;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.content.dto.ContentDetailCacheDto;
 import com.team6.moduply.content.entity.Content;
@@ -21,16 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class ContentDetailCacheService {
 
-  private static final String DEFAULT_THUMBNAIL_URL = "/placeholder-movie.png";
-
   private final ContentRepository contentRepository;
   private final ContentTagRepository contentTagRepository;
-  private final BinaryContentService binaryContentService;
 
   @Cacheable(cacheNames = CacheConfig.CONTENT_DETAIL, key = "#contentId", sync = true)
   @Transactional(readOnly = true)
   public ContentDetailCacheDto find(UUID contentId) {
-    Content content = contentRepository.findByIdWithContentImg(contentId)
+    Content content = contentRepository.findById(contentId)
         .orElseThrow(() -> {
           log.warn("콘텐츠 단건 캐시 조회 실패: 콘텐츠 없음. contentId={}", contentId);
           return new ContentException(
@@ -39,17 +35,12 @@ public class ContentDetailCacheService {
           );
         });
 
-    String storedThumbnailUrl =
-        binaryContentService.findUrl(content.getContentImg(), content.getThumbnailUrl());
-    String thumbnailUrl =
-        storedThumbnailUrl != null ? storedThumbnailUrl : DEFAULT_THUMBNAIL_URL;
-
     return new ContentDetailCacheDto(
         content.getId(),
         content.getType(),
         content.getTitle(),
         content.getDescription(),
-        thumbnailUrl,
+        ContentImageUrlResolver.resolve(content),
         contentTagRepository.findTagNamesByContentId(contentId),
         content.getAverageRating(),
         content.getReviewCount()

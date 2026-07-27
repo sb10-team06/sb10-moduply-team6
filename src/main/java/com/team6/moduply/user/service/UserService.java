@@ -184,9 +184,7 @@ public class UserService {
           user.updateName(request.getName());
         }
 
-        String profileImageUrl =
-            binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
-        return userMapper.toDto(user, profileImageUrl);
+        return userMapper.toDto(user, user.getProfileImageUrl());
       });
     }
 
@@ -225,8 +223,7 @@ public class UserService {
             binaryContentService.createUploadedUserProfile(uploadedProfile, oldImg);
         user.updateProfileImage(newImg, uploadedProfile.url());
 
-        String profileImageUrl = binaryContentService.findUrl(newImg, uploadedProfile.url());
-        return userMapper.toDto(user, profileImageUrl);
+        return userMapper.toDto(user, user.getProfileImageUrl());
       });
     } catch (RuntimeException e) {
       binaryContentService.deleteUploadedFileQuietly(uploadedProfile.storageKey());
@@ -273,9 +270,7 @@ public class UserService {
   }
 
   private UserDto toDto(User user) {
-    String profileImageUrl =
-        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl());
-    return userMapper.toDto(user, profileImageUrl);
+    return userMapper.toDto(user, user.getProfileImageUrl());
   }
 
   private void invalidateToken(String email){

@@ -1,6 +1,5 @@
 package com.team6.moduply.conversation.service;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
 import com.team6.moduply.conversation.dto.ConversationDto;
@@ -49,7 +48,6 @@ public class ConversationService {
   private final UserRepository userRepository;
   private final ConversationMapper conversationMapper;
   private final DirectMessageMapper directMessageMapper;
-  private final BinaryContentService binaryContentService;
   private final UserMapper userMapper;
 
   @Transactional
@@ -151,10 +149,7 @@ public class ConversationService {
         currentUser.getCreatedAt(),
         currentUser.getEmail(),
         currentUser.getName(),
-        binaryContentService.findUrl(
-            currentUser.getProfileImg(),
-            currentUser.getProfileImageUrl()
-        ),
+        currentUser.getProfileImageUrl(),
         currentUser.getRole(),
         currentUser.isBlocked()
     );
@@ -404,7 +399,7 @@ public class ConversationService {
   private UserSummaryDto toUserSummaryDto(User user) {
     return userMapper.toSummaryDto(
         user,
-        binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl())
+        user.getProfileImageUrl()
     );
   }
 

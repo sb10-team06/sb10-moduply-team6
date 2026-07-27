@@ -8,7 +8,6 @@ import com.team6.moduply.binarycontent.exception.BinaryContentErrorCode;
 import com.team6.moduply.binarycontent.exception.BinaryContentException;
 import com.team6.moduply.binarycontent.repository.BinaryContentRepository;
 import com.team6.moduply.binarycontent.storage.BinaryContentStorage;
-import com.team6.moduply.common.config.CacheConfig;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -16,8 +15,6 @@ import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -398,27 +395,6 @@ public class BinaryContentService {
             UUID.randomUUID(),
             getExtension(fileName)
     );
-  }
-
-  /// DB에 저장된 이미지 URL을 BinaryContent ID 기준으로 캐시한다.
-  @Transactional(readOnly = true)
-  @Cacheable(
-      cacheNames = CacheConfig.IMAGE_URL,
-      key = "#binaryContent.id",
-      condition = "#binaryContent != null && #storedUrl != null",
-      unless = "#result == null"
-  )
-  public String findUrl(BinaryContent binaryContent, String storedUrl) {
-    return storedUrl;
-  }
-
-  @CacheEvict(
-      cacheNames = CacheConfig.IMAGE_URL,
-      key = "#binaryContentId",
-      condition = "#binaryContentId != null"
-  )
-  public void evictUrl(UUID binaryContentId) {
-    log.debug("이미지 URL 캐시를 제거합니다. binaryContentId={}", binaryContentId);
   }
 
   private String getExtension(String fileName) {

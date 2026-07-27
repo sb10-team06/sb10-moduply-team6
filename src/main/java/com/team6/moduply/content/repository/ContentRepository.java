@@ -17,7 +17,6 @@ public interface ContentRepository extends JpaRepository<Content, UUID>, Content
 
   List<Content> findAllByExternalApiIdIn(Collection<String> externalApiIds);
 
-  @EntityGraph(attributePaths = "contentImg")
   List<Content> findAllByIdIn(Collection<UUID> ids);
 
   @EntityGraph(attributePaths = "contentImg")
