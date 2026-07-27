@@ -95,16 +95,19 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
       return null;
     }
 
+    // subscribeCount 정렬은 커서 페이지네이션 미지원 (첫 페이지만 지원)
+    if (request.sortBy() == PlaylistSortBy.subscribeCount) {
+      return null;
+    }
+
     Instant cursorTime = Instant.parse(request.cursor());
 
     if (request.sortDirection() == SortDirection.ASCENDING) {
       return playlist.updatedAt.gt(cursorTime)
-          .or(playlist.updatedAt.eq(cursorTime)
-              .and(playlist.id.gt(request.idAfter())));
+          .or(playlist.updatedAt.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
     } else {
       return playlist.updatedAt.lt(cursorTime)
-          .or(playlist.updatedAt.eq(cursorTime)
-              .and(playlist.id.gt(request.idAfter())));
+          .or(playlist.updatedAt.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
     }
   }
 }

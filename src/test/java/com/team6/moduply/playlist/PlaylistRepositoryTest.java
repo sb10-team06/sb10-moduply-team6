@@ -163,13 +163,12 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
   void findAllWithCursor_success_with_subscriber_count_sort() {
     // given
     UUID owner1 = UUID.randomUUID();
-    UUID owner2 = UUID.randomUUID();
     UUID subscriber = UUID.randomUUID();
 
     Playlist playlist1 = playlistRepository.save(Playlist.builder()
         .ownerId(owner1).title("구독 많은 플레이리스트").description("설명").build());
-    Playlist playlist2 = playlistRepository.save(Playlist.builder()
-        .ownerId(owner2).title("구독 적은 플레이리스트").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("구독 적은 플레이리스트").description("설명").build());
 
     // playlist1에 구독자 추가
     playlistSubscriptionRepository.save(PlaylistSubscription.builder()
