@@ -62,3 +62,7 @@ AGENTS.md
 notes
 .codexignore
 cookies.txt
+
+# Local AI/MCP settings
+.ai/
+.codex/
