@@ -11,6 +11,7 @@ import com.team6.moduply.playlist.repository.PlaylistRepository;
 import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepositoryImpl;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -232,5 +233,26 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
     // then
     assertThat(result).hasSize(2);
     assertThat(result.get(0).getTitle()).isEqualTo("두번째");
+  }
+
+  @Test
+  @DisplayName("구독자 수 정렬 시 커서가 있어도 무시하고 첫 페이지를 반환한다.")
+  void findAllWithCursor_ignore_cursor_when_subscribe_count_sort() {
+    // given
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("플레이리스트1").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("플레이리스트2").description("설명").build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, Instant.now().toString(), UUID.randomUUID(), 10,
+        SortDirection.DESCENDING, PlaylistSortBy.subscribeCount
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result).hasSize(2);
   }
 }
