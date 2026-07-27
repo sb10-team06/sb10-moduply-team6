@@ -68,7 +68,6 @@ moduply:
       secret-key: test-secret-key
       region: ap-northeast-2
       bucket: test-bucket
-      presigned-url-expiration: 600
       connect-timeout-millis: 3000
       socket-timeout-millis: 5000
       connection-acquisition-timeout-millis: 3000

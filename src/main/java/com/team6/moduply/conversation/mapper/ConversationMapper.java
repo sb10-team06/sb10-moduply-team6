@@ -1,6 +1,5 @@
 package com.team6.moduply.conversation.mapper;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.dto.ConversationDto;
 import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.directmessage.entity.DirectMessage;
@@ -14,9 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Mapper(componentModel = "spring", uses = UserMapper.class)
 public abstract class ConversationMapper {
-
-  @Autowired
-  protected BinaryContentService binaryContentService;
 
   @Autowired
   protected UserMapper userMapper;
@@ -66,7 +62,10 @@ public abstract class ConversationMapper {
   }
 
   protected UserSummaryDto toUserSummaryDto(User user) {
-    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
+    return userMapper.toSummaryDto(
+        user,
+        user.getProfileImageUrl()
+    );
   }
 
   private User resolveReceiver(UUID senderId, User currentUser, User withUser) {

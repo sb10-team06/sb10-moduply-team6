@@ -9,7 +9,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.conversation.dto.ConversationCreateRequest;
@@ -76,9 +75,6 @@ class ConversationServiceTest {
 
   @Mock
   private DirectMessageMapper directMessageMapper;
-
-  @Mock
-  private BinaryContentService binaryContentService;
 
   @Mock
   private UserMapper userMapper;
@@ -394,8 +390,6 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))
@@ -425,7 +419,6 @@ class ConversationServiceTest {
     assertThat(result.totalCount()).isEqualTo(2L);
     assertThat(result.sortBy()).isEqualTo(DirectMessageSortBy.createdAt.name());
     assertThat(result.sortDirection()).isEqualTo(SortDirection.DESCENDING);
-    verify(binaryContentService, times(2)).generateUrl(null);
     verify(userMapper).toSummaryDto(currentUser, null);
     verify(userMapper).toSummaryDto(withUser, null);
   }
@@ -464,8 +457,6 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))
@@ -529,8 +520,6 @@ class ConversationServiceTest {
     given(conversationRepository.findById(conversationId)).willReturn(Optional.of(conversation));
     given(userRepository.findById(currentUserId)).willReturn(Optional.of(currentUser));
     given(userRepository.findById(withUserId)).willReturn(Optional.of(withUser));
-    given(binaryContentService.generateUrl(currentUser.getProfileImg())).willReturn(null);
-    given(binaryContentService.generateUrl(withUser.getProfileImg())).willReturn(null);
     given(userMapper.toSummaryDto(currentUser, null)).willReturn(currentUserSummary);
     given(userMapper.toSummaryDto(withUser, null)).willReturn(withUserSummary);
     given(directMessageRepository.findAllWithCursor(request, conversationId))

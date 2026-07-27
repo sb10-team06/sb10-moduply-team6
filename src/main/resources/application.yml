@@ -112,7 +112,6 @@ moduply:
       secret-key: ${AWS_S3_SECRET_KEY:}
       region: ${AWS_S3_REGION}
       bucket: ${AWS_S3_BUCKET}
-      presigned-url-expiration: ${AWS_S3_PRESIGNED_URL_EXPIRATION:600} #기본값:10분
       connect-timeout-millis: ${AWS_S3_CONNECT_TIMEOUT_MILLIS:3000}
       socket-timeout-millis: ${AWS_S3_SOCKET_TIMEOUT_MILLIS:5000}
       connection-acquisition-timeout-millis: ${AWS_S3_CONNECTION_ACQUISITION_TIMEOUT_MILLIS:3000}

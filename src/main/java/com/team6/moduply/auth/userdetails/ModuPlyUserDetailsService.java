@@ -2,7 +2,6 @@ package com.team6.moduply.auth.userdetails;
 
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.UserDto;
@@ -21,7 +20,6 @@ public class ModuPlyUserDetailsService implements UserDetailsService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final RedisUtil redisUtil;
-  private final BinaryContentService binaryContentService;
 
     @Override
     @Transactional(readOnly = true)
@@ -33,9 +31,7 @@ public class ModuPlyUserDetailsService implements UserDetailsService {
             .orElseThrow(() -> new AuthException(AuthErrorCode.USERNAME_NOT_FOUND_EXCEPTION, Map.of(
                 "email" , username
             )));
-        // TODO: 로그인 인증 과정과 응답용 프로필 URL 생성 책임이 섞여 있으므로 추후 분리 리팩토링 필요
-        String profileImageUrl = binaryContentService.generateUrl(user.getProfileImg());
-        UserDto userDto = userMapper.toDto(user, profileImageUrl);
+        UserDto userDto = userMapper.toDto(user, user.getProfileImageUrl());
 
         String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(username);
         String encodedPassword = redisUtil.getData(redisKey);
