@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.auth.exception.AuthErrorCode;
 import com.team6.moduply.auth.exception.AuthException;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.enums.RedisKeyPolicy;
 import com.team6.moduply.common.util.RedisUtil;
 import com.team6.moduply.user.dto.UserDto;
@@ -37,9 +36,6 @@ class ModuPlyUserDetailsServiceTest {
   @Mock
   private RedisUtil redisUtil;
 
-  @Mock
-  private BinaryContentService binaryContentService;
-
   @InjectMocks
   private ModuPlyUserDetailsService userDetailsService;
 
@@ -53,8 +49,6 @@ class ModuPlyUserDetailsServiceTest {
     String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(email);
 
     given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
-        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(redisUtil.getData(redisKey)).willReturn("encoded-temp-password");
 
@@ -66,7 +60,6 @@ class ModuPlyUserDetailsServiceTest {
     assertThat(userDetails.getPassword()).isEqualTo("encoded-temp-password");
 
     verify(userRepository).findByEmail(email);
-    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
     verify(redisUtil).getData(redisKey);
   }
@@ -81,8 +74,6 @@ class ModuPlyUserDetailsServiceTest {
     String redisKey = RedisKeyPolicy.PASSWORD_RESET.generateKey(email);
 
     given(userRepository.findByEmail(email)).willReturn(Optional.of(user));
-    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
-        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(userDto);
     given(redisUtil.getData(redisKey)).willReturn(null);
 
@@ -94,7 +85,6 @@ class ModuPlyUserDetailsServiceTest {
     assertThat(userDetails.getPassword()).isEqualTo("encoded-db-password");
 
     verify(userRepository).findByEmail(email);
-    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
     verify(redisUtil).getData(redisKey);
   }

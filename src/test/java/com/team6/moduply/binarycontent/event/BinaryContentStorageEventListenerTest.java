@@ -77,7 +77,7 @@ class BinaryContentStorageEventListenerTest {
         oldBinaryContentId,
         oldStorageKey
     );
-    verify(contentImageUploadService).evictCaches(event.getContentId(), binaryContentId);
+    verify(contentImageUploadService).evictCaches(event.getContentId());
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
   }
 
@@ -105,7 +105,7 @@ class BinaryContentStorageEventListenerTest {
     )).willReturn(imageUrl);
     willThrow(new RuntimeException("redis unavailable"))
         .given(contentImageUploadService)
-        .evictCaches(contentId, binaryContentId);
+        .evictCaches(contentId);
 
     listener.handleBinaryContentStorage(event);
 
@@ -116,10 +116,9 @@ class BinaryContentStorageEventListenerTest {
         null,
         null
     );
-    verify(contentImageUploadService).evictCaches(contentId, binaryContentId);
+    verify(contentImageUploadService).evictCaches(contentId);
     verify(binaryContentStorage, never()).delete(binaryContent.getStorageKey());
     verify(binaryContentService, never()).updatesStatusFail(binaryContentId);
-    verify(binaryContentService).evictUrl(binaryContentId);
   }
 
   @Test
@@ -338,10 +337,6 @@ class BinaryContentStorageEventListenerTest {
     UUID binaryContentId = UUID.randomUUID();
     String storageKey = "contents/content-id/thumbnail/image.png";
     BinaryContentDeletedEvent event = new BinaryContentDeletedEvent(binaryContentId, storageKey);
-    willThrow(new RuntimeException("redis unavailable"))
-        .given(binaryContentService)
-        .evictUrl(binaryContentId);
-
     listener.handleBinaryContentDelete(event);
 
     verify(binaryContentStorage).delete(storageKey);

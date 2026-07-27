@@ -6,7 +6,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.content.dto.ContentDetailCacheDto;
 import com.team6.moduply.content.entity.Content;
 import com.team6.moduply.content.enums.ContentType;
@@ -35,9 +34,6 @@ class ContentDetailCacheServiceTest {
   @Mock
   private ContentTagRepository contentTagRepository;
 
-  @Mock
-  private BinaryContentService binaryContentService;
-
   @InjectMocks
   private ContentDetailCacheService contentDetailCacheService;
 
@@ -59,14 +55,13 @@ class ContentDetailCacheServiceTest {
         "Inception",
         "꿈과 현실을 넘나드는 SF 영화"
     );
+    content.updateContentImage(contentImg, "https://example.com/thumbnail.jpg");
     ReflectionTestUtils.setField(content, "id", contentId);
     ReflectionTestUtils.setField(content, "averageRating", BigDecimal.valueOf(4.5));
     ReflectionTestUtils.setField(content, "reviewCount", 10);
     List<String> tagNames = List.of("SF", "액션");
 
-    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.of(content));
-    given(binaryContentService.findUrl(contentImg, content.getThumbnailUrl()))
-        .willReturn("https://example.com/thumbnail.jpg");
+    given(contentRepository.findById(contentId)).willReturn(Optional.of(content));
     given(contentTagRepository.findTagNamesByContentId(contentId)).willReturn(tagNames);
 
     // When
@@ -81,8 +76,7 @@ class ContentDetailCacheServiceTest {
     assertThat(result.tags()).containsExactly("SF", "액션");
     assertThat(result.averageRating()).isEqualByComparingTo(BigDecimal.valueOf(4.5));
     assertThat(result.reviewCount()).isEqualTo(10);
-    verify(contentRepository).findByIdWithContentImg(contentId);
-    verify(binaryContentService).findUrl(contentImg, content.getThumbnailUrl());
+    verify(contentRepository).findById(contentId);
     verify(contentTagRepository).findTagNamesByContentId(contentId);
   }
 
@@ -91,7 +85,7 @@ class ContentDetailCacheServiceTest {
   void find_fail_when_content_not_found() {
     // Given
     UUID contentId = UUID.randomUUID();
-    given(contentRepository.findByIdWithContentImg(contentId)).willReturn(Optional.empty());
+    given(contentRepository.findById(contentId)).willReturn(Optional.empty());
 
     // When & Then
     assertThatThrownBy(() -> contentDetailCacheService.find(contentId))

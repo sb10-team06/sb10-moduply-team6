@@ -494,35 +494,6 @@ class BinaryContentServiceTest {
   }
 
   @Test
-  @DisplayName("BinaryContent가 null이면 URL을 생성하지 않고 null을 반환한다.")
-  void findUrl_success_when_stored_url_is_null() {
-    // when
-    String result = binaryContentService.findUrl(null, null);
-
-    // then
-    assertThat(result).isNull();
-  }
-
-  @Test
-  @DisplayName("BinaryContent가 있으면 storageKey와 contentType으로 URL을 생성한다.")
-  void findUrl_success_with_stored_url() {
-    // given
-    BinaryContent binaryContent = BinaryContent.create(
-        "profile.png",
-        100L,
-        "image/png",
-        "users/user-id/profile/profile.png"
-    );
-    String storedUrl = "https://example.com/profile.png";
-
-    // when
-    String result = binaryContentService.findUrl(binaryContent, storedUrl);
-
-    // then
-    assertThat(result).isEqualTo(storedUrl);
-  }
-
-  @Test
   @DisplayName("BinaryContent 삭제 요청 시 삭제 이벤트를 발행한다.")
   void delete_success_publish_event() {
     // given

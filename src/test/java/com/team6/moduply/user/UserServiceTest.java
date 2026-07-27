@@ -214,8 +214,6 @@ public class UserServiceTest {
         request.getLimit()
     )).willReturn(List.of(firstUser, secondUser));
     given(userRepository.countUsers(request.getEmailLike())).willReturn(2L);
-    given(binaryContentService.findUrl(firstUser.getProfileImg(), firstUser.getProfileImageUrl()))
-        .willReturn(null);
     given(userMapper.toDto(firstUser, null)).willReturn(firstUserDto);
 
     // When
@@ -253,8 +251,6 @@ public class UserServiceTest {
         false);
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.findUrl(user.getProfileImg(), user.getProfileImageUrl()))
-        .willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(expected);
 
     // When
@@ -267,7 +263,6 @@ public class UserServiceTest {
     assertThat(response.getRole()).isEqualTo(expected.getRole());
 
     verify(userRepository).findById(userId);
-    verify(binaryContentService).findUrl(user.getProfileImg(), user.getProfileImageUrl());
     verify(userMapper).toDto(user, null);
   }
 
@@ -411,8 +406,6 @@ public class UserServiceTest {
         existingProfileImageUrl, Role.USER, false);
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.findUrl(existingProfileImg, existingProfileImageUrl))
-        .willReturn(existingProfileImageUrl);
     given(userMapper.toDto(user, existingProfileImageUrl)).willReturn(expected);
 
     // When
@@ -426,7 +419,6 @@ public class UserServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService, never())
         .uploadUserProfile(any(UUID.class), any(MultipartFile.class));
-    verify(binaryContentService).findUrl(existingProfileImg, existingProfileImageUrl);
     verify(userMapper).toDto(user, existingProfileImageUrl);
   }
 
@@ -465,7 +457,6 @@ public class UserServiceTest {
     given(binaryContentService.uploadUserProfile(userId, profileImg)).willReturn(uploadedProfile);
     given(binaryContentService.createUploadedUserProfile(uploadedProfile, null))
         .willReturn(newProfileImg);
-    given(binaryContentService.findUrl(newProfileImg, profileImageUrl)).willReturn(profileImageUrl);
     given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
 
     // When
@@ -480,7 +471,6 @@ public class UserServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService).uploadUserProfile(userId, profileImg);
     verify(binaryContentService).createUploadedUserProfile(uploadedProfile, null);
-    verify(binaryContentService).findUrl(newProfileImg, profileImageUrl);
     verify(userMapper).toDto(user, profileImageUrl);
   }
 
@@ -527,7 +517,6 @@ public class UserServiceTest {
     given(binaryContentService.uploadUserProfile(userId, profileImg)).willReturn(uploadedProfile);
     given(binaryContentService.createUploadedUserProfile(uploadedProfile, oldProfileImg))
         .willReturn(newProfileImg);
-    given(binaryContentService.findUrl(newProfileImg, profileImageUrl)).willReturn(profileImageUrl);
     given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
 
     // When
@@ -542,8 +531,6 @@ public class UserServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService).uploadUserProfile(userId, profileImg);
     verify(binaryContentService).createUploadedUserProfile(uploadedProfile, oldProfileImg);
-    verify(binaryContentService, never()).findUrl(oldProfileImg, null);
-    verify(binaryContentService).findUrl(newProfileImg, profileImageUrl);
     verify(userMapper).toDto(user, profileImageUrl);
   }
 
@@ -577,7 +564,6 @@ public class UserServiceTest {
     verify(userRepository).existsById(userId);
     verify(userRepository, never()).findById(userId);
     verify(binaryContentService).uploadUserProfile(userId, profileImg);
-    verify(binaryContentService, never()).findUrl(any(BinaryContent.class), any());
     verify(userMapper, never()).toDto(any(User.class), any());
   }
 
