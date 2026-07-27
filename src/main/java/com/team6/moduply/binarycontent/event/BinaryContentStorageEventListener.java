@@ -73,6 +73,13 @@ public class BinaryContentStorageEventListener {
                         event.getContentId(),
                         binaryContentId,
                         cacheException);
+                try {
+                    binaryContentService.evictUrl(binaryContentId);
+                } catch (Exception urlCacheException) {
+                    log.warn("이미지 URL 캐시 제거에 실패했습니다. binaryContentId={}",
+                            binaryContentId,
+                            urlCacheException);
+                }
             }
 
         } catch (Exception e) {
