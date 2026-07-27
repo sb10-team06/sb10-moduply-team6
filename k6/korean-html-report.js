@@ -175,7 +175,7 @@ function detailRows(metrics, transactionCount, transactionTps, duplicateCount) {
     <tr><td>최대 응답 시간</td><td>${formatMs(metrics.durationMax)}</td></tr>
     <tr><td>성공 트랜잭션 수</td><td>${formatNumber(transactionCount, 0)}</td></tr>
     ${duplicateCount === undefined ? '' : `<tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>`}
-    <tr><td>TPS</td><td>${formatNumber(transactionTps, 2)}</td></tr>
+    <tr><td>성공 TPS</td><td>${formatNumber(transactionTps, 2)}</td></tr>
     <tr><td>요청 실패율</td><td>${formatRate(metrics.failedRate)}</td></tr>
   `;
 }
@@ -191,7 +191,9 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
   const metrics = metricSet(data, { tagName, tagValue });
   const status = statusText(metrics.failedRate);
   const statusCss = statusClass(metrics.failedRate);
-  const tps = transactionTps > 0 ? transactionTps : metrics.requestRate;
+  const successTps = transactionTps > 0
+    ? transactionTps
+    : metrics.requestRate * (1 - metrics.failedRate);
   const count = transactionCount > 0 ? transactionCount : metrics.successCount;
 
   return `
@@ -207,7 +209,7 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
         </div>
         <div class="panel">
           <div class="metric-label">초당 요청 수</div>
-          <div class="metric-value">${formatNumber(tps, 2)}</div>
+          <div class="metric-value">${formatNumber(metrics.requestRate, 2)}</div>
         </div>
         <div class="panel">
           <div class="metric-label">실패율</div>
@@ -225,7 +227,7 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
           <h2>${title} 상세 지표</h2>
           <table>
             <tr><th>항목</th><th>값</th></tr>
-            ${detailRows(metrics, count, tps, duplicateCount)}
+            ${detailRows(metrics, count, successTps, duplicateCount)}
           </table>
         </div>
       </section>
@@ -530,8 +532,8 @@ export function createKoreanHtmlReport(data, scenarioName) {
         <div class="metric-value">${formatNumber(requestCount, 0)}</div>
       </div>
       <div class="panel">
-        <div class="metric-label">${transactionTps > 0 ? 'TPS' : '초당 요청 수'}</div>
-        <div class="metric-value">${formatNumber(transactionTps > 0 ? transactionTps : overall.requestRate, 2)}</div>
+        <div class="metric-label">초당 요청 수</div>
+        <div class="metric-value">${formatNumber(overall.requestRate, 2)}</div>
       </div>
       <div class="panel">
         <div class="metric-label">전체 실패율</div>
