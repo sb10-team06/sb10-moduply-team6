@@ -185,4 +185,52 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
     // then
     assertThat(result.get(0).getId()).isEqualTo(playlist1.getId());
   }
+
+  @Test
+  @DisplayName("구독자 수 기준 오름차순 정렬로 플레이리스트 목록을 조회한다.")
+  void findAllWithCursor_success_with_subscriber_count_asc_sort() {
+    // given
+    UUID subscriber = UUID.randomUUID();
+
+    Playlist playlist1 = playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("구독 많은 플레이리스트").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("구독 적은 플레이리스트").description("설명").build());
+
+    playlistSubscriptionRepository.save(PlaylistSubscription.builder()
+        .playlist(playlist1).subscriberId(subscriber).build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10,
+        SortDirection.ASCENDING, PlaylistSortBy.subscribeCount
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result.get(result.size() - 1).getId()).isEqualTo(playlist1.getId());
+  }
+
+  @Test
+  @DisplayName("createdAt 기준 정렬로 플레이리스트 목록을 조회한다.")
+  void findAllWithCursor_success_with_created_at_sort() {
+    // given
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("첫번째").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("두번째").description("설명").build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10,
+        SortDirection.DESCENDING, PlaylistSortBy.createdAt
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getTitle()).isEqualTo("두번째");
+  }
 }
