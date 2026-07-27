@@ -91,6 +91,16 @@ function statusClass(failedRate) {
   return failedRate < 0.01 ? 'pass' : 'fail';
 }
 
+function reportStatusText(data, failedRate) {
+  return apiMetricRows(data).some((api) => apiResult(api) !== '통과')
+    ? '확인 필요'
+    : statusText(failedRate);
+}
+
+function reportStatusClass(data, failedRate) {
+  return reportStatusText(data, failedRate) === '통과' ? 'pass' : 'fail';
+}
+
 function bar(widthPercent, className = '') {
   const width = Math.max(0, Math.min(100, widthPercent));
   return `<div class="bar-track"><div class="bar ${className}" style="width:${width}%"></div></div>`;
@@ -189,8 +199,11 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
   }
 
   const metrics = metricSet(data, { tagName, tagValue });
-  const status = statusText(metrics.failedRate);
-  const statusCss = statusClass(metrics.failedRate);
+  const apiDefinition = API_DEFINITIONS.find((api) => api.tagValue === tagValue);
+  const status = apiDefinition
+    ? apiResult({ ...apiDefinition, metrics })
+    : statusText(metrics.failedRate);
+  const statusCss = status === '통과' ? 'pass' : 'fail';
   const successTps = transactionTps > 0
     ? transactionTps
     : metrics.requestRate * (1 - metrics.failedRate);
@@ -361,8 +374,8 @@ export function createKoreanHtmlReport(data, scenarioName) {
     ? value(data, 'follow_already_exists', 'count')
     : undefined;
 
-  const status = statusText(overall.failedRate);
-  const statusCss = statusClass(overall.failedRate);
+  const status = reportStatusText(data, overall.failedRate);
+  const statusCss = reportStatusClass(data, overall.failedRate);
   const reportTime = new Date().toLocaleString('ko-KR');
 
   return `<!doctype html>
@@ -592,7 +605,7 @@ export function createKoreanMarkdownReport(data, scenarioName) {
   return `# ${scenarioTitle} k6 부하 테스트 결과
 
 - 생성 시각: ${reportTime}
-- 전체 판정: **${statusText(overall.failedRate)}**
+- 전체 판정: **${reportStatusText(data, overall.failedRate)}**
 
 ## 전체 결과
 
