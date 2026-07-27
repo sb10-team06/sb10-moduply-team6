@@ -177,7 +177,7 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
 
     PlaylistSearchRequest request = new PlaylistSearchRequest(
         null, null, null, null, null, 10,
-        SortDirection.DESCENDING, PlaylistSortBy.subscriberCount
+        SortDirection.DESCENDING, PlaylistSortBy.subscribeCount
     );
 
     // when

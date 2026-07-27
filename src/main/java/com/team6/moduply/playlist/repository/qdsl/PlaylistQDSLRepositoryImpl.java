@@ -41,7 +41,7 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
             subscriberIdCondition(request.subscriberIdEqual())
         )
         .orderBy(
-            request.sortBy() == PlaylistSortBy.subscriberCount
+            request.sortBy() == PlaylistSortBy.subscribeCount
                 ? (request.sortDirection() == SortDirection.ASCENDING
                 ? subscriberCount.asc()
                 : subscriberCount.desc())
