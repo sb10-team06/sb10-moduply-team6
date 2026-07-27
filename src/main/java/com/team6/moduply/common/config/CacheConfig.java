@@ -100,7 +100,7 @@ public class CacheConfig {
 
     return RedisCacheConfiguration.defaultCacheConfig()
         .entryTtl(ttl)                  // 캐시 유지 시간
-        .prefixCacheNameWith("moduply:cache:v3:")
+        .prefixCacheNameWith("moduply:cache:v4:")
         .disableCachingNullValues()     // null은 캐싱 x
         .serializeKeysWith(
             RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())     // Redis Key를 문자열로 저장
