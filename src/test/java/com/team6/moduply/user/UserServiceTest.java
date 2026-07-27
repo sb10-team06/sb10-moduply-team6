@@ -214,7 +214,7 @@ public class UserServiceTest {
         request.getLimit()
     )).willReturn(List.of(firstUser, secondUser));
     given(userRepository.countUsers(request.getEmailLike())).willReturn(2L);
-    given(userMapper.toDto(firstUser)).willReturn(firstUserDto);
+    given(userMapper.toDto(firstUser, null)).willReturn(firstUserDto);
 
     // When
     CursorResponse<UserDto> response = userService.findAll(request);
@@ -237,8 +237,8 @@ public class UserServiceTest {
         request.getLimit()
     );
     verify(userRepository).countUsers(request.getEmailLike());
-    verify(userMapper).toDto(firstUser);
-    verify(userMapper, never()).toDto(secondUser);
+    verify(userMapper).toDto(firstUser, null);
+    verify(userMapper, never()).toDto(secondUser, null);
   }
 
   @Test
@@ -251,7 +251,6 @@ public class UserServiceTest {
         false);
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(user.getProfileImg())).willReturn(null);
     given(userMapper.toDto(user, null)).willReturn(expected);
 
     // When
@@ -264,7 +263,6 @@ public class UserServiceTest {
     assertThat(response.getRole()).isEqualTo(expected.getRole());
 
     verify(userRepository).findById(userId);
-    verify(binaryContentService).generateUrl(user.getProfileImg());
     verify(userMapper).toDto(user, null);
   }
 
@@ -402,14 +400,12 @@ public class UserServiceTest {
         "image/png",
         "users/" + userId + "/old-profile.png"
     );
-    user.updateProfileImg(existingProfileImg);
-
     String existingProfileImageUrl = "https://cdn.example.com/users/" + userId + "/old-profile.png";
+    user.updateProfileImage(existingProfileImg, existingProfileImageUrl);
     UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
         existingProfileImageUrl, Role.USER, false);
 
     given(userRepository.findById(userId)).willReturn(Optional.of(user));
-    given(binaryContentService.generateUrl(existingProfileImg)).willReturn(existingProfileImageUrl);
     given(userMapper.toDto(user, existingProfileImageUrl)).willReturn(expected);
 
     // When
@@ -423,7 +419,6 @@ public class UserServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService, never())
         .uploadUserProfile(any(UUID.class), any(MultipartFile.class));
-    verify(binaryContentService).generateUrl(existingProfileImg);
     verify(userMapper).toDto(user, existingProfileImageUrl);
   }
 
@@ -446,13 +441,14 @@ public class UserServiceTest {
         profileImg.getContentType(),
         "users/" + userId + "/profile.png"
     );
+    String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
     UploadedUserProfile uploadedProfile = new UploadedUserProfile(
-        "profile.png",
+        profileImg.getOriginalFilename(),
         profileImg.getSize(),
         profileImg.getContentType(),
-        "users/" + userId + "/profile.png"
+        "users/" + userId + "/profile.png",
+        profileImageUrl
     );
-    String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
     UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
         profileImageUrl, Role.USER, false);
 
@@ -461,7 +457,6 @@ public class UserServiceTest {
     given(binaryContentService.uploadUserProfile(userId, profileImg)).willReturn(uploadedProfile);
     given(binaryContentService.createUploadedUserProfile(uploadedProfile, null))
         .willReturn(newProfileImg);
-    given(binaryContentService.generateUrl(newProfileImg)).willReturn(profileImageUrl);
     given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
 
     // When
@@ -476,7 +471,6 @@ public class UserServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService).uploadUserProfile(userId, profileImg);
     verify(binaryContentService).createUploadedUserProfile(uploadedProfile, null);
-    verify(binaryContentService).generateUrl(newProfileImg);
     verify(userMapper).toDto(user, profileImageUrl);
   }
 
@@ -507,13 +501,14 @@ public class UserServiceTest {
         profileImg.getContentType(),
         "users/" + userId + "/profile.png"
     );
+    String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
     UploadedUserProfile uploadedProfile = new UploadedUserProfile(
-        "profile.png",
+        profileImg.getOriginalFilename(),
         profileImg.getSize(),
         profileImg.getContentType(),
-        "users/" + userId + "/profile.png"
+        "users/" + userId + "/profile.png",
+        profileImageUrl
     );
-    String profileImageUrl = "https://cdn.example.com/users/" + userId + "/profile.png";
     UserDto expected = new UserDto(userId, null, user.getEmail(), "updated-name",
         profileImageUrl, Role.USER, false);
 
@@ -522,7 +517,6 @@ public class UserServiceTest {
     given(binaryContentService.uploadUserProfile(userId, profileImg)).willReturn(uploadedProfile);
     given(binaryContentService.createUploadedUserProfile(uploadedProfile, oldProfileImg))
         .willReturn(newProfileImg);
-    given(binaryContentService.generateUrl(newProfileImg)).willReturn(profileImageUrl);
     given(userMapper.toDto(user, profileImageUrl)).willReturn(expected);
 
     // When
@@ -537,8 +531,6 @@ public class UserServiceTest {
     verify(userRepository).findById(userId);
     verify(binaryContentService).uploadUserProfile(userId, profileImg);
     verify(binaryContentService).createUploadedUserProfile(uploadedProfile, oldProfileImg);
-    verify(binaryContentService, never()).generateUrl(oldProfileImg);
-    verify(binaryContentService).generateUrl(newProfileImg);
     verify(userMapper).toDto(user, profileImageUrl);
   }
 
@@ -566,12 +558,12 @@ public class UserServiceTest {
           assertThat(exception.getErrorCode())
               .isEqualTo(UserErrorCode.PROFILE_IMAGE_UPLOAD_FAILED_EXCEPTION);
           assertThat(exception.getDetails().get("reason")).isEqualTo("프로필 이미지 업로드에 실패했습니다.");
+          assertThat(exception.getCause()).isInstanceOf(IOException.class);
         });
 
     verify(userRepository).existsById(userId);
     verify(userRepository, never()).findById(userId);
     verify(binaryContentService).uploadUserProfile(userId, profileImg);
-    verify(binaryContentService, never()).generateUrl(any(BinaryContent.class));
     verify(userMapper, never()).toDto(any(User.class), any());
   }
 

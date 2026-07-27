@@ -43,9 +43,9 @@ public class ContentGenerator extends AbstractGenerator<Content> {
 
   private static final String INSERT_CONTENT_SQL = """
       insert into contents (
-        id, content_img_id, external_api_id, type, title, description,
+        id, content_img_id, thumbnail_url, external_api_id, type, title, description,
         average_rating, review_count, watcher_count, created_at, updated_at
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """;
 
   private final ContentTestDataProperties properties;
@@ -116,15 +116,16 @@ public class ContentGenerator extends AbstractGenerator<Content> {
       throws SQLException {
     ps.setObject(1, content.getId());
     ps.setObject(2, content.getContentImg().getId());
-    ps.setString(3, content.getExternalApiId());
-    ps.setString(4, content.getType().name());
-    ps.setString(5, content.getTitle());
-    ps.setString(6, content.getDescription());
-    ps.setBigDecimal(7, content.getAverageRating());
-    ps.setInt(8, content.getReviewCount());
-    ps.setLong(9, content.getWatcherCount());
-    ps.setTimestamp(10, Timestamp.from(content.getCreatedAt()));
-    ps.setTimestamp(11, Timestamp.from(content.getUpdatedAt()));
+    ps.setString(3, createImageUrl(content.getContentImg().getStorageKey()));
+    ps.setString(4, content.getExternalApiId());
+    ps.setString(5, content.getType().name());
+    ps.setString(6, content.getTitle());
+    ps.setString(7, content.getDescription());
+    ps.setBigDecimal(8, content.getAverageRating());
+    ps.setInt(9, content.getReviewCount());
+    ps.setLong(10, content.getWatcherCount());
+    ps.setTimestamp(11, Timestamp.from(content.getCreatedAt()));
+    ps.setTimestamp(12, Timestamp.from(content.getUpdatedAt()));
   }
 
   private long countGeneratedContents() {
@@ -178,6 +179,14 @@ public class ContentGenerator extends AbstractGenerator<Content> {
 
   private String createStorageKey() {
     return "test-data/contents/%s/thumbnail.png".formatted(createUniqueValue());
+  }
+
+  private String createImageUrl(String storageKey) {
+    String imageBaseUrl = properties.getImageBaseUrl();
+    String normalizedBaseUrl = imageBaseUrl.endsWith("/")
+        ? imageBaseUrl.substring(0, imageBaseUrl.length() - 1)
+        : imageBaseUrl;
+    return normalizedBaseUrl + "/" + storageKey;
   }
 
   private String createUniqueValue() {

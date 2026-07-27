@@ -1,7 +1,6 @@
 package com.team6.moduply.review;
 
 import com.team6.moduply.auth.userdetails.ModuPlyUserDetails;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.entity.Content;
@@ -75,9 +74,6 @@ class ReviewServiceTest {
 
   @Mock
   private ApplicationEventPublisher eventPublisher;
-
-  @Mock
-  private BinaryContentService binaryContentService;
 
   @Mock
   private ContentService contentService;

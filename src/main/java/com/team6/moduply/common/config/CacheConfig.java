@@ -31,7 +31,6 @@ public class CacheConfig {
   public static final String CONTENT_LIST = "contentList";
   public static final String CONTENT_DETAIL = "contentDetail";
   public static final String CONTENT_TAGS = "contentTags";
-  public static final String PROFILE_IMAGE_URL = "profileImageUrl";
   public static final String PLAYLIST_DETAIL = "playlistDetail";
   public static final String FOLLOW_COUNT = "followCount";
   public static final String CONTENT_RANKING = "contentRanking";
@@ -53,7 +52,6 @@ public class CacheConfig {
         CONTENT_LIST, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         CONTENT_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         CONTENT_TAGS, defaultConfig.entryTtl(Duration.ofMinutes(10)),
-        PROFILE_IMAGE_URL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         PLAYLIST_DETAIL, defaultConfig.entryTtl(Duration.ofMinutes(5)),
         FOLLOW_COUNT, defaultConfig.entryTtl(Duration.ofSeconds(30)),       //  Follow 수는 자주 변하므로 30초
         CONTENT_RANKING, defaultConfig.entryTtl(Duration.ofMinutes(2)) ,    //  Ranking도 자주 바뀌지만 실시간일 필요는 없다: 2분
@@ -124,7 +122,6 @@ public class CacheConfig {
    *   cacheManager.registerCustomCache(CONTENT_LIST, cache(Duration.ofSeconds(30), 5_000));
    *   cacheManager.registerCustomCache(CONTENT_DETAIL, cache(Duration.ofMinutes(5), 5_000));
    *   cacheManager.registerCustomCache(CONTENT_TAGS, cache(Duration.ofMinutes(10), 10_000));
-   *   cacheManager.registerCustomCache(PROFILE_IMAGE_URL, cache(Duration.ofMinutes(5), 20_000));
    *   cacheManager.registerCustomCache(PLAYLIST_DETAIL, cache(Duration.ofMinutes(5), 5_000));
    *   cacheManager.registerCustomCache(FOLLOW_COUNT, cache(Duration.ofSeconds(30), 20_000));
    *   cacheManager.registerCustomCache(CONTENT_RANKING, cache(Duration.ofMinutes(2), 1_000));

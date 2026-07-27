@@ -38,6 +38,9 @@ public class User extends BaseUpdatableEntity {
   @JoinColumn(name = "profile_img_id")
   private BinaryContent profileImg;
 
+  @Column(name = "profile_image_url", columnDefinition = "TEXT")
+  private String profileImageUrl;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "role", nullable = false)
   private Role role;
@@ -82,8 +85,14 @@ public class User extends BaseUpdatableEntity {
     this.role = Objects.requireNonNull(role, "role must not be null");
   }
 
+  @Deprecated
   public void updateProfileImg(BinaryContent profileImg) {
+    updateProfileImage(profileImg, null);
+  }
+
+  public void updateProfileImage(BinaryContent profileImg, String profileImageUrl) {
     this.profileImg = profileImg;
+    this.profileImageUrl = profileImageUrl;
   }
 
   public void updateBlocked(boolean isBlocked) {

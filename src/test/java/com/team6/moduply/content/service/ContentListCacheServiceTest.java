@@ -7,7 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.entity.BinaryContent;
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentListCachePageDto;
 import com.team6.moduply.content.entity.Content;
@@ -37,9 +36,6 @@ class ContentListCacheServiceTest {
   @Mock
   private ContentTagRepository contentTagRepository;
 
-  @Mock
-  private BinaryContentService binaryContentService;
-
   @InjectMocks
   private ContentListCacheService contentListCacheService;
 
@@ -57,6 +53,8 @@ class ContentListCacheServiceTest {
         "contents/images/thumbnail.jpg"
     );
     Content first = createContent(firstId, contentImg, "Inception", "꿈과 현실", BigDecimal.valueOf(4.5), 10);
+    String thumbnailUrl = "https://example.com/thumbnail.jpg";
+    first.updateContentImage(contentImg, thumbnailUrl);
     Content second = createContent(secondId, null, "Interstellar", "우주 여행", BigDecimal.valueOf(3.5), 5);
     Content third = createContent(thirdId, null, "Tenet", "시간 역행", BigDecimal.ZERO, 0);
 
@@ -76,7 +74,6 @@ class ContentListCacheServiceTest {
             projection(firstId, "명작"),
             projection(secondId, "우주")
         ));
-    given(binaryContentService.generateUrl(contentImg)).willReturn("https://example.com/thumbnail.jpg");
     given(contentRepository.countContents(ContentType.movie, "space", List.of("SF"))).willReturn(3L);
 
     // When
