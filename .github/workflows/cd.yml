@@ -214,7 +214,7 @@ jobs:
             --cluster ${{ vars.ECS_CLUSTER }} \
             --service ${{ vars.ECS_SERVICE }} \
             --task-definition "$PREVIOUS_TASK_DEFINITION" \
-            --desired-count 1
+            --desired-count 3
 
           aws ecs wait services-stable \
             --cluster ${{ vars.ECS_CLUSTER }} \
