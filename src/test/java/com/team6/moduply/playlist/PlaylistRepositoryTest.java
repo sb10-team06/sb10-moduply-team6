@@ -6,9 +6,12 @@ import com.team6.moduply.config.support.RepositoryTestSupport;
 import com.team6.moduply.playlist.dto.PlaylistSearchRequest;
 import com.team6.moduply.playlist.dto.PlaylistSortBy;
 import com.team6.moduply.playlist.entity.Playlist;
+import com.team6.moduply.playlist.entity.PlaylistSubscription;
 import com.team6.moduply.playlist.repository.PlaylistRepository;
+import com.team6.moduply.playlist.repository.PlaylistSubscriptionRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepository;
 import com.team6.moduply.playlist.repository.qdsl.PlaylistQDSLRepositoryImpl;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,9 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
 
   @Autowired
   private PlaylistQDSLRepository playlistQDSLRepository;
+
+  @Autowired
+  private PlaylistSubscriptionRepository playlistSubscriptionRepository;
 
   @Test
   @DisplayName("플레이리스트 저장 성공")
@@ -151,5 +157,102 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
 
     // then
     assertThat(result).hasSize(3); // limit+1
+  }
+
+  @Test
+  @DisplayName("구독자 수 기준 내림차순 정렬로 플레이리스트 목록을 조회한다.")
+  void findAllWithCursor_success_with_subscriber_count_sort() {
+    // given
+    UUID owner1 = UUID.randomUUID();
+    UUID subscriber = UUID.randomUUID();
+
+    Playlist playlist1 = playlistRepository.save(Playlist.builder()
+        .ownerId(owner1).title("구독 많은 플레이리스트").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("구독 적은 플레이리스트").description("설명").build());
+
+    // playlist1에 구독자 추가
+    playlistSubscriptionRepository.save(PlaylistSubscription.builder()
+        .playlist(playlist1).subscriberId(subscriber).build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10,
+        SortDirection.DESCENDING, PlaylistSortBy.subscribeCount
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result.get(0).getId()).isEqualTo(playlist1.getId());
+  }
+
+  @Test
+  @DisplayName("구독자 수 기준 오름차순 정렬로 플레이리스트 목록을 조회한다.")
+  void findAllWithCursor_success_with_subscriber_count_asc_sort() {
+    // given
+    UUID subscriber = UUID.randomUUID();
+
+    Playlist playlist1 = playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("구독 많은 플레이리스트").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("구독 적은 플레이리스트").description("설명").build());
+
+    playlistSubscriptionRepository.save(PlaylistSubscription.builder()
+        .playlist(playlist1).subscriberId(subscriber).build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10,
+        SortDirection.ASCENDING, PlaylistSortBy.subscribeCount
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result.get(result.size() - 1).getId()).isEqualTo(playlist1.getId());
+  }
+
+  @Test
+  @DisplayName("createdAt 기준 정렬로 플레이리스트 목록을 조회한다.")
+  void findAllWithCursor_success_with_created_at_sort() {
+    // given
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("첫번째").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("두번째").description("설명").build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, null, null, 10,
+        SortDirection.DESCENDING, PlaylistSortBy.createdAt
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getTitle()).isEqualTo("두번째");
+  }
+
+  @Test
+  @DisplayName("구독자 수 정렬 시 커서가 있어도 무시하고 첫 페이지를 반환한다.")
+  void findAllWithCursor_ignore_cursor_when_subscribe_count_sort() {
+    // given
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("플레이리스트1").description("설명").build());
+    playlistRepository.save(Playlist.builder()
+        .ownerId(UUID.randomUUID()).title("플레이리스트2").description("설명").build());
+
+    PlaylistSearchRequest request = new PlaylistSearchRequest(
+        null, null, null, Instant.EPOCH.toString(), UUID.randomUUID(), 10,
+        SortDirection.DESCENDING, PlaylistSortBy.subscribeCount
+    );
+
+    // when
+    List<Playlist> result = playlistQDSLRepository.findAllWithCursor(request);
+
+    // then
+    assertThat(result).hasSize(2);
   }
 }

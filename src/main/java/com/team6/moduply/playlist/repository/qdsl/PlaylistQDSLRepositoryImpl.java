@@ -1,6 +1,8 @@
 package com.team6.moduply.playlist.repository.qdsl;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.team6.moduply.common.pagination.SortDirection;
@@ -24,6 +26,13 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
 
   @Override
   public List<Playlist> findAllWithCursor(PlaylistSearchRequest request) {
+    QPlaylistSubscription subscription = QPlaylistSubscription.playlistSubscription;
+
+    NumberExpression<Long> subscriberCount = Expressions.numberTemplate(Long.class,
+        "({0})", JPAExpressions.select(subscription.count())
+            .from(subscription)
+            .where(subscription.playlist.id.eq(playlist.id)));
+
     var query = queryFactory.selectFrom(playlist)
         .where(
             keywordLikeCondition(request.keywordLike()),
@@ -32,13 +41,17 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
             subscriberIdCondition(request.subscriberIdEqual())
         )
         .orderBy(
-            request.sortBy() == PlaylistSortBy.createdAt
+            request.sortBy() == PlaylistSortBy.subscribeCount
                 ? (request.sortDirection() == SortDirection.ASCENDING
-                ? playlist.createdAt.asc()
-                : playlist.createdAt.desc())
-                : (request.sortDirection() == SortDirection.ASCENDING
-                    ? playlist.updatedAt.asc()
-                    : playlist.updatedAt.desc()),
+                ? subscriberCount.asc()
+                : subscriberCount.desc())
+                : request.sortBy() == PlaylistSortBy.createdAt
+                    ? (request.sortDirection() == SortDirection.ASCENDING
+                    ? playlist.createdAt.asc()
+                    : playlist.createdAt.desc())
+                    : (request.sortDirection() == SortDirection.ASCENDING
+                        ? playlist.updatedAt.asc()
+                        : playlist.updatedAt.desc()),
             playlist.id.asc()
         )
         .limit(request.limit() + 1);
@@ -82,16 +95,23 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
       return null;
     }
 
+    // subscribeCount 정렬은 커서 페이지네이션 미지원 (첫 페이지만 지원)
+    if (request.sortBy() == PlaylistSortBy.subscribeCount) {
+      return null;
+    }
+
     Instant cursorTime = Instant.parse(request.cursor());
 
+    var sortKey = request.sortBy() == PlaylistSortBy.createdAt
+        ? playlist.createdAt
+        : playlist.updatedAt;
+
     if (request.sortDirection() == SortDirection.ASCENDING) {
-      return playlist.updatedAt.gt(cursorTime)
-          .or(playlist.updatedAt.eq(cursorTime)
-              .and(playlist.id.gt(request.idAfter())));
+      return sortKey.gt(cursorTime)
+          .or(sortKey.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
     } else {
-      return playlist.updatedAt.lt(cursorTime)
-          .or(playlist.updatedAt.eq(cursorTime)
-              .and(playlist.id.gt(request.idAfter())));
+      return sortKey.lt(cursorTime)
+          .or(sortKey.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
     }
   }
 }
