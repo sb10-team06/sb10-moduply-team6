@@ -1,6 +1,5 @@
 package com.team6.moduply.content.service;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.config.CacheConfig;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.dto.ContentListCacheItemDto;
@@ -24,11 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ContentListCacheService {
 
-  private static final String DEFAULT_THUMBNAIL_URL = "/placeholder-movie.png";
-
   private final ContentRepository contentRepository;
   private final ContentTagRepository contentTagRepository;
-  private final BinaryContentService binaryContentService;
 
   /// 캐시 키는 type, keyword, tags...를 모두 포함한다.
   @Cacheable(
@@ -85,15 +81,12 @@ public class ContentListCacheService {
   }
 
   private ContentListCacheItemDto toCacheItem(Content content, List<String> tagNames) {
-    String thumbnailUrl = content.getContentImg() == null
-        ? DEFAULT_THUMBNAIL_URL
-        : binaryContentService.generateUrl(content.getContentImg());
     return new ContentListCacheItemDto(
         content.getId(),
         content.getType(),
         content.getTitle(),
         content.getDescription(),
-        thumbnailUrl,
+        ContentImageUrlResolver.resolve(content),
         tagNames,
         content.getAverageRating(),
         content.getReviewCount()

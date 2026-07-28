@@ -13,6 +13,7 @@ public class ContentTestDataProperties {
   private int totalSize = 10000;
   private int chunkSize = 1000;
   private boolean skipIfExists = true;
+  private String imageBaseUrl = "https://moduply-test.s3.ap-northeast-2.amazonaws.com";
 
   public boolean isEnabled() {
     return enabled;
@@ -44,5 +45,13 @@ public class ContentTestDataProperties {
 
   public void setSkipIfExists(boolean skipIfExists) {
     this.skipIfExists = skipIfExists;
+  }
+
+  public String getImageBaseUrl() {
+    return imageBaseUrl;
+  }
+
+  public void setImageBaseUrl(String imageBaseUrl) {
+    this.imageBaseUrl = imageBaseUrl;
   }
 }

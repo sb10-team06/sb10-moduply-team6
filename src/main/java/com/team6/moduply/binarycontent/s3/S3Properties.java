@@ -14,7 +14,6 @@ public class S3Properties {
     private String secretKey;
     private String region;
     private String bucket;
-    private Long presignedUrlExpiration;
     private Long connectTimeoutMillis = 3000L;
     private Long socketTimeoutMillis = 5000L;
     private Long connectionAcquisitionTimeoutMillis = 3000L;

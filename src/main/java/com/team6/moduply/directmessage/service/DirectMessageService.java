@@ -1,6 +1,5 @@
 package com.team6.moduply.directmessage.service;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.conversation.entity.Conversation;
 import com.team6.moduply.conversation.entity.ConversationUserState;
 import com.team6.moduply.conversation.exception.ConversationErrorCode;
@@ -38,7 +37,6 @@ public class DirectMessageService {
   private final DirectMessageRepository directMessageRepository;
   private final UserRepository userRepository;
   private final DirectMessageMapper directMessageMapper;
-  private final BinaryContentService binaryContentService;
   private final UserMapper userMapper;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -136,7 +134,10 @@ public class DirectMessageService {
   }
 
   private UserSummaryDto toUserSummaryDto(User user) {
-    return userMapper.toSummaryDto(user, binaryContentService.generateUrl(user.getProfileImg()));
+    return userMapper.toSummaryDto(
+        user,
+        user.getProfileImageUrl()
+    );
   }
 
   private void validateParticipant(Conversation conversation, UUID userId) {

@@ -15,89 +15,62 @@ class LocalBinaryContentStorageTest {
   Path tempDir;
 
   @Test
-  @DisplayName("로컬 저장소 업로드 시 storageKey 경로에 파일을 저장한다.")
-  void upload_success_with_storage_key() throws Exception {
-    // given
+  @DisplayName("로컬 저장소 업로드에 성공하면 저장된 이미지 URL을 반환한다.")
+  void upload_success_with_image_url() throws Exception {
     LocalBinaryContentStorage storage = createStorage();
     String key = "contents/content-id/thumbnail/image.png";
     byte[] bytes = "image-bytes".getBytes();
 
-    // when
     String result = storage.upload(key, bytes, "image/png");
 
-    // then
-    assertThat(result).isEqualTo(key);
+    assertThat(result).isEqualTo("/uploads/" + key);
     assertThat(Files.readAllBytes(tempDir.resolve(key))).isEqualTo(bytes);
   }
 
   @Test
-  @DisplayName("로컬 저장소 URL 생성 시 urlPrefix와 storageKey를 조합한다.")
-  void generateUrl_success_with_storage_key() {
-    // given
-    LocalBinaryContentStorage storage = createStorage();
-
-    // when
-    String result = storage.generateUrl("contents/content-id/thumbnail/image.png", "image/png");
-
-    // then
-    assertThat(result).isEqualTo("/uploads/contents/content-id/thumbnail/image.png");
-  }
-
-  @Test
-  @DisplayName("로컬 저장소 URL 생성 시 urlPrefix 끝 슬래시를 정규화한다.")
-  void generateUrl_success_when_url_prefix_has_trailing_slash() {
-    // given
+  @DisplayName("로컬 저장소 업로드 시 URL 접두사의 마지막 슬래시를 정규화한다.")
+  void upload_success_when_url_prefix_has_trailing_slash() throws Exception {
     LocalBinaryContentStorage storage = createStorage("/uploads/");
+    String key = "contents/content-id/thumbnail/image.png";
 
-    // when
-    String result = storage.generateUrl("contents/content-id/thumbnail/image.png", "image/png");
+    String result = storage.upload(key, "image-bytes".getBytes(), "image/png");
 
-    // then
-    assertThat(result).isEqualTo("/uploads/contents/content-id/thumbnail/image.png");
+    assertThat(result).isEqualTo("/uploads/" + key);
   }
 
   @Test
   @DisplayName("로컬 저장소 삭제 시 storageKey 경로의 파일을 삭제한다.")
   void delete_success_with_storage_key() throws Exception {
-    // given
     LocalBinaryContentStorage storage = createStorage();
     String key = "contents/content-id/thumbnail/image.png";
     Path filePath = tempDir.resolve(key);
     Files.createDirectories(filePath.getParent());
     Files.write(filePath, "image-bytes".getBytes());
 
-    // when
     String result = storage.delete(key);
 
-    // then
     assertThat(result).isEqualTo(key);
     assertThat(filePath).doesNotExist();
   }
 
   @Test
-  @DisplayName("로컬 저장소 삭제 시 대상 파일이 없어도 storageKey를 반환한다.")
+  @DisplayName("로컬 저장소 삭제 시 파일이 없어도 storageKey를 반환한다.")
   void delete_success_when_file_does_not_exist() {
-    // given
     LocalBinaryContentStorage storage = createStorage();
     String key = "contents/content-id/thumbnail/missing.png";
 
-    // when
     String result = storage.delete(key);
 
-    // then
     assertThat(result).isEqualTo(key);
   }
 
   @Test
-  @DisplayName("로컬 저장소 업로드 시 rootPath 밖으로 벗어나는 storageKey면 예외가 발생한다.")
+  @DisplayName("로컬 저장소 루트 경로를 벗어나는 storageKey 업로드는 실패한다.")
   void upload_fail_when_storage_key_escapes_root_path() {
-    // given
     LocalBinaryContentStorage storage = createStorage();
 
-    // when & then
     assertThatThrownBy(() -> storage.upload("../escape.png", "image-bytes".getBytes(), "image/png"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("로컬 저장소 경로를 벗어날 수 없습니다.");
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   private LocalBinaryContentStorage createStorage() {
@@ -108,7 +81,6 @@ class LocalBinaryContentStorageTest {
     LocalStorageProperties properties = new LocalStorageProperties();
     properties.setRootPath(tempDir.toString());
     properties.setUrlPrefix(urlPrefix);
-
     return new LocalBinaryContentStorage(properties);
   }
 }

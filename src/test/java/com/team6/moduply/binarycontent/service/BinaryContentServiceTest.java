@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.team6.moduply.binarycontent.BinaryContentStatus;
+import com.team6.moduply.binarycontent.dto.BinaryContentUploadResult;
 import com.team6.moduply.binarycontent.entity.BinaryContent;
 import com.team6.moduply.binarycontent.event.BinaryContentCreatedEvent;
 import com.team6.moduply.binarycontent.event.BinaryContentDeletedEvent;
@@ -76,8 +77,14 @@ class BinaryContentServiceTest {
     given(binaryContentRepository.save(any(BinaryContent.class)))
         .willAnswer(invocation -> saveWithId(invocation.getArgument(0)));
 
+    String imageUrl = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/profile.png";
+    given(binaryContentStorage.upload(any(String.class), any(byte[].class), eq("image/png")))
+        .willReturn(imageUrl);
+
     // when
-    BinaryContent result = binaryContentService.createUserProfile(userId, image, oldProfileImg);
+    BinaryContentUploadResult uploadResult =
+        binaryContentService.createUserProfile(userId, image, oldProfileImg);
+    BinaryContent result = uploadResult.binaryContent();
 
     // then
     // binaryContent가 잘 저장됐는지
@@ -88,6 +95,7 @@ class BinaryContentServiceTest {
         .startsWith("users/%s/profile/".formatted(userId))
         .endsWith(".png");
     assertThat(result.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
+    assertThat(uploadResult.url()).isEqualTo(imageUrl);
     //binaryContent.save() 실행됐는지
     verify(binaryContentRepository).save(result);
     verify(binaryContentStorage).upload(result.getStorageKey(), image.getBytes(), "image/png");
@@ -451,41 +459,6 @@ class BinaryContentServiceTest {
   }
 
   @Test
-  @DisplayName("S3 업로드 성공 처리 시 BinaryContent 상태를 SUCCESS로 변경한다.")
-  void updatesStatusSuccess_success() {
-    // given
-    UUID binaryContentId = UUID.randomUUID();
-    BinaryContent binaryContent = BinaryContent.create(
-        "profile.png",
-        100L,
-        "image/png",
-        "users/%s/profile/test.png".formatted(UUID.randomUUID())
-    );
-    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.of(binaryContent));
-
-    // when
-    binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, null, null);
-
-    // then
-    assertThat(binaryContent.getStatus()).isEqualTo(BinaryContentStatus.SUCCESS);
-  }
-
-  @Test
-  @DisplayName("S3 업로드 성공 처리 시 BinaryContent가 존재하지 않으면 BINARY_CONTENT_NOT_FOUND 예외가 발생한다.")
-  void updatesStatusSuccess_fail_when_binary_content_not_found() {
-    // given
-    UUID binaryContentId = UUID.randomUUID();
-    given(binaryContentRepository.findById(binaryContentId)).willReturn(Optional.empty());
-
-    // when & then
-    assertThatThrownBy(() -> binaryContentService.updatesStatusSuccessAndPublishDeleteEvent(binaryContentId, null, null))
-        .isInstanceOfSatisfying(BinaryContentException.class, exception -> {
-          assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
-          assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
-        });
-  }
-
-  @Test
   @DisplayName("S3 업로드 실패 처리 시 BinaryContent 상태를 FAIL로 변경한다.")
   void updatesStatusFail_success() {
     // given
@@ -518,43 +491,6 @@ class BinaryContentServiceTest {
           assertThat(exception.getErrorCode()).isEqualTo(BinaryContentErrorCode.BINARY_CONTENT_NOT_FOUND);
           assertThat(exception.getDetails().get("binaryContentId")).isEqualTo(binaryContentId);
         });
-  }
-
-  @Test
-  @DisplayName("BinaryContent가 null이면 URL을 생성하지 않고 null을 반환한다.")
-  void generateUrl_return_null_when_binary_content_is_null() {
-    // when
-    String result = binaryContentService.generateUrl(null);
-
-    // then
-    assertThat(result).isNull();
-    verify(binaryContentStorage, never()).generateUrl(any(String.class), any(String.class));
-  }
-
-  @Test
-  @DisplayName("BinaryContent가 있으면 storageKey와 contentType으로 URL을 생성한다.")
-  void generateUrl_success() {
-    // given
-    BinaryContent binaryContent = BinaryContent.create(
-        "profile.png",
-        100L,
-        "image/png",
-        "users/user-id/profile/profile.png"
-    );
-    given(binaryContentStorage.generateUrl(
-        eq("users/user-id/profile/profile.png"),
-        eq("image/png")
-    )).willReturn("https://example.com/profile.png");
-
-    // when
-    String result = binaryContentService.generateUrl(binaryContent);
-
-    // then
-    assertThat(result).isEqualTo("https://example.com/profile.png");
-    verify(binaryContentStorage).generateUrl(
-        "users/user-id/profile/profile.png",
-        "image/png"
-    );
   }
 
   @Test

@@ -23,15 +23,10 @@ public class LocalBinaryContentStorage implements BinaryContentStorage {
     try {
       Files.createDirectories(path.getParent());
       Files.write(path, bytes);
-      return key;
+      return normalizeUrlPrefix() + "/" + key;
     } catch (IOException e) {
       throw new UncheckedIOException("로컬 파일 저장에 실패했습니다. key=" + key, e);
     }
-  }
-
-  @Override
-  public String generateUrl(String key, String contentType) {
-    return normalizeUrlPrefix() + "/" + key;
   }
 
   @Override

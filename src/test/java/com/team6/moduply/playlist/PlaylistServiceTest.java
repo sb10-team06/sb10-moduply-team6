@@ -1,6 +1,5 @@
 package com.team6.moduply.playlist;
 
-import com.team6.moduply.binarycontent.service.BinaryContentService;
 import com.team6.moduply.common.pagination.CursorResponse;
 import com.team6.moduply.common.pagination.SortDirection;
 import com.team6.moduply.content.entity.Content;
@@ -77,9 +76,6 @@ class PlaylistServiceTest {
 
   @Mock
   private UserRepository userRepository;
-
-  @Mock
-  private BinaryContentService binaryContentService;
 
   @Mock
   private ApplicationEventPublisher eventPublisher;
@@ -322,7 +318,6 @@ class PlaylistServiceTest {
     given(playlistSubscriptionRepository.existsByPlaylistAndSubscriberId(playlist, currentUserId)).willReturn(false);
     given(playlistContentRepository.findAllByPlaylist(playlist)).willReturn(List.of(playlistContent));
     given(contentRepository.findAllById(any())).willReturn(List.of(content));
-    given(binaryContentService.generateUrl(any())).willReturn(null);
     given(playlistMapper.toDto(any(), any(), anyLong(), anyBoolean(), any())).willReturn(expectedDto);
 
     // when
