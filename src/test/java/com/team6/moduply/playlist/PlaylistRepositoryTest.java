@@ -245,7 +245,7 @@ class PlaylistRepositoryTest extends RepositoryTestSupport {
         .ownerId(UUID.randomUUID()).title("플레이리스트2").description("설명").build());
 
     PlaylistSearchRequest request = new PlaylistSearchRequest(
-        null, null, null, Instant.now().toString(), UUID.randomUUID(), 10,
+        null, null, null, Instant.EPOCH.toString(), UUID.randomUUID(), 10,
         SortDirection.DESCENDING, PlaylistSortBy.subscribeCount
     );
 
