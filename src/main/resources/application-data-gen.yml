@@ -20,7 +20,7 @@ moduply:
       enabled: ${MODUPLY_TEST_DATA_REVIEW_ENABLED:false}
       hot-content-size: ${MODUPLY_TEST_DATA_REVIEW_HOT_CONTENT_SIZE:10}
       reviews-per-content: ${MODUPLY_TEST_DATA_REVIEW_REVIEWS_PER_CONTENT:5000}
-      user-email-like: ${MODUPLY_TEST_DATA_REVIEW_USER_EMAIL_LIKE:k6-review-%@moduply.test}
+      user-email-like: ${MODUPLY_TEST_DATA_REVIEW_USER_EMAIL_LIKE:k6-user-%@moduply.test}
       content-external-api-id-like: ${MODUPLY_TEST_DATA_REVIEW_CONTENT_EXTERNAL_API_ID_LIKE:k6-seed-%}
       chunk-size: ${MODUPLY_TEST_DATA_REVIEW_CHUNK_SIZE:1000}
       skip-if-exists: ${MODUPLY_TEST_DATA_REVIEW_SKIP_IF_EXISTS:true}
