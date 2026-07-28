@@ -102,12 +102,16 @@ public class PlaylistQDSLRepositoryImpl implements PlaylistQDSLRepository {
 
     Instant cursorTime = Instant.parse(request.cursor());
 
+    var sortKey = request.sortBy() == PlaylistSortBy.createdAt
+        ? playlist.createdAt
+        : playlist.updatedAt;
+
     if (request.sortDirection() == SortDirection.ASCENDING) {
-      return playlist.updatedAt.gt(cursorTime)
-          .or(playlist.updatedAt.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
+      return sortKey.gt(cursorTime)
+          .or(sortKey.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
     } else {
-      return playlist.updatedAt.lt(cursorTime)
-          .or(playlist.updatedAt.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
+      return sortKey.lt(cursorTime)
+          .or(sortKey.eq(cursorTime).and(playlist.id.gt(request.idAfter())));
     }
   }
 }
