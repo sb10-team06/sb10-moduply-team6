@@ -1,6 +1,6 @@
 [![codecov](https://codecov.io/gh/sb10-team06/sb10-moduply-team6/graph/badge.svg)](https://codecov.io/gh/sb10-team06/sb10-moduply-team6)
 
-![header](https://capsule-render.vercel.app/api?type=blur&color=auto&height=300&section=header&text=🎧%20모두의%20플리&fontSize=90)
+![header](https://capsule-render.vercel.app/api?type=blur&color=FF7A85&height=300&section=header&text=🎧%20모두의%20플리&fontSize=90&fontColor=FAFAF8)
 
 > 콘텐츠(영화/드라마/스포츠)를 평가하고 큐레이션하며, 실시간으로 같이 시청하고 채팅할 수 있는 플랫폼입니다.
 
