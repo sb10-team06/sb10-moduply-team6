@@ -186,12 +186,14 @@ jobs:
         # aws ecs wait services-stable
         #  - 새 컨테이너가 RUNNING 상태가 될 때까지 대기
         #  - 헬스체크 통과까지 포함하여 서비스가 안정화되면 완료
+        env:
+          ECS_DESIRED_COUNT: ${{ vars.ECS_DESIRED_COUNT || '1' }}
         run: |
           aws ecs update-service \
             --cluster ${{ vars.ECS_CLUSTER }} \
             --service ${{ vars.ECS_SERVICE }} \
             --task-definition ${{ steps.register.outputs.arn }} \
-            --desired-count 1
+            --desired-count "$ECS_DESIRED_COUNT"
           aws ecs wait services-stable \
             --cluster ${{ vars.ECS_CLUSTER }} \
             --services ${{ vars.ECS_SERVICE }}
@@ -204,6 +206,7 @@ jobs:
         if: failure()
         env:
           PREVIOUS_TASK_DEFINITION: ${{ steps.current-service.outputs.task-definition }}
+          ECS_DESIRED_COUNT: ${{ vars.ECS_DESIRED_COUNT || '1' }}
         run: |
           if [ -z "$PREVIOUS_TASK_DEFINITION" ] || [ "$PREVIOUS_TASK_DEFINITION" = "None" ]; then
             echo "Previous task definition is missing. Skip rollback."
@@ -214,7 +217,7 @@ jobs:
             --cluster ${{ vars.ECS_CLUSTER }} \
             --service ${{ vars.ECS_SERVICE }} \
             --task-definition "$PREVIOUS_TASK_DEFINITION" \
-            --desired-count 1
+            --desired-count "$ECS_DESIRED_COUNT"
 
           aws ecs wait services-stable \
             --cluster ${{ vars.ECS_CLUSTER }} \
