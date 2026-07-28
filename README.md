@@ -5,10 +5,11 @@
 > 콘텐츠(영화/드라마/스포츠)를 평가하고 큐레이션하며, 실시간으로 같이 시청하고 채팅할 수 있는 플랫폼입니다.
 
 ---
+
 ## 📕 프로젝트 개요
 - 프로젝트 기간: 2026.06.18 ~ 2026.07.29
 
-- [📎 배포 링크](http://moduply.co.kr/)
+- [📎 배포 링크](https://moduply.co.kr/)
 
 - [📎 API Swagger](https://moduply.co.kr/swagger-ui/index.html)
 
@@ -70,12 +71,14 @@
 ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
 ![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white)
 ![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)
+
 ---
 
 ## ⚙️ 배포 다이어그램
 ![img.png](img.png)
 
 ---
+
 ## 📁 디렉토리 구조
 
 ```text
