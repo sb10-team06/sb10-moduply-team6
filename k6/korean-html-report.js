@@ -68,6 +68,16 @@ const SCENARIO_TITLES = {
   'content-create': '콘텐츠 생성',
 };
 
+const TRANSACTION_COUNTER_METRICS = [
+  'content_created',
+  'follow_created',
+  'content_list_ok',
+  'content_find_ok',
+  'conversation_list_ok',
+  'profile_updated',
+  'review_list_ok',
+];
+
 function formatNumber(number, digits = 2) {
   if (!Number.isFinite(number)) {
     return '-';
@@ -175,7 +185,21 @@ function requestResultPanel(title, metrics) {
   `;
 }
 
-function detailRows(metrics, transactionCount, transactionTps, duplicateCount) {
+function transactionRows(transactionSummary, duplicateCount) {
+  if (!transactionSummary) {
+    return duplicateCount === undefined
+      ? ''
+      : `<tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>`;
+  }
+
+  return `
+    <tr><td>${transactionSummary.countLabel}</td><td>${formatNumber(transactionSummary.count, 0)}</td></tr>
+    ${duplicateCount === undefined ? '' : `<tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>`}
+    <tr><td>${transactionSummary.tpsLabel}</td><td>${formatNumber(transactionSummary.tps, 2)}</td></tr>
+  `;
+}
+
+function detailRows(metrics, transactionSummary, duplicateCount) {
   return `
     <tr><td>총 요청 수</td><td>${formatNumber(metrics.requestCount, 0)}</td></tr>
     <tr><td>초당 요청 수</td><td>${formatNumber(metrics.requestRate, 2)}</td></tr>
@@ -183,9 +207,7 @@ function detailRows(metrics, transactionCount, transactionTps, duplicateCount) {
     <tr><td>p95 응답 시간</td><td>${formatMs(metrics.durationP95)}</td></tr>
     <tr><td>p99 응답 시간</td><td>${formatMs(metrics.durationP99)}</td></tr>
     <tr><td>최대 응답 시간</td><td>${formatMs(metrics.durationMax)}</td></tr>
-    <tr><td>성공 트랜잭션 수</td><td>${formatNumber(transactionCount, 0)}</td></tr>
-    ${duplicateCount === undefined ? '' : `<tr><td>중복 팔로우 수</td><td>${formatNumber(duplicateCount, 0)}</td></tr>`}
-    <tr><td>성공 TPS</td><td>${formatNumber(transactionTps, 2)}</td></tr>
+    ${transactionRows(transactionSummary, duplicateCount)}
     <tr><td>요청 실패율</td><td>${formatRate(metrics.failedRate)}</td></tr>
   `;
 }
@@ -204,10 +226,17 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
     ? apiResult({ ...apiDefinition, metrics })
     : statusText(metrics.failedRate);
   const statusCss = status === '통과' ? 'pass' : 'fail';
-  const successTps = transactionTps > 0
+  const hasTransactionMetric = transactionCount > 0 || transactionTps > 0;
+  const successTps = hasTransactionMetric
     ? transactionTps
     : metrics.requestRate * (1 - metrics.failedRate);
-  const count = transactionCount > 0 ? transactionCount : metrics.successCount;
+  const count = hasTransactionMetric ? transactionCount : metrics.successCount;
+  const transactionSummary = {
+    count,
+    tps: successTps,
+    countLabel: hasTransactionMetric ? '성공 트랜잭션 수' : '성공 HTTP 요청 수',
+    tpsLabel: hasTransactionMetric ? '성공 TPS' : '성공 HTTP RPS',
+  };
 
   return `
     <section class="section-gap">
@@ -240,12 +269,43 @@ function taggedApiSection(data, tagValue, title, transactionCount = 0, transacti
           <h2>${title} 상세 지표</h2>
           <table>
             <tr><th>항목</th><th>값</th></tr>
-            ${detailRows(metrics, count, successTps, duplicateCount)}
+            ${detailRows(metrics, transactionSummary, duplicateCount)}
           </table>
         </div>
       </section>
     </section>
   `;
+}
+
+function firstTransactionCounterMetric(data) {
+  return TRANSACTION_COUNTER_METRICS.find((metricName) => hasMetric(data, metricName));
+}
+
+function overallTransactionSummary(data, scenarioName, iterationCount, iterationRate) {
+  const transactionMetricName = firstTransactionCounterMetric(data);
+
+  if (transactionMetricName) {
+    return {
+      count: value(data, transactionMetricName, 'count'),
+      tps: value(data, transactionMetricName, 'rate'),
+      countLabel: '성공 트랜잭션 수',
+      tpsLabel: '성공 TPS',
+    };
+  }
+
+  if (scenarioName === 'user-content-browse' && hasMetric(data, 'content_browse_journey_failed')) {
+    const journeyFailedCount = value(data, 'content_browse_journey_failed', 'passes');
+    const journeyFailedRate = value(data, 'content_browse_journey_failed', 'rate');
+
+    return {
+      count: Math.max(0, iterationCount - journeyFailedCount),
+      tps: iterationRate * (1 - journeyFailedRate),
+      countLabel: '성공 사용자 여정 수',
+      tpsLabel: '성공 사용자 여정 TPS',
+    };
+  }
+
+  return null;
 }
 
 function taggedApiSections(data, transactionCount, transactionTps) {
@@ -356,20 +416,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
   const checksRate = value(data, 'checks', 'rate');
   const checksPassed = value(data, 'checks', 'passes');
   const checksFailed = value(data, 'checks', 'fails');
-  const transactionCount = value(data, 'content_created', 'count')
-    || value(data, 'follow_created', 'count')
-    || value(data, 'content_list_ok', 'count')
-    || value(data, 'content_find_ok', 'count')
-    || value(data, 'conversation_list_ok', 'count')
-    || value(data, 'profile_updated', 'count')
-    || value(data, 'review_list_ok', 'count');
-  const transactionTps = value(data, 'content_created', 'rate')
-    || value(data, 'follow_created', 'rate')
-    || value(data, 'content_list_ok', 'rate')
-    || value(data, 'content_find_ok', 'rate')
-    || value(data, 'conversation_list_ok', 'rate')
-    || value(data, 'profile_updated', 'rate')
-    || value(data, 'review_list_ok', 'rate');
+  const transactionSummary = overallTransactionSummary(data, scenarioName, iterationCount, iterationRate);
   const duplicateCount = hasMetric(data, 'follow_already_exists')
     ? value(data, 'follow_already_exists', 'count')
     : undefined;
@@ -573,7 +620,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
       <h2>전체 상세 지표</h2>
       <table>
         <tr><th>항목</th><th>값</th></tr>
-        ${detailRows(overall, transactionCount, transactionTps, duplicateCount)}
+        ${detailRows(overall, transactionSummary, duplicateCount)}
         <tr><td>초당 반복 수</td><td>${formatNumber(iterationRate, 2)}</td></tr>
         <tr><td>체크 성공률</td><td>${formatRate(checksRate)}</td></tr>
       </table>
@@ -581,7 +628,7 @@ export function createKoreanHtmlReport(data, scenarioName) {
 
     ${apiComparisonTable(data)}
 
-    ${taggedApiSections(data, transactionCount, transactionTps)}
+    ${taggedApiSections(data, transactionSummary?.count ?? 0, transactionSummary?.tps ?? 0)}
   </main>
 </body>
 </html>`;

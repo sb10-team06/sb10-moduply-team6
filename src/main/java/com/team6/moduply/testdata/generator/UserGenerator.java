@@ -32,8 +32,8 @@ public class UserGenerator extends AbstractGenerator<User> {
   public static final String FOLLOWER_EMAIL_PREFIX = "k6-follower-";
   public static final String FOLLOWEE_EMAIL_PREFIX = "k6-followee-";
   public static final String CONVERSATION_EMAIL_PREFIX = "k6-conversation-";
-  public static final String PROFILE_UPDATE_EMAIL_PREFIX = "k6-user-";
-  public static final String REVIEW_EMAIL_PREFIX = "k6-review-";
+  public static final String PROFILE_UPDATE_EMAIL_PREFIX = "k6-profile-update-";
+  public static final String REVIEW_EMAIL_PREFIX = "k6-user-";
   public static final String EMAIL_DOMAIN = "@moduply.test";
 
   private static final String INSERT_USER_SQL = """
@@ -81,8 +81,8 @@ public class UserGenerator extends AbstractGenerator<User> {
     generateGroup(FOLLOWER_EMAIL_PREFIX, "k6 follower", properties.getFollowerSize());
     generateGroup(FOLLOWEE_EMAIL_PREFIX, "k6 followee", properties.getFolloweeSize());
     generateGroup(CONVERSATION_EMAIL_PREFIX, "k6 conversation", properties.getConversationSize());
-    generateGroup(PROFILE_UPDATE_EMAIL_PREFIX, "k6 user", properties.getProfileUpdateSize());
-    generateGroup(REVIEW_EMAIL_PREFIX, "k6 review", properties.getReviewSize());
+    generateGroup(PROFILE_UPDATE_EMAIL_PREFIX, "k6 profile update", properties.getProfileUpdateSize());
+    generateGroup(REVIEW_EMAIL_PREFIX, "k6 user", properties.getReviewSize());
   }
 
   @Override
@@ -158,11 +158,11 @@ public class UserGenerator extends AbstractGenerator<User> {
 
   private String createEmail() {
     int value = sequence.incrementAndGet();
-    return "%s%06d%s".formatted(currentEmailPrefix, value, EMAIL_DOMAIN);
+    return "%s%07d%s".formatted(currentEmailPrefix, value, EMAIL_DOMAIN);
   }
 
   private String createName() {
-    return "%s %06d".formatted(currentNamePrefix, sequence.get());
+    return "%s %07d".formatted(currentNamePrefix, sequence.get());
   }
 
   private void setBaseFields(User user) {

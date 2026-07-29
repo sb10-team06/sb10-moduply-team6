@@ -10,7 +10,8 @@ const PASSWORD = __ENV.TEST_USER_PASSWORD || 'k6-password';
 const USER_COUNT = Number(__ENV.USER_COUNT || 1000);
 const SETUP_LOGIN_BATCH_SIZE = Math.max(1, Number(__ENV.SETUP_LOGIN_BATCH_SIZE || 100));
 const EMAIL_DOMAIN = __ENV.EMAIL_DOMAIN || '@moduply.test';
-const USER_PREFIX = __ENV.USER_PREFIX || 'k6-user';
+const USER_PREFIX = __ENV.USER_PREFIX || 'k6-profile-update';
+const USER_INDEX_PAD_WIDTH = parsePadWidth(__ENV.USER_INDEX_PAD_WIDTH, 7);
 
 const START_RPS = Number(__ENV.START_RPS || 10);
 const RPS_STAGES = (__ENV.RPS_STAGES || '10,20,30,50')
@@ -36,6 +37,19 @@ const DEFAULT_PROFILE_IMAGE = encoding.b64decode(
 const profileImage = IMAGE_PATH ? open(IMAGE_PATH, 'b') : DEFAULT_PROFILE_IMAGE;
 
 const profileUpdated = new Counter('profile_updated');
+
+function parsePadWidth(value, fallback) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const width = Number(value);
+  if (!Number.isInteger(width) || width < 1) {
+    throw new Error('USER_INDEX_PAD_WIDTH must be an integer greater than or equal to 1.');
+  }
+
+  return width;
+}
 
 export const options = {
   scenarios: {
@@ -213,7 +227,7 @@ function fillMissingCsrfCookies(users) {
 }
 
 function createEmail(prefix, index) {
-  return `${prefix}-${String(index).padStart(6, '0')}${EMAIL_DOMAIN}`;
+  return `${prefix}-${String(index).padStart(USER_INDEX_PAD_WIDTH, '0')}${EMAIL_DOMAIN}`;
 }
 
 function getCookieValue(res, name) {

@@ -13,10 +13,11 @@ import { Rate } from 'k6/metrics';
 import { koreanSummary } from './korean-html-report.js';
 
 const BASE_URL = (__ENV.BASE_URL || 'https://moduply.co.kr').replace(/\/+$/, '');
-const EMAIL_TEMPLATE = __ENV.TEST_USER_EMAIL_TEMPLATE || '';
-const PASSWORD_TEMPLATE = __ENV.TEST_USER_PASSWORD_TEMPLATE || '';
+const EMAIL_TEMPLATE = __ENV.TEST_USER_EMAIL_TEMPLATE || 'k6-user-{index}@moduply.test';
+const PASSWORD_TEMPLATE = __ENV.TEST_USER_PASSWORD_TEMPLATE || 'k6-password';
 const USER_COUNT = positiveNumber(__ENV.USER_COUNT, 20);
 const USER_START_INDEX = positiveNumber(__ENV.USER_START_INDEX, 1);
+const USER_INDEX_PAD_WIDTH = positiveNumber(__ENV.USER_INDEX_PAD_WIDTH, 7);
 const SETUP_TIMEOUT = __ENV.SETUP_TIMEOUT || '5m';
 
 const CONTENT_LIMIT = positiveNumber(__ENV.CONTENT_LIMIT, 20);
@@ -255,22 +256,23 @@ function think() {
 }
 
 function validateCredentialTemplates() {
-  if (!EMAIL_TEMPLATE.includes('{index}') || !PASSWORD_TEMPLATE.includes('{index}')) {
+  if (!EMAIL_TEMPLATE.includes('{index}')) {
     fail(
-      'TEST_USER_EMAIL_TEMPLATE과 TEST_USER_PASSWORD_TEMPLATE에 {index}를 포함해 주세요.'
+      'TEST_USER_EMAIL_TEMPLATE에 {index}를 포함해 주세요.'
     );
   }
 }
 
 function createCredential(index) {
   return {
-    email: applyIndexTemplate(EMAIL_TEMPLATE, index),
-    password: applyIndexTemplate(PASSWORD_TEMPLATE, index),
+    email: applyIndexTemplate(EMAIL_TEMPLATE, index, true),
+    password: applyIndexTemplate(PASSWORD_TEMPLATE, index, false),
   };
 }
 
-function applyIndexTemplate(template, index) {
-  return template.split('{index}').join(String(index));
+function applyIndexTemplate(template, index, padIndex) {
+  const value = padIndex ? String(index).padStart(USER_INDEX_PAD_WIDTH, '0') : String(index);
+  return template.split('{index}').join(value);
 }
 
 function buildStages() {
